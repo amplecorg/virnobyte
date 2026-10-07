@@ -1,0 +1,50 @@
+---
+import Base from '@/layouts/Base.astro';
+import PageHero from '@/components/PageHero.astro';
+import ProjectList from '@/components/ProjectList.astro';
+import CtaBand from '@/components/CtaBand.astro';
+import { projects, service, PORTFOLIO_CATEGORIES, type PortfolioCategory } from '@/lib/data';
+import { breadcrumbs } from '@/lib/schema';
+
+const slug = Astro.params.category as PortfolioCategory;
+const cat = PORTFOLIO_CATEGORIES[slug];
+if (!cat) return Astro.rewrite('/404');
+
+const items = projects(slug);
+const svc = service(cat.service);
+const crumbs = [
+  { name: 'Home', href: '/' },
+  { name: 'Portfolio', href: '/portfolio' },
+  { name: cat.name, href: `/portfolio/${slug}` },
+];
+---
+
+<Base
+  title={`${cat.name} in Pune & Pimpri-Chinchwad | Virnobyte`}
+  description={`${cat.blurb} Completed by Virnobyte for customers in Chikhali, Pimpri-Chinchwad and Pune.`}
+  canonical={`/portfolio/${slug}`}
+  image={`/og/portfolio/${slug}.jpg`}
+  noindex={items.length === 0}
+  jsonLd={breadcrumbs(Astro.site!, crumbs)}
+>
+  <PageHero crumbs={crumbs} eyebrow="Portfolio" title={cat.name} lede={cat.blurb}>
+    {svc && <p><a href={`/services/${svc.slug}`}>About our {svc.name.toLowerCase()} service</a></p>}
+  </PageHero>
+  <section class="section">
+    <div class="wrap">
+      {
+        items.length ? (
+          <ProjectList items={items} />
+        ) : (
+          <div class="card" style="max-width:720px">
+            <h2 style="font-size:1.25rem">Projects are being documented</h2>
+            <p class="muted" style="margin-top:8px">
+              We are adding write-ups of recent {cat.name.toLowerCase()} with customer permission. Meanwhile, ask us for references for similar work.
+            </p>
+          </div>
+        )
+      }
+    </div>
+  </section>
+  <CtaBand />
+</Base>

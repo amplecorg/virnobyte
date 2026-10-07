@@ -1,0 +1,162 @@
+---
+import Base from '@/layouts/Base.astro';
+import Breadcrumbs from '@/components/Breadcrumbs.astro';
+import Icon from '@/components/Icon.astro';
+import BookingForm from '@/components/BookingForm.astro';
+import { contactInfo, getSettings } from '@/lib/settings';
+import { breadcrumbs, localBusiness } from '@/lib/schema';
+
+const s = getSettings();
+const c = contactInfo(s);
+const crumbs = [
+  { name: 'Home', href: '/' },
+  { name: 'Contact', href: '/contact' },
+];
+const sent = Astro.url.searchParams.get('sent');
+const error = Astro.url.searchParams.get('error');
+const preset = Astro.url.searchParams.get('service') ?? undefined;
+---
+
+<Base
+  title="Contact Virnobyte | IT Services in Chikhali, Pimpri-Chinchwad"
+  description={`Contact Virnobyte for computer repair, laptop repair, CCTV, networking and IT support. Visit us at Sadichha Complex, Chikhali, Pimpri-Chinchwad or call ${c.phone}.`}
+  canonical="/contact"
+  image="/og/pages/contact.jpg"
+  jsonLd={[localBusiness(Astro.site!, s), breadcrumbs(Astro.site!, crumbs)]}
+>
+  <section class="section contact">
+    <div class="wrap grid-c">
+      <div class="info">
+        <Breadcrumbs items={crumbs} />
+        <h1>Contact Virnobyte</h1>
+        <p class="lede">
+          Visit our workshop in {c.locality}, call or WhatsApp us, or book a service online. We reply to every request and confirm visits by phone.
+        </p>
+
+        <address class="nap">
+          {c.addressLines.map((l, i) => (i === 0 ? <strong>{l}</strong> : <span>{l}{i < c.addressLines.length - 1 ? ',' : ''}</span>))}
+        </address>
+
+        <dl class="lines">
+          <div>
+            <dt>Phone</dt>
+            <dd><a href={c.tel}>{c.phone}</a></dd>
+          </div>
+          <div>
+            <dt>WhatsApp</dt>
+            <dd><a href={c.whatsappUrl()} rel="noopener" target="_blank">{c.whatsapp}</a></dd>
+          </div>
+          <div>
+            <dt>Email</dt>
+            <dd><a href={c.mailto}>{c.email}</a></dd>
+          </div>
+          {
+            s.business.hours && (
+              <div>
+                <dt>Hours</dt>
+                <dd>{s.business.hours}</dd>
+              </div>
+            )
+          }
+          <div>
+            <dt>Service areas</dt>
+            <dd>{s.business.serviceAreas.join(', ')}</dd>
+          </div>
+        </dl>
+
+        <div class="btn-row">
+          <a class="btn" href={c.tel}><Icon name="phone" /> Call Now</a>
+          <a class="btn btn--ghost" href={c.whatsappUrl()} rel="noopener" target="_blank"><Icon name="whatsapp" /> WhatsApp Now</a>
+          <a class="btn btn--ghost" href={c.directions} rel="noopener" target="_blank"><Icon name="directions" /> Get Directions</a>
+          <a class="btn btn--ghost" href={c.mailto}><Icon name="mail" /> Send Email</a>
+        </div>
+      </div>
+
+      <div class="card form-card">
+        <h2 id="book">Book a service</h2>
+        {sent && <p class="alert alert--ok" role="status">Thank you — your request has been received. We will call you shortly to confirm.</p>}
+        {error === 'fields' && <p class="alert alert--error" role="alert">Please add your name and a valid mobile number, then send the form again.</p>}
+        {error === 'rate' && <p class="alert alert--error" role="alert">We have received several requests from this connection. Please call or WhatsApp us instead.</p>}
+        <BookingForm preset={preset} source="/contact" />
+      </div>
+    </div>
+  </section>
+
+  <section class="map-wrap" aria-label="Map">
+    <iframe
+      title={`Map showing ${c.name}, ${c.locality}, ${c.city}`}
+      src={c.mapEmbed}
+      loading="lazy"
+      referrerpolicy="no-referrer-when-downgrade"
+      allowfullscreen></iframe>
+  </section>
+</Base>
+
+<style>
+  .grid-c {
+    display: grid;
+    gap: var(--space-7);
+  }
+  .info {
+    display: grid;
+    gap: var(--space-5);
+    align-content: start;
+  }
+  .nap {
+    font-style: normal;
+    display: grid;
+    line-height: 1.55;
+    padding: var(--space-5);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--accent);
+    border-radius: var(--radius-s);
+    max-width: 460px;
+  }
+  .nap strong {
+    font-size: 1.25rem;
+    margin-bottom: 4px;
+  }
+  .lines {
+    margin: 0;
+    display: grid;
+    gap: var(--space-3);
+  }
+  .lines div {
+    display: grid;
+    grid-template-columns: 130px 1fr;
+    gap: var(--space-3);
+  }
+  .lines dt {
+    color: var(--ink-3);
+    font-size: var(--fs-small);
+    padding-top: 2px;
+  }
+  .lines dd {
+    margin: 0;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .form-card {
+    display: grid;
+    gap: var(--space-5);
+    align-content: start;
+  }
+  .form-card h2 {
+    font-size: 1.5rem;
+    scroll-margin-top: calc(var(--header-h) + 16px);
+  }
+  .map-wrap iframe {
+    display: block;
+    width: 100%;
+    height: clamp(320px, 45vw, 560px);
+    border: 0;
+    background: var(--line);
+  }
+  @media (min-width: 1100px) {
+    .grid-c {
+      grid-template-columns: 1fr minmax(420px, 560px);
+      gap: var(--space-8);
+    }
+  }
+</style>

@@ -1,0 +1,386 @@
+---
+import Base from '@/layouts/Base.astro';
+import Breadcrumbs from '@/components/Breadcrumbs.astro';
+import Photo from '@/components/Photo.astro';
+import StepForm from '@/components/StepForm.astro';
+import Field from '@/components/Field.astro';
+import { job } from '@/lib/data';
+import { contactInfo, getSettings } from '@/lib/settings';
+import { breadcrumbs, jobPostingNode } from '@/lib/schema';
+import { inr } from '@/lib/format';
+
+const j = job(Astro.params.slug!);
+if (!j) return Astro.rewrite('/404');
+
+const s = getSettings();
+const c = contactInfo(s);
+const site = Astro.site!;
+const crumbs = [
+  { name: 'Home', href: '/' },
+  { name: 'Careers', href: '/careers' },
+  { name: j.title, href: `/careers/${j.slug}` },
+];
+const TYPE: Record<string, string> = { FULL_TIME: 'Full-time', PART_TIME: 'Part-time', INTERN: 'Internship', CONTRACTOR: 'Contract' };
+const pay = `${inr(j.salary_min)}–${inr(j.salary_max)}`;
+const sent = Astro.url.searchParams.get('sent');
+const error = Astro.url.searchParams.get('error');
+
+const jobPosting = jobPostingNode(site, j, c);
+---
+
+<Base
+  title={`${j.title} Job in ${c.locality}, ${c.city} | ${c.name} Careers`}
+  description={`${j.title} at ${c.name}, ${c.locality}: ${pay} per month, ${TYPE[j.employment_type] ?? ''}. ${j.promise}`.slice(0, 300)}
+  canonical={`/careers/${j.slug}`}
+  image={`/og/careers/${j.slug}.jpg`}
+  jsonLd={[jobPosting, breadcrumbs(site, crumbs)]}
+>
+  <!-- 1. Hero: a real photo, one promise, three facts -->
+  <section class="j-hero">
+    <Photo image={j.image} alt="" eager sizes="100vw" widths={[768, 1080, 1440, 1920, 2560, 3840]} class="bg" />
+    <div class="wrap inner">
+      <Breadcrumbs items={crumbs} tone="dark" />
+      <h1>{j.title}</h1>
+      <p class="lede">{j.promise}</p>
+      <dl class="facts">
+        <div><dt>Monthly pay</dt><dd>{pay}</dd></div>
+        <div><dt>Location</dt><dd>{j.location}</dd></div>
+        <div><dt>Type</dt><dd>{TYPE[j.employment_type] ?? j.employment_type}</dd></div>
+      </dl>
+      <a class="btn" href="#apply">Apply in 5 minutes</a>
+    </div>
+  </section>
+
+  <!-- 2. The role -->
+  <section class="section">
+    <div class="wrap two">
+      <div class="stack" data-reveal>
+        <span class="eyebrow">The role</span>
+        <h2>What this job is</h2>
+        <p class="lede">{j.about_role}</p>
+      </div>
+      <dl class="keys" data-reveal>
+        <div><dt>Experience</dt><dd>{j.experience || 'Open to freshers'}</dd></div>
+        <div><dt>Pay</dt><dd>{pay} / month</dd></div>
+        <div><dt>Where</dt><dd>{c.locality} workshop + field visits</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <!-- 3. Direction -->
+  <section class="section--tight section--night">
+    <div class="wrap stack" data-reveal>
+      <span class="eyebrow">The direction</span>
+      <p class="dir">{s.careers.direction}</p>
+    </div>
+  </section>
+
+  <!-- 4. The job: duties as short cards -->
+  {
+    j.duties.length > 0 && (
+      <section class="section">
+        <div class="wrap">
+          <div class="section-head" data-reveal>
+            <span class="eyebrow">The job</span>
+            <h2>What you will do each day</h2>
+          </div>
+          <ul class="duties">
+            {j.duties.map((d) => <li class="card" data-reveal>{d}</li>)}
+          </ul>
+        </div>
+      </section>
+    )
+  }
+
+  <!-- 5. Pay and growth -->
+  <section class="section section--white">
+    <div class="wrap two">
+      <div class="stack" data-reveal>
+        <span class="eyebrow">Pay and growth</span>
+        <h2>{pay} a month</h2>
+        {j.pay_note && <p class="lede">{j.pay_note}</p>}
+      </div>
+      {
+        j.growth.length > 0 && (
+          <ol class="ladder" data-reveal aria-label="Career path">
+            {j.growth.map((g, i) => <li class:list={[i === 0 && 'now']}>{g}{i === 0 && <span class="small"> — you start here</span>}</li>)}
+          </ol>
+        )
+      }
+    </div>
+  </section>
+
+  <!-- 6–8. Who fits, how we hire, apply -->
+  <section class="section" id="apply-section">
+    <div class="wrap apply">
+      <div class="stack">
+        {
+          j.fits.length > 0 && (
+            <div data-reveal>
+              <span class="eyebrow">Who fits</span>
+              <h2 class="h-sm">Tick what applies to you</h2>
+              <p class="small muted">Your answers are added to your application.</p>
+            </div>
+          )
+        }
+        <div data-reveal>
+          <span class="eyebrow">How we hire</span>
+          <ol class="hire">
+            {s.careers.steps.map((st) => <li><strong>{st.title}</strong><span>{st.detail}</span><em>{st.duration}</em></li>)}
+          </ol>
+        </div>
+      </div>
+
+      <div class="card form-card">
+        <h2 id="apply" class="h-sm">Apply for {j.title}</h2>
+        {sent && <p class="alert alert--ok" role="status">Application received. We will call you within the time shown in “How we hire”.</p>}
+        {error === 'fields' && <p class="alert alert--error" role="alert">Add your name and a valid mobile number, then send again.</p>}
+        {error === 'rate' && <p class="alert alert--error" role="alert">Too many attempts from this connection. Please WhatsApp us instead.</p>}
+        <StepForm action="/api/apply" id="apply-form" submitLabel="Send application" draftKey={`job-${j.slug}`}>
+          <input type="hidden" name="job" value={j.slug} />
+          {
+            j.fits.length > 0 && (
+              <fieldset data-step data-title="Who fits">
+                <legend>Which of these describe you?</legend>
+                <div class="checks">
+                  {j.fits.map((f) => (
+                    <label class="check">
+                      <input type="checkbox" name="fits" value={f} />
+                      <span>{f}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            )
+          }
+          <fieldset data-step data-title="Experience">
+            <legend>Your experience</legend>
+            <Field label="Experience in hardware or IT" name="experience" type="select" required options={['Fresher', 'Less than 1 year', '1–3 years', '3–5 years', 'More than 5 years']} msgRequired="Choose the option closest to your experience." />
+            <Field label="When can you start?" name="notice" type="select" required options={['Immediately', 'Within 2 weeks', 'Within a month', 'More than a month']} msgRequired="Choose when you could start." />
+            <Field label="Anything we should know" name="message" type="textarea" rows={3} hint="Skills, certifications, or the kind of work you enjoy." />
+          </fieldset>
+          <fieldset data-step data-title="Contact details">
+            <legend>How can we reach you?</legend>
+            <Field label="Full name" name="name" required autocomplete="name" msgRequired="Enter your full name." />
+            <Field label="Mobile number" name="phone" type="tel" required autocomplete="tel" inputmode="tel" pattern="\+?[0-9 \(\)\-]{10,16}" msgRequired="Enter a mobile number so we can call you." msgPattern="Enter a 10-digit mobile number, e.g. 98765 43210." />
+            <Field label="Email" name="email" type="email" autocomplete="email" />
+            <Field label="Where do you live?" name="area" hint="Area or locality, e.g. Moshi, Nigdi, Bhosari." />
+          </fieldset>
+        </StepForm>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .j-hero {
+    position: relative;
+    isolation: isolate;
+    color: #fff;
+    background: var(--night);
+    min-height: min(80svh, 820px);
+    display: grid;
+    align-items: end;
+    overflow: hidden;
+  }
+  .j-hero :global(.bg) {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: -2;
+  }
+  .j-hero::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: linear-gradient(180deg, rgb(11 23 36 / 0.4), rgb(11 23 36 / 0.95));
+  }
+  .inner {
+    display: grid;
+    gap: var(--space-5);
+    justify-items: start;
+    padding-block: var(--space-8) var(--space-7);
+  }
+  .inner .lede {
+    color: #dde6ef;
+  }
+  .facts {
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-4);
+    width: 100%;
+    max-width: 860px;
+    border-top: 1px solid rgb(255 255 255 / 0.25);
+    padding-top: var(--space-4);
+  }
+  .facts div {
+    display: flex;
+    flex-direction: column-reverse;
+    justify-content: flex-end;
+  }
+  .facts dt {
+    font-size: var(--fs-small);
+    color: #c9d6e3;
+  }
+  .facts dd {
+    margin: 0;
+    font-weight: 750;
+    font-size: clamp(1rem, 0.9rem + 0.6vw, 1.375rem);
+  }
+  @media (min-width: 1024px) {
+    .j-hero {
+      min-height: calc(100svh - var(--header-h));
+    }
+  }
+  .two {
+    display: grid;
+    gap: var(--space-6);
+    align-items: center;
+  }
+  @media (min-width: 1024px) {
+    .two {
+      grid-template-columns: 1.3fr 1fr;
+      gap: var(--space-8);
+    }
+  }
+  .keys {
+    margin: 0;
+    display: grid;
+    gap: var(--space-4);
+  }
+  .keys div {
+    padding: var(--space-4) 0;
+    border-top: 1px solid var(--line);
+    display: flex;
+    flex-direction: column-reverse;
+    justify-content: flex-end;
+  }
+  .keys dt {
+    font-size: var(--fs-small);
+    color: var(--ink-3);
+  }
+  .keys dd {
+    margin: 0;
+    font-weight: 750;
+    font-size: 1.25rem;
+  }
+  .dir {
+    font-size: clamp(1.25rem, 1rem + 1vw, 1.875rem);
+    font-weight: 600;
+    line-height: 1.35;
+    max-width: 40ch;
+  }
+  .duties {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: var(--space-4);
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+  }
+  .duties li {
+    font-weight: 600;
+  }
+  .ladder {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: var(--space-2);
+  }
+  .ladder li {
+    padding: var(--space-3) var(--space-4);
+    border-left: 3px solid var(--line-strong);
+    font-weight: 650;
+  }
+  .ladder li.now {
+    border-color: var(--accent);
+    background: var(--accent-tint);
+  }
+  .apply {
+    display: grid;
+    gap: var(--space-7);
+  }
+  .h-sm {
+    font-size: 1.5rem;
+    margin-top: var(--space-2);
+    scroll-margin-top: calc(var(--header-h) + 16px);
+  }
+  .hire {
+    list-style: none;
+    margin: var(--space-3) 0 0;
+    padding: 0;
+    counter-reset: h;
+  }
+  .hire li {
+    counter-increment: h;
+    display: grid;
+    grid-template-columns: 2.25rem 1fr auto;
+    gap: 2px var(--space-3);
+    padding: var(--space-4) 0;
+    border-top: 1px solid var(--line);
+    align-items: baseline;
+  }
+  .hire li::before {
+    content: counter(h);
+    grid-row: span 2;
+    font-weight: 800;
+    color: var(--accent);
+    font-size: 1.25rem;
+  }
+  .hire span {
+    grid-column: 2;
+    color: var(--ink-2);
+    font-size: var(--fs-small);
+  }
+  .hire em {
+    grid-column: 3;
+    grid-row: 1;
+    font-style: normal;
+    font-size: var(--fs-small);
+    font-weight: 650;
+    color: var(--ink-2);
+    white-space: nowrap;
+  }
+  .form-card {
+    display: grid;
+    gap: var(--space-4);
+    align-content: start;
+  }
+  .checks {
+    display: grid;
+    gap: var(--space-3);
+  }
+  .check {
+    display: flex;
+    gap: var(--space-3);
+    align-items: flex-start;
+    padding: var(--space-3) var(--space-4);
+    border: 1.5px solid var(--line);
+    border-radius: var(--radius-s);
+    cursor: pointer;
+    min-height: 48px;
+  }
+  .check:has(input:checked) {
+    border-color: var(--accent);
+    background: var(--accent-tint);
+  }
+  .check input {
+    width: 22px;
+    height: 22px;
+    margin-top: 2px;
+    accent-color: var(--accent);
+    flex: none;
+  }
+  @media (min-width: 1100px) {
+    .apply {
+      grid-template-columns: 1fr minmax(420px, 560px);
+      gap: var(--space-8);
+      align-items: start;
+    }
+  }
+</style>

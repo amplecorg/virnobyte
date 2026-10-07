@@ -1,0 +1,133 @@
+---
+import Base from '@/layouts/Base.astro';
+import PageHero from '@/components/PageHero.astro';
+import Photo from '@/components/Photo.astro';
+import Icon from '@/components/Icon.astro';
+import CtaBand from '@/components/CtaBand.astro';
+import { products } from '@/lib/data';
+import { contactInfo } from '@/lib/settings';
+import { breadcrumbs } from '@/lib/schema';
+import { inr } from '@/lib/format';
+
+const c = contactInfo();
+const items = products() as any[];
+const cats = [...new Set(items.map((p) => p.category as string))];
+const anchor = (t: string) => t.toLowerCase().replace(/[^a-z]+/g, '-');
+const crumbs = [
+  { name: 'Home', href: '/' },
+  { name: 'Products', href: '/products' },
+];
+---
+
+<Base
+  title="Laptops, CCTV & IT Hardware in Pimpri-Chinchwad | Virnobyte"
+  description="New and refurbished laptops and desktops, printers, CCTV kits, routers, SSDs, RAM and UPS from Virnobyte in Chikhali — supplied, installed and supported locally."
+  canonical="/products"
+  image="/og/pages/products.jpg"
+  jsonLd={breadcrumbs(Astro.site!, crumbs)}
+>
+  <PageHero
+    crumbs={crumbs}
+    eyebrow="Supplied, installed and supported"
+    title="IT hardware and products"
+    lede={`Ask for current prices and availability. We confirm stock, explain your options and install what you buy. Visit us in ${c.locality} or enquire on WhatsApp.`}
+  />
+  <section class="section">
+    <div class="wrap">
+      <nav class="cats" aria-label="Product categories">
+        {cats.map((cat) => <a href={`#${anchor(cat)}`} class="chip">{cat}</a>)}
+      </nav>
+      {
+        cats.map((cat) => (
+          <section class="cat" id={anchor(cat)} aria-labelledby={`h-${anchor(cat)}`}>
+            <h2 id={`h-${anchor(cat)}`}>{cat}</h2>
+            <ul class="grid-p">
+              {items
+                .filter((p) => p.category === cat)
+                .map((p) => (
+                  <li class="prod" data-reveal>
+                    <Photo image={p.image} alt={p.name} sizes="(min-width: 1200px) 25vw, (min-width: 700px) 45vw, 100vw" widths={[480, 768, 1080]} />
+                    <div class="pb">
+                      <div class="tags">
+                        <span class="chip">{p.condition}</span>
+                        {!p.in_stock && <span class="chip">On order</span>}
+                      </div>
+                      <h3>{p.name}</h3>
+                      <p class="small muted">{p.summary}</p>
+                      <p class="price">
+                        {p.price ? <strong>{inr(p.price)}</strong> : <strong>Ask for price</strong>}
+                        {p.price && p.mrp > p.price && <s class="muted small">{inr(p.mrp)}</s>}
+                      </p>
+                      <a class="btn btn--ghost btn--sm" href={c.whatsappUrl(`Hi ${c.name}, I'm interested in: ${p.name}`)} rel="noopener" target="_blank">
+                        <Icon name="whatsapp" /> Enquire on WhatsApp
+                      </a>
+                    </div>
+                  </li>
+                ))}
+            </ul>
+          </section>
+        ))
+      }
+    </div>
+  </section>
+  <CtaBand heading="Not sure what to buy?" text="Tell us what you use your computer for and your budget. We will recommend a setup and install it." />
+</Base>
+
+<style>
+  .cats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-bottom: var(--space-6);
+  }
+  .cats a {
+    text-decoration: none;
+  }
+  .cat + .cat {
+    margin-top: var(--space-8);
+  }
+  .cat h2 {
+    margin-bottom: var(--space-5);
+    scroll-margin-top: calc(var(--header-h) + 16px);
+  }
+  .grid-p {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: var(--space-5);
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+  }
+  .prod {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+    display: grid;
+    grid-template-rows: auto 1fr;
+  }
+  .prod :global(img) {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+  }
+  .pb {
+    padding: var(--space-5);
+    display: grid;
+    gap: var(--space-3);
+    align-content: start;
+    justify-items: start;
+  }
+  .tags {
+    display: flex;
+    gap: 6px;
+  }
+  .price {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .price strong {
+    font-size: 1.25rem;
+  }
+</style>

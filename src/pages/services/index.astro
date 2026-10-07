@@ -1,0 +1,48 @@
+---
+import Base from '@/layouts/Base.astro';
+import PageHero from '@/components/PageHero.astro';
+import ServiceGrid from '@/components/ServiceGrid.astro';
+import CtaBand from '@/components/CtaBand.astro';
+import { services } from '@/lib/data';
+import { breadcrumbs } from '@/lib/schema';
+
+const all = services();
+const groups = [...new Set(all.map((s) => s.group_name))];
+const crumbs = [
+  { name: 'Home', href: '/' },
+  { name: 'Services', href: '/services' },
+];
+const INTRO: Record<string, string> = {
+  'Repair & support': 'Diagnosis-first repairs for computers, laptops, printers and storage — walk in at Chikhali or book a doorstep visit.',
+  'Security & networks': 'CCTV and networks planned around your premises, installed cleanly and documented.',
+  'Business IT': 'Ongoing support, planning and infrastructure for offices, shops and growing teams.',
+};
+---
+
+<Base
+  title="IT Services in Pune & Pimpri-Chinchwad | Virnobyte"
+  description="Computer and laptop repair, CCTV, networking, data recovery, IT AMC, software and hardware services from Virnobyte in Chikhali, Pimpri-Chinchwad and Pune."
+  canonical="/services"
+  jsonLd={breadcrumbs(Astro.site!, crumbs)}
+>
+  <PageHero
+    crumbs={crumbs}
+    eyebrow="Chikhali · Pimpri-Chinchwad · Pune"
+    title="IT services for homes and businesses in Pune"
+    lede={`${all.length} services, one local team. Every job starts with a diagnosis and an itemised quote you approve.`}
+  />
+  {
+    groups.map((g) => (
+      <section class="section" aria-labelledby={`g-${g}`}>
+        <div class="wrap">
+          <div class="section-head" data-reveal>
+            <h2 id={`g-${g}`}>{g}</h2>
+            {INTRO[g] && <p class="lede">{INTRO[g]}</p>}
+          </div>
+          <ServiceGrid items={all.filter((s) => s.group_name === g)} />
+        </div>
+      </section>
+    ))
+  }
+  <CtaBand />
+</Base>

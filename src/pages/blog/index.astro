@@ -1,0 +1,111 @@
+---
+import Base from '@/layouts/Base.astro';
+import PageHero from '@/components/PageHero.astro';
+import Photo from '@/components/Photo.astro';
+import { posts } from '@/lib/data';
+import { breadcrumbs } from '@/lib/schema';
+import { formatDate, readingMinutes } from '@/lib/format';
+
+const list = posts();
+const crumbs = [
+  { name: 'Home', href: '/' },
+  { name: 'Blog', href: '/blog' },
+];
+const [lead, ...rest] = list;
+---
+
+<Base
+  title="IT Tips & Guides for Homes and Businesses | Virnobyte Blog"
+  description="Practical guides on computer and laptop problems, CCTV maintenance, office networks, data recovery and IT AMC from Virnobyte's technicians in Pune."
+  canonical="/blog"
+  image="/og/pages/blog.jpg"
+  jsonLd={breadcrumbs(Astro.site!, crumbs)}
+>
+  <PageHero crumbs={crumbs} eyebrow="Guides" title="Practical IT advice from our workshop" lede="What we see every week in Pimpri-Chinchwad and Pune, written up so you can fix, prevent or plan." />
+  <section class="section">
+    <div class="wrap">
+      {list.length === 0 && <p class="lede">New guides are on the way.</p>}
+      {
+        lead && (
+          <a href={`/blog/${lead.slug}`} class="lead" data-reveal>
+            <Photo image={lead.image} alt={lead.title} eager sizes="(min-width: 1024px) 55vw, 100vw" widths={[768, 1080, 1440, 1920]} />
+            <div class="lead-body">
+              <span class="small muted">{formatDate(lead.published_at)} · {readingMinutes(lead.body)} min read</span>
+              <h2>{lead.title}</h2>
+              <p class="lede">{lead.description}</p>
+            </div>
+          </a>
+        )
+      }
+      <ul class="posts">
+        {
+          rest.map((p) => (
+            <li data-reveal>
+              <a href={`/blog/${p.slug}`} class="post">
+                <Photo image={p.image} alt={p.title} sizes="(min-width: 1000px) 30vw, 100vw" widths={[480, 768, 1080]} />
+                <span class="small muted">{formatDate(p.published_at)} · {readingMinutes(p.body)} min read</span>
+                <h2 class="h-post">{p.title}</h2>
+                <p class="small muted">{p.description}</p>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .lead {
+    display: grid;
+    gap: var(--space-5);
+    color: inherit;
+    text-decoration: none;
+    margin-bottom: var(--space-8);
+    align-items: center;
+  }
+  .lead :global(img) {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    border-radius: var(--radius-l);
+  }
+  .lead-body {
+    display: grid;
+    gap: var(--space-3);
+  }
+  .lead:hover h2,
+  .post:hover h2 {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+  @media (min-width: 1024px) {
+    .lead {
+      grid-template-columns: 1.3fr 1fr;
+      gap: var(--space-7);
+    }
+  }
+  .posts {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: var(--space-7) var(--space-5);
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+  }
+  .post {
+    display: grid;
+    gap: var(--space-3);
+    color: inherit;
+    text-decoration: none;
+  }
+  .post :global(img) {
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    object-fit: cover;
+    border-radius: var(--radius);
+  }
+  .h-post {
+    font-size: 1.25rem;
+  }
+</style>

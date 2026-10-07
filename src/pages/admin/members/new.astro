@@ -1,0 +1,62 @@
+---
+import Admin from '@/layouts/Admin.astro';
+import Field from '@/components/Field.astro';
+import { get, run } from '@/lib/db';
+import { plans, requestMembership, activateMembership } from '@/lib/data';
+import { hashPassword } from '@/lib/password';
+import { randomBytes } from 'node:crypto';
+
+const planList = plans(true);
+const errors: Record<string, string> = {};
+const v = { name: '', email: '', phone: '', plan: '', activate: '1' };
+
+if (Astro.request.method === 'POST') {
+  const f = await Astro.request.formData();
+  v.name = String(f.get('name') ?? '').trim();
+  v.email = String(f.get('email') ?? '').trim();
+  v.phone = String(f.get('phone') ?? '').trim();
+  v.plan = String(f.get('plan') ?? '');
+  v.activate = f.get('activate') === 'on' ? '1' : '0';
+  const password = String(f.get('password') ?? '');
+
+  if (!v.name) errors.name = 'Enter the member’s name.';
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v.email)) errors.email = 'Enter a valid email; the member signs in with it.';
+  else if (get('SELECT 1 FROM users WHERE email = ?', v.email)) errors.email = 'A user with this email already exists.';
+  if (!/^[+]?[0-9 ()-]{10,16}$/.test(v.phone)) errors.phone = 'Enter a 10-digit mobile number.';
+  if (password && password.length < 8) errors.password = 'Use at least 8 characters, or leave empty to generate one.';
+
+  if (!Object.keys(errors).length) {
+    const pw = password || randomBytes(6).toString('base64url');
+    const res = run("INSERT INTO users (name, email, phone, password_hash, role) VALUES (?,?,?,?, 'customer')", v.name, v.email, v.phone, hashPassword(pw));
+    const uid = Number(res.lastInsertRowid);
+    if (v.plan) {
+      const mid = requestMembership(uid, Number(v.plan));
+      if (v.activate === '1') activateMembership(mid, Astro.locals.user!.id);
+    }
+    // The temporary password is shown once on the member page so it can be shared with the customer.
+    Astro.cookies.set('vb_tmp_pw', pw, { path: `/admin/members/${uid}`, httpOnly: true, sameSite: 'strict', maxAge: 120 });
+    return Astro.redirect(`/admin/members/${uid}?created=1`, 303);
+  }
+}
+---
+
+<Admin title="Add member" active="members">
+  <div class="page-head">
+    <div>
+      <a href="/admin/members" class="small">← Members</a>
+      <h1>Add member</h1>
+      <p>Create an account for a walk-in customer and issue their card in one step.</p>
+    </div>
+  </div>
+  <form method="post" class="panel" style="max-width:760px">
+    <div class="form-grid">
+      <Field label="Full name" name="name" required value={v.name} error={errors.name} hint="Printed on the card." />
+      <Field label="Email" name="email" type="email" required value={v.email} error={errors.email} />
+      <Field label="Mobile" name="phone" type="tel" required value={v.phone} error={errors.phone} />
+      <Field label="Password" name="password" type="text" error={errors.password} hint="Leave empty to generate a temporary password." />
+      <Field label="Membership plan" name="plan" type="select" value={v.plan} options={planList.map((p) => ({ value: String(p.id), label: `${p.name} — ₹${p.price} · ${p.coins} coins` }))} hint="Leave empty to create the account without a card." />
+      <label class="switch"><input type="checkbox" name="activate" checked={v.activate === '1'} /> Activate the card now and credit welcome coins (payment received)</label>
+    </div>
+    <div class="sticky-actions"><button class="btn" type="submit">Create member</button></div>
+  </form>
+</Admin>

@@ -1,0 +1,124 @@
+---
+import Base from '@/layouts/Base.astro';
+import Breadcrumbs from '@/components/Breadcrumbs.astro';
+import FaqList from '@/components/FaqList.astro';
+import CtaBand from '@/components/CtaBand.astro';
+import PCBuilder from '@/components/pc/PCBuilder.tsx';
+import { catalog, presets } from '@/lib/pc/catalog';
+import { get, json } from '@/lib/db';
+import { contactInfo, getSettings } from '@/lib/settings';
+import { breadcrumbs, faqPage } from '@/lib/schema';
+
+const s = getSettings();
+const c = contactInfo(s);
+const parts = catalog();
+const presetList = presets(parts);
+const code = Astro.url.searchParams.get('build')?.toUpperCase();
+const saved = code ? get<{ parts: string }>('SELECT parts FROM pc_builds WHERE code = ?', code) : undefined;
+const initial = saved ? json(saved.parts, null) : null;
+
+const crumbs = [
+  { name: 'Home', href: '/' },
+  { name: 'Custom PC Builder', href: '/custom-pc-builder' },
+];
+const faqs = [
+  { q: 'How does the compatibility check work?', a: 'Every time you change a part, the builder checks the CPU socket against the motherboard, memory type and capacity, motherboard size against the cabinet, graphics card length and cooler height against the cabinet clearances, radiator support, M.2 and SATA slots, and power. Incompatible builds cannot be sent for a quote or order.' },
+  { q: 'How is the recommended power supply calculated?', a: 'We add the estimated draw of the processor, graphics card, motherboard, memory, storage, fans and pump, multiply by 1.3 for headroom, and round up to the next 50 W.' },
+  { q: 'Are the prices final?', a: 'Prices are taken from our current catalogue and recalculated on our server, but component prices and stock change often. We confirm the final price and availability before you pay.' },
+  { q: 'Do you assemble and test the PC?', a: `Yes. We assemble the PC at our ${c.locality} workshop, install drivers and Windows if selected, and test it before handover. Delivery can be arranged in Pimpri-Chinchwad and Pune.` },
+  { q: 'Can I bring my own parts?', a: 'Yes. Mention the parts you already have in the notes when you request a quote and we will plan the build around them.' },
+];
+---
+
+<Base
+  title="Custom PC Builder – Build Your Own PC Online | Virnobyte"
+  description="Build your custom PC online with Virnobyte. Choose your CPU, GPU, motherboard, RAM, storage, power supply and case, check compatibility and visualize your PC in interactive 3D."
+  canonical="/custom-pc-builder"
+  image="/og/pages/pc-builder.jpg"
+  noindex={!!code}
+  jsonLd={[breadcrumbs(Astro.site!, crumbs), faqPage(faqs)]}
+>
+  <section class="builder-wrap">
+    <div class="wrap head">
+      <Breadcrumbs items={crumbs} tone="dark" />
+      <h1>Build Your Custom PC</h1>
+      <p class="lede">Choose your components, check compatibility and visualize your custom PC in 3D before you buy.</p>
+    </div>
+    <div class="wrap">
+      <PCBuilder
+        client:load
+        parts={parts}
+        presets={presetList}
+        pricing={s.pcbuilder}
+        note={s.pcbuilder.note}
+        initial={initial}
+        whatsapp={c.whatsappUrl('Hi Virnobyte, I would like help with a custom PC build.')}
+      />
+      <noscript><p class="lede">The configurator needs JavaScript. Call {c.phone} or WhatsApp us and we will build your quote by phone.</p></noscript>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap how">
+      <div class="stack">
+        <span class="eyebrow">How it works</span>
+        <h2>From parts list to a tested PC</h2>
+        <ol class="ticks-n">
+          <li><strong>Pick a starting point</strong> — a gaming, office, creator or budget preset, or start empty.</li>
+          <li><strong>Swap any component</strong> — only compatible parts are shown, with the reason for anything hidden.</li>
+          <li><strong>Check it in 3D</strong> — rotate, open the side panel and inspect each part in the cabinet.</li>
+          <li><strong>Request a quote or order</strong> — we confirm prices and stock, assemble and test the PC in {c.locality}.</li>
+        </ol>
+      </div>
+      <div>
+        <h2 class="h-sm">Custom PC questions</h2>
+        <FaqList faqs={faqs} />
+      </div>
+    </div>
+  </section>
+  <CtaBand heading="Rather talk it through?" text="Tell us your budget and what you'll use the PC for. We'll suggest a build." whatsappText="Hi Virnobyte, I would like help with a custom PC build." />
+</Base>
+
+<style>
+  .builder-wrap {
+    background: #08111c;
+    color: #e8eef6;
+    padding-block: var(--space-6) var(--space-7);
+  }
+  .head {
+    display: grid;
+    gap: var(--space-3);
+    margin-bottom: var(--space-5);
+  }
+  .head h1 {
+    font-size: clamp(2rem, 1.4rem + 2.6vw, 3.5rem);
+    color: #fff;
+  }
+  .head .lede {
+    color: #a9b8c8;
+  }
+  .how {
+    display: grid;
+    gap: var(--space-7);
+  }
+  .h-sm {
+    font-size: 1.5rem;
+    margin-bottom: var(--space-4);
+  }
+  .ticks-n {
+    margin: 0;
+    padding-left: 1.2em;
+    display: grid;
+    gap: var(--space-3);
+    color: var(--ink-2);
+  }
+  .ticks-n strong {
+    color: var(--ink);
+  }
+  @media (min-width: 1024px) {
+    .how {
+      grid-template-columns: 1fr 1.2fr;
+      gap: var(--space-8);
+    }
+  }
+</style>

@@ -1,0 +1,128 @@
+---
+import '@/styles/global.css';
+import '@/styles/admin.css';
+import Icon from '@/components/Icon.astro';
+import { get } from '@/lib/db';
+
+interface Props {
+  title: string;
+  active?: string;
+}
+const { title, active } = Astro.props;
+const user = Astro.locals.user!;
+const newEnq = get<{ n: number }>("SELECT COUNT(*) AS n FROM enquiries WHERE status = 'new'")!.n;
+const pending = get<{ n: number }>("SELECT COUNT(*) AS n FROM memberships WHERE status = 'pending'")!.n;
+const pcReq = get<{ n: number }>("SELECT COUNT(*) AS n FROM pc_builds WHERE status IN ('quote','ordered')")!.n;
+
+const NAV: { group: string; items: { href: string; label: string; key: string; badge?: number }[] }[] = [
+  { group: 'Overview', items: [{ href: '/admin', label: 'Dashboard', key: 'dashboard' }] },
+  {
+    group: 'Membership',
+    items: [
+      { href: '/admin/members', label: 'Members & coins', key: 'members', badge: pending },
+      { href: '/admin/r/plans', label: 'Plans & card design', key: 'plans' },
+      { href: '/admin/settings#coins', label: 'Coin program', key: 'coins' },
+    ],
+  },
+  {
+    group: 'Leads',
+    items: [
+      { href: '/admin/r/enquiries', label: 'Enquiries', key: 'enquiries', badge: newEnq },
+      { href: '/admin/r/pc_builds', label: 'PC build requests', key: 'pc_builds', badge: pcReq },
+    ],
+  },
+  {
+    group: 'PC builder',
+    items: [
+      { href: '/admin/r/pc_parts', label: 'Parts & prices', key: 'pc_parts' },
+      { href: '/admin/r/pc_presets', label: 'Preset builds', key: 'pc_presets' },
+      { href: '/admin/settings#pcbuilder', label: 'GST & fees', key: 'pcsettings' },
+    ],
+  },
+  {
+    group: 'Content',
+    items: [
+      { href: '/admin/r/services', label: 'Services', key: 'services' },
+      { href: '/admin/r/posts', label: 'Blog', key: 'posts' },
+      { href: '/admin/r/faqs', label: 'FAQs', key: 'faqs' },
+      { href: '/admin/r/products', label: 'Products', key: 'products' },
+      { href: '/admin/r/projects', label: 'Portfolio', key: 'projects' },
+      { href: '/admin/r/gallery', label: 'Gallery', key: 'gallery' },
+      { href: '/admin/r/jobs', label: 'Careers', key: 'jobs' },
+      { href: '/admin/r/testimonials', label: 'Testimonials', key: 'testimonials' },
+      { href: '/admin/r/pages', label: 'Legal & profile pages', key: 'pages' },
+    ],
+  },
+  { group: 'Site', items: [{ href: '/admin/settings', label: 'Business, home & SEO', key: 'settings' }] },
+];
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>{title} · Virnobyte admin</title>
+    <link rel="icon" href="/favicon.ico" />
+  </head>
+  <body class="admin">
+    <a class="skip-link" href="#content">Skip to content</a>
+    <div class="shell">
+      <aside class="side">
+        <a class="logo" href="/admin"><img src="/virnobyte-logo.png" alt="" width="32" height="25" /> Virnobyte <span>admin</span></a>
+        <details class="navwrap" open>
+          <summary>Menu</summary>
+          <nav aria-label="Admin">
+            {
+              NAV.map((g) => (
+                <div class="group">
+                  <p>{g.group}</p>
+                  {g.items.map((i) => (
+                    <a href={i.href} aria-current={active === i.key ? 'page' : undefined}>
+                      <span>{i.label}</span>
+                      {i.badge ? <b class="badge">{i.badge}</b> : null}
+                    </a>
+                  ))}
+                </div>
+              ))
+            }
+          </nav>
+        </details>
+        <div class="me">
+          <span class="small">{user.email}</span>
+          <div class="me-actions">
+            <a href="/" target="_blank" rel="noopener" class="small">View site <Icon name="external" size={14} /></a>
+            <form method="post" action="/account/logout"><button type="submit" class="linkish small">Sign out</button></form>
+          </div>
+        </div>
+      </aside>
+      <main id="content" class="content">
+        <slot />
+      </main>
+    </div>
+    <script>
+      // Collapse the menu on small screens by default.
+      const nav = document.querySelector<HTMLDetailsElement>('.navwrap');
+      if (nav && matchMedia('(max-width: 899px)').matches) nav.open = false;
+      // Live character counters for SEO fields.
+      document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('[data-max]').forEach((el) => {
+        const out = el.closest('.field')?.querySelector<HTMLElement>('[data-count]');
+        const max = Number(el.dataset.max);
+        const upd = () => {
+          if (!out) return;
+          out.textContent = `${el.value.length} / ${max}`;
+          out.classList.toggle('over', el.value.length > max);
+        };
+        el.addEventListener('input', upd);
+        upd();
+      });
+      // Confirm destructive actions.
+      document.querySelectorAll<HTMLFormElement>('form[data-confirm]').forEach((f) =>
+        f.addEventListener('submit', (e) => {
+          if (!confirm(f.dataset.confirm!)) e.preventDefault();
+        }),
+      );
+    </script>
+  </body>
+</html>

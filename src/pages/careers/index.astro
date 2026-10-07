@@ -1,0 +1,276 @@
+---
+import Base from '@/layouts/Base.astro';
+import Breadcrumbs from '@/components/Breadcrumbs.astro';
+import Photo from '@/components/Photo.astro';
+import Icon from '@/components/Icon.astro';
+import { jobs } from '@/lib/data';
+import { contactInfo, getSettings } from '@/lib/settings';
+import { breadcrumbs } from '@/lib/schema';
+import { inr } from '@/lib/format';
+
+const s = getSettings();
+const c = contactInfo(s);
+const open = jobs();
+const crumbs = [
+  { name: 'Home', href: '/' },
+  { name: 'Careers', href: '/careers' },
+];
+const TYPE: Record<string, string> = { FULL_TIME: 'Full-time', PART_TIME: 'Part-time', INTERN: 'Internship', CONTRACTOR: 'Contract' };
+---
+
+<Base
+  title="Careers at Virnobyte | IT Technician Jobs in Pimpri-Chinchwad"
+  description={`Work at Virnobyte in ${c.locality}, Pimpri-Chinchwad: computer, laptop, CCTV and networking roles with pay shown upfront and a clear path to grow.`}
+  canonical="/careers"
+  image="/og/pages/careers.jpg"
+  jsonLd={breadcrumbs(Astro.site!, crumbs)}
+>
+  <section class="c-hero">
+    <Photo image={s.careers.heroImage} alt="Computer components on a technician's workbench" eager sizes="100vw" widths={[768, 1080, 1440, 1920, 2560, 3840]} class="bg" />
+    <div class="wrap inner">
+      <Breadcrumbs items={crumbs} tone="dark" />
+      <h1>Fix real IT problems. Grow into the team that runs them.</h1>
+      <p class="lede">{s.careers.promise}</p>
+      <dl class="facts">
+        <div><dt>Based in</dt><dd>{c.locality}, {c.city}</dd></div>
+        <div><dt>Work</dt><dd>Workshop + field</dd></div>
+        <div><dt>Pay</dt><dd>Shown on every role</dd></div>
+      </dl>
+      <a class="btn" href="#roles">See open roles</a>
+    </div>
+  </section>
+
+  <section class="section" id="roles" aria-labelledby="roles-h">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 id="roles-h">Open roles</h2>
+      </div>
+      {
+        open.length ? (
+          <ul class="roles">
+            {open.map((j) => (
+              <li data-reveal>
+                <a href={`/careers/${j.slug}`} class="role">
+                  <div>
+                    <h3>{j.title}</h3>
+                    <p class="small muted">{j.promise}</p>
+                  </div>
+                  <dl>
+                    <div><dt>Pay</dt><dd>{inr(j.salary_min)}–{inr(j.salary_max)} / month</dd></div>
+                    <div><dt>Type</dt><dd>{TYPE[j.employment_type] ?? j.employment_type}</dd></div>
+                    <div><dt>Location</dt><dd>{j.location}</dd></div>
+                  </dl>
+                  <span class="go"><Icon name="arrow" /></span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div class="card empty">
+            <h3>No open roles right now</h3>
+            <p class="muted">
+              We hire technicians a few times a year. Send your name, phone number and experience to <a href={c.mailto}>{c.email}</a> or
+              WhatsApp <a href={c.whatsappUrl('Hi, I would like to apply for a technician role at Virnobyte.')} rel="noopener" target="_blank">{c.whatsapp}</a> and we will contact you when a role opens.
+            </p>
+          </div>
+        )
+      }
+    </div>
+  </section>
+
+  <section class="section section--white">
+    <div class="wrap dir">
+      <div class="stack" data-reveal>
+        <span class="eyebrow">Where we are going</span>
+        <h2>The direction</h2>
+        <p class="lede">{s.careers.direction}</p>
+      </div>
+      <div data-reveal>
+        <h2 class="h-sm">How we hire</h2>
+        <ol class="hire">
+          {s.careers.steps.map((st) => <li><strong>{st.title}</strong><span>{st.detail}</span><em>{st.duration}</em></li>)}
+        </ol>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .c-hero {
+    position: relative;
+    isolation: isolate;
+    color: #fff;
+    background: var(--night);
+    min-height: min(80svh, 820px);
+    display: grid;
+    align-items: end;
+    overflow: hidden;
+  }
+  .c-hero :global(.bg) {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: -2;
+  }
+  .c-hero::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: linear-gradient(180deg, rgb(11 23 36 / 0.4), rgb(11 23 36 / 0.95));
+  }
+  .inner {
+    display: grid;
+    gap: var(--space-5);
+    justify-items: start;
+    padding-block: var(--space-8) var(--space-7);
+  }
+  .inner h1 {
+    max-width: 16ch;
+  }
+  .inner .lede {
+    color: #dde6ef;
+  }
+  .facts {
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-4);
+    width: 100%;
+    max-width: 820px;
+    border-top: 1px solid rgb(255 255 255 / 0.25);
+    padding-top: var(--space-4);
+  }
+  .facts div {
+    display: flex;
+    flex-direction: column-reverse;
+    justify-content: flex-end;
+  }
+  .facts dt {
+    font-size: var(--fs-small);
+    color: #c9d6e3;
+  }
+  .facts dd {
+    margin: 0;
+    font-weight: 750;
+    font-size: clamp(1rem, 0.9rem + 0.6vw, 1.375rem);
+  }
+  @media (min-width: 1024px) {
+    .c-hero {
+      min-height: calc(100svh - var(--header-h));
+    }
+  }
+  .roles {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: var(--space-4);
+  }
+  .role {
+    display: grid;
+    gap: var(--space-4);
+    padding: var(--space-5);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    color: inherit;
+    text-decoration: none;
+    align-items: center;
+  }
+  .role:hover {
+    border-color: var(--ink);
+  }
+  .role h3 {
+    font-size: 1.375rem;
+  }
+  .role dl {
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: var(--space-3);
+  }
+  .role dl div {
+    display: flex;
+    flex-direction: column-reverse;
+    justify-content: flex-end;
+  }
+  .role dt {
+    font-size: var(--fs-small);
+    color: var(--ink-3);
+  }
+  .role dd {
+    margin: 0;
+    font-weight: 650;
+  }
+  .go {
+    display: none;
+    color: var(--accent);
+  }
+  @media (min-width: 900px) {
+    .role {
+      grid-template-columns: 1.2fr 1.5fr auto;
+    }
+    .go {
+      display: block;
+    }
+  }
+  .empty {
+    display: grid;
+    gap: var(--space-3);
+    max-width: 760px;
+  }
+  .dir {
+    display: grid;
+    gap: var(--space-7);
+  }
+  .h-sm {
+    font-size: 1.5rem;
+    margin-bottom: var(--space-4);
+  }
+  .hire {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    counter-reset: h;
+    display: grid;
+  }
+  .hire li {
+    counter-increment: h;
+    display: grid;
+    grid-template-columns: 2.25rem 1fr auto;
+    gap: 2px var(--space-3);
+    padding: var(--space-4) 0;
+    border-top: 1px solid var(--line);
+    align-items: baseline;
+  }
+  .hire li::before {
+    content: counter(h);
+    grid-row: span 2;
+    font-weight: 800;
+    color: var(--accent);
+    font-size: 1.25rem;
+  }
+  .hire span {
+    grid-column: 2;
+    color: var(--ink-2);
+    font-size: var(--fs-small);
+  }
+  .hire em {
+    grid-column: 3;
+    grid-row: 1;
+    font-style: normal;
+    font-size: var(--fs-small);
+    font-weight: 650;
+    color: var(--ink-2);
+    white-space: nowrap;
+  }
+  @media (min-width: 1024px) {
+    .dir {
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-8);
+    }
+  }
+</style>

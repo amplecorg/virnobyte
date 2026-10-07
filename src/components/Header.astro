@@ -1,0 +1,315 @@
+---
+import Icon from './Icon.astro';
+import { contactInfo, getSettings } from '@/lib/settings';
+import { services } from '@/lib/data';
+import { userFromCookies } from '@/lib/auth';
+
+const settings = getSettings();
+const c = contactInfo(settings);
+const svc = services();
+const user = userFromCookies(Astro.cookies);
+const path = Astro.url.pathname;
+const is = (p: string) => (p === '/' ? path === '/' : path === p || path.startsWith(p + '/'));
+const NAV = [
+  { href: '/custom-pc-builder', label: 'PC Builder' },
+  { href: '/membership', label: 'Membership' },
+  { href: '/products', label: 'Products' },
+  { href: '/portfolio', label: 'Portfolio' },
+  { href: '/about', label: 'About' },
+  { href: '/blog', label: 'Blog' },
+  { href: '/contact', label: 'Contact' },
+];
+const groups = [...new Set(svc.map((s) => s.group_name))];
+---
+
+{
+  settings.announcement.text && (
+    <div class="announce">
+      <div class="wrap">
+        {settings.announcement.href ? (
+          <a href={settings.announcement.href}>{settings.announcement.text}</a>
+        ) : (
+          settings.announcement.text
+        )}
+      </div>
+    </div>
+  )
+}
+<header class="site-header" data-header>
+  <div class="wrap bar">
+    <a href="/" class="brand" aria-label={`${c.name} home`}>
+      <img src="/virnobyte-logo.png" alt="" width="44" height="34" />
+      <span>{c.name}</span>
+    </a>
+
+    <nav class="nav" aria-label="Main">
+      <details class="services-menu" data-dropdown>
+        <summary aria-current={is('/services') ? 'page' : undefined}>
+          Services <Icon name="chevron" size={16} />
+        </summary>
+        <div class="mega">
+          <div class="mega-grid">
+            {
+              groups.map((g) => (
+                <div>
+                  <p class="mega-group">{g}</p>
+                  <ul>
+                    {svc
+                      .filter((s) => s.group_name === g)
+                      .map((s) => (
+                        <li>
+                          <a href={`/services/${s.slug}`}>{s.name}</a>
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              ))
+            }
+          </div>
+          <a class="text-link" href="/services">All IT services <Icon name="arrow" size={16} /></a>
+        </div>
+      </details>
+      {
+        NAV.map((n) => (
+          <a href={n.href} aria-current={is(n.href) ? 'page' : undefined}>
+            {n.label}
+          </a>
+        ))
+      }
+    </nav>
+
+    <div class="actions">
+      <a class="phone" href={c.tel}>
+        <Icon name="phone" size={18} />
+        <span>{c.phone}</span>
+      </a>
+      <a class="icon-btn" href={user ? (user.role === 'admin' ? '/admin' : '/account') : '/account/login'} aria-label={user ? 'Your account' : 'Sign in'}>
+        <Icon name="user" size={20} />
+      </a>
+      <a class="btn btn--sm book" href="/contact#book">Book a Service</a>
+      <details class="mobile-menu" data-dropdown>
+        <summary class="icon-btn" aria-label="Menu">
+          <Icon name="menu" size={22} class="i-open" />
+          <Icon name="close" size={22} class="i-close" />
+        </summary>
+        <div class="drawer">
+          <nav aria-label="Mobile">
+            <a href="/services" aria-current={is('/services') ? 'page' : undefined}>Services</a>
+            {NAV.map((n) => <a href={n.href}>{n.label}</a>)}
+            <a href="/faq">FAQ</a>
+            <a href="/careers">Careers</a>
+            <a href={user ? '/account' : '/account/login'}>{user ? 'My account' : 'Sign in'}</a>
+          </nav>
+          <div class="btn-row">
+            <a class="btn btn--block" href="/contact#book">Book a Service</a>
+            <a class="btn btn--ghost btn--block" href={c.tel}><Icon name="phone" /> Call {c.phone}</a>
+          </div>
+        </div>
+      </details>
+    </div>
+  </div>
+</header>
+
+<style>
+  .announce {
+    background: var(--night);
+    color: var(--on-night);
+    font-size: var(--fs-small);
+    text-align: center;
+    padding: 8px 0;
+  }
+  .announce a {
+    color: #fff;
+  }
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: rgb(255 255 255 / 0.92);
+    backdrop-filter: saturate(1.4) blur(12px);
+    border-bottom: 1px solid var(--line);
+  }
+  .bar {
+    height: var(--header-h);
+    display: flex;
+    align-items: center;
+    gap: var(--space-5);
+  }
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    color: var(--ink);
+    font-weight: 800;
+    font-size: 1.3rem;
+    letter-spacing: -0.03em;
+    flex: none;
+  }
+  .brand img {
+    width: 44px;
+    height: auto;
+  }
+  .nav {
+    display: none;
+    align-items: center;
+    gap: 2px;
+    margin-inline: auto;
+  }
+  .nav > a,
+  .nav summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 44px;
+    padding: 0 12px;
+    border-radius: 999px;
+    color: var(--ink-2);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: var(--fs-small);
+    cursor: pointer;
+    list-style: none;
+  }
+  .nav summary::-webkit-details-marker {
+    display: none;
+  }
+  .nav > a:hover,
+  .nav summary:hover {
+    color: var(--ink);
+    background: var(--paper);
+  }
+  .nav [aria-current='page'] {
+    color: var(--ink);
+    background: var(--paper);
+  }
+  .services-menu {
+    position: relative;
+  }
+  .services-menu[open] summary :global(svg) {
+    transform: rotate(180deg);
+  }
+  .mega {
+    position: absolute;
+    top: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-35%);
+    width: min(760px, 90vw);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: var(--space-5);
+    display: grid;
+    gap: var(--space-4);
+  }
+  .mega-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-5);
+  }
+  .mega-group {
+    font-size: var(--fs-small);
+    color: var(--ink-3);
+    font-weight: 650;
+    margin-bottom: 6px;
+  }
+  .mega ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .mega li a {
+    display: block;
+    padding: 6px 0;
+    color: var(--ink);
+    text-decoration: none;
+    font-weight: 550;
+  }
+  .mega li a:hover {
+    color: var(--accent);
+  }
+  .actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-left: auto;
+  }
+  .phone {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    color: var(--ink);
+    font-weight: 650;
+    text-decoration: none;
+    font-size: var(--fs-small);
+    padding: 0 8px;
+    font-variant-numeric: tabular-nums;
+  }
+  .icon-btn {
+    display: inline-grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    color: var(--ink);
+    cursor: pointer;
+    list-style: none;
+  }
+  .icon-btn:hover {
+    background: var(--paper);
+  }
+  .icon-btn::-webkit-details-marker {
+    display: none;
+  }
+  .book {
+    display: none;
+  }
+  .mobile-menu :global(.i-close),
+  .mobile-menu[open] :global(.i-open) {
+    display: none;
+  }
+  .mobile-menu[open] :global(.i-close) {
+    display: block;
+  }
+  .drawer {
+    position: fixed;
+    inset: var(--header-h) 0 0 0;
+    background: var(--surface);
+    padding: var(--space-5) var(--gutter) var(--space-7);
+    overflow-y: auto;
+    display: grid;
+    align-content: start;
+    gap: var(--space-6);
+    border-top: 1px solid var(--line);
+  }
+  .drawer nav {
+    display: grid;
+  }
+  .drawer nav a {
+    padding: 14px 0;
+    border-bottom: 1px solid var(--line);
+    color: var(--ink);
+    text-decoration: none;
+    font-size: 1.25rem;
+    font-weight: 650;
+  }
+  @media (min-width: 640px) {
+    .book {
+      display: inline-flex;
+    }
+  }
+  @media (min-width: 1180px) {
+    .nav {
+      display: flex;
+    }
+    .mobile-menu {
+      display: none;
+    }
+  }
+  @media (min-width: 1360px) {
+    .phone {
+      display: inline-flex;
+    }
+  }
+</style>

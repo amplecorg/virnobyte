@@ -1,0 +1,100 @@
+---
+import Admin from '@/layouts/Admin.astro';
+import Icon from '@/components/Icon.astro';
+import { all } from '@/lib/db';
+import { formatDate, num, groupCardNumber } from '@/lib/format';
+
+const q = Astro.url.searchParams.get('q')?.trim() ?? '';
+const status = Astro.url.searchParams.get('status') ?? '';
+const params: any[] = [];
+const where: string[] = ["u.role = 'customer'"];
+if (q) {
+  where.push('(u.name LIKE ? OR u.email LIKE ? OR u.phone LIKE ? OR m.card_number LIKE ?)');
+  params.push(`%${q}%`, `%${q}%`, `%${q}%`, `%${q.replace(/\s/g, '')}%`);
+}
+if (status === 'none') where.push('m.id IS NULL');
+else if (status) {
+  where.push('m.status = ?');
+  params.push(status);
+}
+
+const rows = all<any>(
+  `SELECT u.id, u.name, u.email, u.phone, u.created_at,
+          m.card_number, m.status, m.end_date, p.name AS plan,
+          COALESCE((SELECT SUM(delta) FROM coin_ledger c WHERE c.user_id = u.id), 0) AS coins
+   FROM users u
+   LEFT JOIN memberships m ON m.id = (
+     SELECT id FROM memberships WHERE user_id = u.id
+     ORDER BY CASE status WHEN 'active' THEN 0 WHEN 'pending' THEN 1 ELSE 2 END, id DESC LIMIT 1)
+   LEFT JOIN plans p ON p.id = m.plan_id
+   WHERE ${where.join(' AND ')}
+   ORDER BY CASE m.status WHEN 'pending' THEN 0 ELSE 1 END, u.id DESC
+   LIMIT 500`,
+  ...params,
+);
+const TABS = [
+  ['', 'All'],
+  ['pending', 'Awaiting activation'],
+  ['active', 'Active'],
+  ['expired', 'Expired'],
+  ['none', 'No card'],
+];
+---
+
+<Admin title="Members & coins" active="members">
+  <div class="page-head">
+    <div>
+      <h1>Members & coins</h1>
+      <p>Issue and activate membership cards, adjust coin balances and track doorstep visits.</p>
+    </div>
+    <a class="btn" href="/admin/members/new"><Icon name="plus" /> Add member</a>
+  </div>
+
+  <div class="toolbar">
+    <form method="get" role="search">
+      {status && <input type="hidden" name="status" value={status} />}
+      <input type="search" name="q" value={q} placeholder="Name, phone, email or card number" aria-label="Search members" />
+    </form>
+    <nav class="tabs" aria-label="Filter">
+      {TABS.map(([v, l]) => <a href={v ? `?status=${v}` : '?'} aria-current={status === v ? 'true' : undefined}>{l}</a>)}
+    </nav>
+  </div>
+
+  <div class="table-wrap">
+    {
+      rows.length ? (
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th scope="col">Member</th>
+              <th scope="col">Phone</th>
+              <th scope="col">Card</th>
+              <th scope="col">Plan</th>
+              <th scope="col">Status</th>
+              <th scope="col">Valid until</th>
+              <th scope="col" class="num">Coins</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr>
+                <td>
+                  <a class="row-link" href={`/admin/members/${r.id}`}>{r.name}</a>
+                  <div class="small muted">{r.email}</div>
+                </td>
+                <td>{r.phone}</td>
+                <td><code class="small">{r.card_number ? groupCardNumber(r.card_number) : '—'}</code></td>
+                <td>{r.plan ?? '—'}</td>
+                <td>{r.status ? <span class:list={['pill', r.status]}>{r.status}</span> : <span class="pill off">no card</span>}</td>
+                <td>{formatDate(r.end_date) || '—'}</td>
+                <td class="num">{num(r.coins)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <p class="empty-state">No members found.</p>
+      )
+    }
+  </div>
+</Admin>

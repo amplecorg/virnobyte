@@ -1,0 +1,61 @@
+---
+import Photo from './Photo.astro';
+import { formatDate } from '@/lib/format';
+
+interface Props {
+  items: { title: string; client_type: string; location: string; summary: string; scope: string[]; image: string; completed_on: string }[];
+}
+const { items } = Astro.props;
+---
+
+<ul class="projects">
+  {
+    items.map((p) => (
+      <li class="proj" data-reveal>
+        <Photo image={p.image} alt={`${p.title}${p.location ? ` in ${p.location}` : ''}`} sizes="(min-width: 1024px) 45vw, 100vw" widths={[480, 768, 1080, 1440]} />
+        <div class="pb">
+          <p class="small muted">
+            {[p.client_type, p.location, p.completed_on && formatDate(p.completed_on, { month: 'short', year: 'numeric' })].filter(Boolean).join(' · ')}
+          </p>
+          <h3>{p.title}</h3>
+          <p>{p.summary}</p>
+          {p.scope.length > 0 && (
+            <ul class="ticks small">
+              {p.scope.map((x) => <li>{x}</li>)}
+            </ul>
+          )}
+        </div>
+      </li>
+    ))
+  }
+</ul>
+
+<style>
+  .projects {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: var(--space-6);
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr));
+  }
+  .proj {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .proj :global(img) {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+  }
+  .pb {
+    padding: var(--space-5);
+    display: grid;
+    gap: var(--space-3);
+  }
+  .pb h3 {
+    font-size: 1.25rem;
+  }
+</style>

@@ -1,0 +1,288 @@
+---
+import Base from '@/layouts/Base.astro';
+import PageHero from '@/components/PageHero.astro';
+import Icon from '@/components/Icon.astro';
+import FaqList from '@/components/FaqList.astro';
+import CtaBand from '@/components/CtaBand.astro';
+import BookingForm from '@/components/BookingForm.astro';
+import ServiceGrid from '@/components/ServiceGrid.astro';
+import { service, services, posts } from '@/lib/data';
+import { contactInfo, getSettings } from '@/lib/settings';
+import { breadcrumbs, faqPage, serviceNode } from '@/lib/schema';
+import { markdown } from '@/lib/format';
+
+const svc = service(Astro.params.slug!);
+if (!svc) return Astro.rewrite('/404');
+
+const s = getSettings();
+const c = contactInfo(s);
+const site = Astro.site!;
+const crumbs = [
+  { name: 'Home', href: '/' },
+  { name: 'Services', href: '/services' },
+  { name: svc.name, href: `/services/${svc.slug}` },
+];
+const related = services().filter((x) => x.slug !== svc.slug && x.group_name === svc.group_name).slice(0, 3);
+const guides = posts().filter((p) => p.related.includes(svc.slug)).slice(0, 3);
+const PROCESS = [
+  ['Tell us the problem', 'Call, WhatsApp or book online with a short description.'],
+  ['Diagnosis and quote', 'We find the cause and give you an itemised quote to approve.'],
+  ['Repair or install', 'Done at our Chikhali workshop or on-site, with tested parts.'],
+  ['Hand-over and support', 'We explain what was done and any warranty that applies.'],
+];
+---
+
+<Base
+  title={svc.title}
+  description={svc.description}
+  canonical={`/services/${svc.slug}`}
+  image={`/og/services/${svc.slug}.jpg`}
+  imageAlt={`${svc.name} by ${c.name}`}
+  jsonLd={[
+    serviceNode(site, svc, s.business.serviceAreas),
+    breadcrumbs(site, crumbs),
+    ...(svc.faqs.length ? [faqPage(svc.faqs)] : []),
+  ]}
+>
+  <PageHero crumbs={crumbs} eyebrow={`${svc.group_name} · ${s.business.serviceAreas.join(', ')}`} title={svc.h1} lede={svc.short} image={svc.image} imageAlt={`${svc.name} service by ${c.name}`}>
+    <div class="btn-row">
+      <a class="btn" href="#book"><Icon name="calendar" /> Book Service</a>
+      <a class="btn btn--ghost" href={c.tel}><Icon name="phone" /> Call {c.name}</a>
+      <a class="btn btn--ghost" href={c.whatsappUrl(`Hi ${c.name}, I need help with ${svc.name.toLowerCase()}.`)} rel="noopener" target="_blank"><Icon name="whatsapp" /> WhatsApp {c.name}</a>
+    </div>
+  </PageHero>
+
+  <section class="section">
+    <div class="wrap layout">
+      <article class="main">
+        <div class="prose" data-reveal set:html={markdown(svc.intro)} />
+
+        {
+          svc.note && (
+            <p class="note" data-reveal>
+              <Icon name="shield" /> {svc.note}
+            </p>
+          )
+        }
+
+        <div class="split" data-reveal>
+          {
+            svc.problems.length > 0 && (
+              <div class="card">
+                <h2 class="h-sm">Common problems we fix</h2>
+                <ul class="plain">
+                  {svc.problems.map((p) => <li>{p}</li>)}
+                </ul>
+              </div>
+            )
+          }
+          {
+            svc.includes.length > 0 && (
+              <div class="card">
+                <h2 class="h-sm">What our {svc.name.toLowerCase()} service includes</h2>
+                <ul class="ticks">
+                  {svc.includes.map((p) => <li>{p}</li>)}
+                </ul>
+              </div>
+            )
+          }
+        </div>
+
+        <div class="process" data-reveal>
+          <h2 class="h-sm">How it works</h2>
+          <ol>
+            {PROCESS.map(([t, d]) => <li><strong>{t}</strong><span>{d}</span></li>)}
+          </ol>
+        </div>
+
+        {
+          svc.benefits.length > 0 && (
+            <div class="benefits" data-reveal>
+              <h2 class="h-sm">Why customers choose {c.name}</h2>
+              <ul class="ticks">
+                {svc.benefits.map((b) => <li>{b}</li>)}
+              </ul>
+              <div class="btn-row">
+                <a class="btn" href="#book">Request a Quote</a>
+                <a class="btn btn--ghost" href={c.directions} rel="noopener" target="_blank"><Icon name="directions" /> Get Directions</a>
+              </div>
+            </div>
+          )
+        }
+
+        {
+          svc.faqs.length > 0 && (
+            <div class="faq" data-reveal>
+              <h2 class="h-sm">{svc.name} FAQs</h2>
+              <FaqList faqs={svc.faqs} />
+            </div>
+          )
+        }
+      </article>
+
+      <aside class="side" aria-label="Contact and booking">
+        <div class="card sticky">
+          <h2 class="h-sm" id="book">Book {svc.name.toLowerCase()}</h2>
+          <p class="small muted">Three short steps. We call back to confirm.</p>
+          <BookingForm preset={svc.name} />
+          <hr />
+          <address class="small">
+            <strong>{c.name}</strong><br />
+            {c.street}, {c.locality}, {c.city}, {c.region} – {c.postalCode}<br />
+            <a href={c.tel}>{c.phone}</a>
+          </address>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  {
+    guides.length > 0 && (
+      <section class="section--tight section--white">
+        <div class="wrap">
+          <h2 class="h-sm">Guides about {svc.name.toLowerCase()}</h2>
+          <ul class="guides">
+            {guides.map((g) => (
+              <li><a href={`/blog/${g.slug}`}>{g.title}</a></li>
+            ))}
+          </ul>
+        </div>
+      </section>
+    )
+  }
+
+  {
+    related.length > 0 && (
+      <section class="section">
+        <div class="wrap">
+          <div class="section-head">
+            <h2>Related services</h2>
+          </div>
+          <ServiceGrid items={related} />
+        </div>
+      </section>
+    )
+  }
+
+  <CtaBand heading={`Need ${svc.name.toLowerCase()} in ${c.locality}, ${c.city} or Pune?`} whatsappText={`Hi ${c.name}, I need help with ${svc.name.toLowerCase()}.`} />
+</Base>
+
+<style>
+  .layout {
+    display: grid;
+    gap: var(--space-7);
+  }
+  .main {
+    display: grid;
+    gap: var(--space-7);
+    min-width: 0;
+  }
+  .h-sm {
+    font-size: clamp(1.25rem, 1.1rem + 0.6vw, 1.625rem);
+    margin-bottom: var(--space-4);
+  }
+  .note {
+    display: flex;
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-5);
+    background: var(--accent-tint);
+    border-radius: var(--radius-s);
+    color: var(--ink);
+    font-weight: 550;
+  }
+  .note :global(svg) {
+    flex: none;
+    color: var(--accent);
+    margin-top: 3px;
+  }
+  .split {
+    display: grid;
+    gap: var(--space-5);
+  }
+  @media (min-width: 760px) {
+    .split {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+  .plain {
+    margin: 0;
+    padding-left: 1.1em;
+    display: grid;
+    gap: var(--space-2);
+    color: var(--ink-2);
+  }
+  .process ol {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: var(--space-4);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+    counter-reset: p;
+  }
+  .process li {
+    counter-increment: p;
+    display: grid;
+    gap: 4px;
+    padding-top: var(--space-4);
+    border-top: 2px solid var(--ink);
+  }
+  .process li::before {
+    content: counter(p);
+    font-weight: 800;
+    color: var(--accent);
+    font-size: 1.5rem;
+    line-height: 1;
+  }
+  .process span {
+    color: var(--ink-2);
+    font-size: var(--fs-small);
+  }
+  .benefits {
+    display: grid;
+    gap: var(--space-5);
+  }
+  .benefits .h-sm {
+    margin: 0;
+  }
+  .sticky {
+    display: grid;
+    gap: var(--space-4);
+    min-width: 0;
+  }
+  .side {
+    min-width: 0;
+  }
+  .sticky .h-sm {
+    margin: 0;
+    scroll-margin-top: calc(var(--header-h) + 16px);
+  }
+  hr {
+    border: 0;
+    border-top: 1px solid var(--line);
+    width: 100%;
+    margin: 0;
+  }
+  address {
+    font-style: normal;
+    line-height: 1.6;
+    color: var(--ink-2);
+  }
+  .guides {
+    margin: 0;
+    padding-left: 1.1em;
+    display: grid;
+    gap: var(--space-2);
+  }
+  @media (min-width: 1100px) {
+    .layout {
+      grid-template-columns: minmax(0, 1fr) 420px;
+      gap: var(--space-8);
+      align-items: start;
+    }
+    .sticky {
+      position: sticky;
+      top: calc(var(--header-h) + 24px);
+    }
+  }
+</style>

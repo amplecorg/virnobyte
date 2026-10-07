@@ -1,0 +1,93 @@
+---
+import Base from '@/layouts/Base.astro';
+import PageHero from '@/components/PageHero.astro';
+import ProjectList from '@/components/ProjectList.astro';
+import CtaBand from '@/components/CtaBand.astro';
+import Icon from '@/components/Icon.astro';
+import { projects, PORTFOLIO_CATEGORIES } from '@/lib/data';
+import { breadcrumbs } from '@/lib/schema';
+
+const all = projects();
+const crumbs = [
+  { name: 'Home', href: '/' },
+  { name: 'Portfolio', href: '/portfolio' },
+];
+const cats = Object.entries(PORTFOLIO_CATEGORIES).map(([slug, c]) => ({ slug, ...c, count: all.filter((p) => p.category === slug).length }));
+---
+
+<Base
+  title="IT, CCTV & Networking Projects in Pune | Virnobyte Portfolio"
+  description="Virnobyte project portfolio: CCTV installations, office networks, office IT setups and hardware installations for businesses in Pimpri-Chinchwad and Pune."
+  canonical="/portfolio"
+  image="/og/pages/portfolio.jpg"
+  jsonLd={breadcrumbs(Astro.site!, crumbs)}
+>
+  <PageHero crumbs={crumbs} eyebrow="Our work" title="Projects across Pimpri-Chinchwad and Pune" lede="CCTV, networking, office IT and hardware installations, documented with the scope of each job." />
+  <section class="section">
+    <div class="wrap">
+      <ul class="cats">
+        {
+          cats.map((c) => (
+            <li data-reveal>
+              <a href={`/portfolio/${c.slug}`} class="cat">
+                <h2>{c.name}</h2>
+                <p class="small muted">{c.blurb}</p>
+                <span class="small">{c.count ? `${c.count} project${c.count > 1 ? 's' : ''}` : 'Projects coming soon'} <Icon name="arrow" size={16} /></span>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+      {
+        all.length > 0 && (
+          <div class="latest">
+            <h2>Recent projects</h2>
+            <ProjectList items={all.slice(0, 6)} />
+          </div>
+        )
+      }
+    </div>
+  </section>
+  <CtaBand heading="Planning a similar project?" text="Book a site visit. We survey, plan and quote before anything is installed." />
+</Base>
+
+<style>
+  .cats {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: var(--space-4);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  }
+  .cat {
+    display: grid;
+    gap: var(--space-2);
+    height: 100%;
+    padding: var(--space-5);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    text-decoration: none;
+    color: inherit;
+  }
+  .cat:hover {
+    border-color: var(--ink);
+  }
+  .cat h2 {
+    font-size: 1.25rem;
+  }
+  .cat span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--accent);
+    font-weight: 650;
+    margin-top: var(--space-2);
+  }
+  .latest {
+    margin-top: var(--space-8);
+    display: grid;
+    gap: var(--space-5);
+  }
+</style>

@@ -1,0 +1,227 @@
+---
+import Icon from './Icon.astro';
+import { contactInfo, getSettings } from '@/lib/settings';
+import { services } from '@/lib/data';
+
+const settings = getSettings();
+const c = contactInfo(settings);
+const footerServices = services().filter((s) => s.footer);
+const social = Object.entries(settings.business.social).filter(([, v]) => v) as [string, string][];
+const SOCIAL_LABEL: Record<string, string> = { facebook: 'Facebook', x: 'X', linkedin: 'LinkedIn', instagram: 'Instagram' };
+const year = new Date().getFullYear();
+---
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="top">
+      <div class="nap">
+        <a href="/" class="brand">
+          <img src="/virnobyte-logo.png" alt="" width="40" height="31" loading="lazy" />
+          <span>{c.name}</span>
+        </a>
+        <p class="tag">Computer repair, CCTV, networking and IT support for homes and businesses in Chikhali, Pimpri-Chinchwad and Pune.</p>
+        <address>
+          {c.street},<br />{c.locality}, {c.city},<br />{c.region} – {c.postalCode}, {c.country}
+        </address>
+        <ul class="contact">
+          <li><Icon name="phone" size={18} /><a href={c.tel}>{c.phone}</a></li>
+          <li><Icon name="whatsapp" size={18} /><a href={c.whatsappUrl()} rel="noopener" target="_blank">WhatsApp {c.whatsapp}</a></li>
+          <li><Icon name="mail" size={18} /><a href={c.mailto}>{c.email}</a></li>
+          <li><Icon name="directions" size={18} /><a href={c.directions} rel="noopener" target="_blank">Get directions</a></li>
+        </ul>
+      </div>
+
+      <nav class="cols" aria-label="Footer">
+        <div>
+          <h2>Company</h2>
+          <ul>
+            <li><a href="/about">About Virnobyte</a></li>
+            <li><a href="/contact">Contact</a></li>
+            <li><a href="/careers">Careers</a></li>
+            <li><a href="/company-profile">Company Profile</a></li>
+            <li><a href="/membership">Membership card</a></li>
+            <li><a href="/custom-pc-builder">Custom PC Builder</a></li>
+            <li><a href="/faq">FAQ</a></li>
+            <li><a href="/blog">Blog</a></li>
+          </ul>
+        </div>
+        <div>
+          <h2>Services</h2>
+          <ul>
+            {footerServices.map((s) => <li><a href={`/services/${s.slug}`}>{s.name}</a></li>)}
+          </ul>
+        </div>
+        <div>
+          <h2>Locations</h2>
+          <ul>
+            {settings.business.serviceAreas.map((a) => <li>{a}</li>)}
+          </ul>
+          <h2 class="mt">Legal</h2>
+          <ul>
+            <li><a href="/privacy-policy">Privacy Policy</a></li>
+            <li><a href="/terms-and-conditions">Terms &amp; Conditions</a></li>
+          </ul>
+        </div>
+      </nav>
+    </div>
+
+    <div class="bottom">
+      <p>© {year} {c.legalName.replace(/\.$/, '')}. All rights reserved.</p>
+      {
+        social.length > 0 && (
+          <ul class="social">
+            {social.map(([k, href]) => (
+              <li><a href={href} rel="noopener me" target="_blank">{SOCIAL_LABEL[k] ?? k}</a></li>
+            ))}
+          </ul>
+        )
+      }
+    </div>
+  </div>
+</footer>
+
+<nav class="action-bar" aria-label="Quick contact">
+  <a href={c.tel}><Icon name="phone" size={20} /> Call</a>
+  <a href={c.whatsappUrl()} rel="noopener" target="_blank"><Icon name="whatsapp" size={20} /> WhatsApp</a>
+  <a href="/contact#book" class="primary"><Icon name="calendar" size={20} /> Book</a>
+</nav>
+
+<style>
+  .site-footer {
+    background: var(--night);
+    color: var(--on-night-2);
+    padding-block: var(--space-8) var(--space-6);
+    font-size: var(--fs-small);
+  }
+  .site-footer a {
+    color: var(--on-night);
+    text-decoration: none;
+  }
+  .site-footer a:hover {
+    text-decoration: underline;
+    color: #fff;
+  }
+  .top {
+    display: grid;
+    gap: var(--space-7);
+  }
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 800;
+    font-size: 1.3rem;
+    letter-spacing: -0.03em;
+    color: #fff !important;
+  }
+  .brand img {
+    width: 40px;
+    height: auto;
+  }
+  .tag {
+    margin-top: var(--space-4);
+    max-width: 40ch;
+    font-size: var(--fs-body);
+    color: var(--on-night);
+  }
+  address {
+    font-style: normal;
+    margin-top: var(--space-5);
+    line-height: 1.7;
+  }
+  .contact {
+    list-style: none;
+    padding: 0;
+    margin: var(--space-5) 0 0;
+    display: grid;
+    gap: var(--space-3);
+  }
+  .contact li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-variant-numeric: tabular-nums;
+  }
+  .cols {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: var(--space-6);
+  }
+  .cols h2 {
+    font-size: var(--fs-small);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--on-night);
+    margin-bottom: var(--space-4);
+  }
+  .cols h2.mt {
+    margin-top: var(--space-6);
+  }
+  .cols ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 10px;
+  }
+  .bottom {
+    margin-top: var(--space-8);
+    padding-top: var(--space-5);
+    border-top: 1px solid rgb(255 255 255 / 0.12);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: var(--space-4);
+  }
+  .social {
+    list-style: none;
+    display: flex;
+    gap: var(--space-5);
+    padding: 0;
+    margin: 0;
+  }
+  @media (min-width: 960px) {
+    .top {
+      grid-template-columns: minmax(300px, 1fr) 2fr;
+    }
+  }
+
+  .action-bar {
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: 40;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    background: var(--surface);
+    border-top: 1px solid var(--line);
+    box-shadow: 0 -6px 20px -12px rgb(11 23 36 / 0.3);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .action-bar a {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-height: 60px;
+    font-size: 0.8125rem;
+    font-weight: 650;
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .action-bar a.primary {
+    background: var(--accent);
+    color: var(--on-accent);
+  }
+  :global(body) {
+    padding-bottom: calc(60px + env(safe-area-inset-bottom));
+  }
+  @media (min-width: 768px) {
+    .action-bar {
+      display: none;
+    }
+    :global(body) {
+      padding-bottom: 0;
+    }
+  }
+</style>

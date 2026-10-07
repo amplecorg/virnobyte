@@ -1,0 +1,53 @@
+---
+import Auth from '@/layouts/Auth.astro';
+import Field from '@/components/Field.astro';
+import { createSession, rateLimit, registerCustomer } from '@/lib/auth';
+import { get } from '@/lib/db';
+import { planById, requestMembership } from '@/lib/data';
+
+const planId = Number(Astro.url.searchParams.get('plan')) || null;
+const plan = planId ? planById(planId) : undefined;
+const errors: Record<string, string> = {};
+const values = { name: '', email: '', phone: '' };
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  values.name = String(form.get('name') ?? '').trim();
+  values.email = String(form.get('email') ?? '').trim();
+  values.phone = String(form.get('phone') ?? '').trim();
+  const password = String(form.get('password') ?? '');
+
+  if (!values.name) errors.name = 'Enter your name as it should appear on your card.';
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(values.email)) errors.email = 'Enter an email address like name@example.com.';
+  else if (get('SELECT 1 FROM users WHERE email = ?', values.email)) errors.email = 'An account with this email already exists. Sign in instead.';
+  if (!/^[+]?[0-9 ()-]{10,16}$/.test(values.phone)) errors.phone = 'Enter a 10-digit mobile number, e.g. 98765 43210.';
+  if (password.length < 8) errors.password = 'Use at least 8 characters.';
+  if (!rateLimit(`reg:${Astro.clientAddress}`, 5, 60 * 60_000)) errors.form = 'Too many accounts created from this connection. Please call us.';
+
+  if (!Object.keys(errors).length) {
+    const id = registerCustomer({ ...values, password });
+    createSession(Astro.cookies, id, Astro.url.protocol === 'https:');
+    if (plan && plan.active) {
+      requestMembership(id, plan.id);
+      return Astro.redirect('/account?requested=1', 303);
+    }
+    return Astro.redirect('/account', 303);
+  }
+}
+---
+
+<Auth
+  title="Create an account | Virnobyte"
+  heading={plan ? `Get the ${plan.name} card` : 'Create your account'}
+  lede={plan ? 'Create an account to request your card. We will call to confirm and activate it.' : 'Track your membership card, coins and service visits.'}
+>
+  {errors.form && <p class="alert alert--error" role="alert">{errors.form}</p>}
+  <form method="post" novalidate>
+    <Field label="Full name" name="name" required autocomplete="name" value={values.name} error={errors.name} hint="Printed on your membership card." />
+    <Field label="Email" name="email" type="email" required autocomplete="email" value={values.email} error={errors.email} />
+    <Field label="Mobile number" name="phone" type="tel" required autocomplete="tel" inputmode="tel" value={values.phone} error={errors.phone} />
+    <Field label="Password" name="password" type="password" required autocomplete="new-password" minlength={8} error={errors.password} hint="At least 8 characters." />
+    <button class="btn btn--block" type="submit">{plan ? `Create account and request ${plan.name}` : 'Create account'}</button>
+  </form>
+  <p class="small muted">Already have an account? <a href="/account/login">Sign in</a>.</p>
+</Auth>

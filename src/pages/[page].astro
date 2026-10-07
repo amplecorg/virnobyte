@@ -1,0 +1,85 @@
+---
+import Base from '@/layouts/Base.astro';
+import PageHero from '@/components/PageHero.astro';
+import CtaBand from '@/components/CtaBand.astro';
+import { page } from '@/lib/data';
+import { contactInfo, getSettings } from '@/lib/settings';
+import { breadcrumbs, localBusiness } from '@/lib/schema';
+import { formatDate, markdown } from '@/lib/format';
+
+// Admin-editable static pages. Only these slugs are routed here.
+const ALLOWED = ['privacy-policy', 'terms-and-conditions', 'company-profile'] as const;
+const slug = Astro.params.page!;
+if (!ALLOWED.includes(slug as any)) return Astro.rewrite('/404');
+const p = page(slug);
+if (!p) return Astro.rewrite('/404');
+
+const s = getSettings();
+const c = contactInfo(s);
+const crumbs = [
+  { name: 'Home', href: '/' },
+  { name: p.title, href: `/${slug}` },
+];
+const isProfile = slug === 'company-profile';
+const TITLES: Record<string, string> = {
+  'privacy-policy': `Privacy Policy | ${c.name}`,
+  'terms-and-conditions': `Terms & Conditions | ${c.name}`,
+  'company-profile': `${c.name} Company Profile | IT Services Company in Pune`,
+};
+---
+
+<Base
+  title={TITLES[slug]}
+  description={p.description}
+  canonical={`/${slug}`}
+  jsonLd={[breadcrumbs(Astro.site!, crumbs), ...(isProfile ? [localBusiness(Astro.site!, s)] : [])]}
+>
+  <PageHero crumbs={crumbs} title={p.title} lede={isProfile ? p.description : `Last updated ${formatDate(p.updated_at)}`} />
+  <section class="section">
+    <div class="wrap layout">
+      <div class="prose" set:html={markdown(p.body)} />
+      {
+        isProfile && (
+          <aside class="card facts" aria-label="Company facts">
+            <dl>
+              <div><dt>Company</dt><dd>{c.legalName}</dd></div>
+              <div><dt>Established</dt><dd>{s.business.foundedYear}</dd></div>
+              <div><dt>Address</dt><dd>{c.fullAddress}</dd></div>
+              <div><dt>Phone</dt><dd><a href={c.tel}>{c.phone}</a></dd></div>
+              <div><dt>Email</dt><dd><a href={c.mailto}>{c.email}</a></dd></div>
+              <div><dt>Service areas</dt><dd>{s.business.serviceAreas.join(', ')}</dd></div>
+            </dl>
+          </aside>
+        )
+      }
+    </div>
+  </section>
+  {isProfile && <CtaBand />}
+</Base>
+
+<style>
+  .layout {
+    display: grid;
+    gap: var(--space-7);
+  }
+  .facts dl {
+    margin: 0;
+    display: grid;
+    gap: var(--space-4);
+  }
+  .facts dt {
+    font-size: var(--fs-small);
+    color: var(--ink-3);
+  }
+  .facts dd {
+    margin: 0;
+    font-weight: 600;
+  }
+  @media (min-width: 1100px) {
+    .layout {
+      grid-template-columns: minmax(0, 1fr) 380px;
+      gap: var(--space-8);
+      align-items: start;
+    }
+  }
+</style>

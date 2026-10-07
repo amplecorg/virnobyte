@@ -1,0 +1,203 @@
+---
+import Base from '@/layouts/Base.astro';
+import PageHero from '@/components/PageHero.astro';
+import CtaBand from '@/components/CtaBand.astro';
+import Photo from '@/components/Photo.astro';
+import { contactInfo, getSettings } from '@/lib/settings';
+import { services } from '@/lib/data';
+import { breadcrumbs, localBusiness } from '@/lib/schema';
+
+const s = getSettings();
+const c = contactInfo(s);
+const svc = services();
+const years = new Date().getFullYear() - s.business.foundedYear;
+const crumbs = [
+  { name: 'Home', href: '/' },
+  { name: 'About', href: '/about' },
+];
+const VALUES = [
+  { t: 'Customer first', d: 'We recommend what solves your problem, even when that is the cheaper option.' },
+  { t: 'Transparency', d: 'Diagnosis before repair, itemised quotes, and no work without your approval.' },
+  { t: 'Reliability', d: 'Tested components, tidy installations and records of what was done.' },
+  { t: 'Integrity', d: 'Your devices and data are handled with care and kept private.' },
+];
+---
+
+<Base
+  title="About Virnobyte | IT Solutions & Computer Services in Pune"
+  description={`Virnobyte is a hardware, networking and IT services company in Chikhali, Pimpri-Chinchwad, serving homes and businesses across Pune since ${s.business.foundedYear}.`}
+  canonical="/about"
+  image="/og/pages/about.jpg"
+  jsonLd={[localBusiness(Astro.site!, s), breadcrumbs(Astro.site!, crumbs)]}
+>
+  <PageHero
+    crumbs={crumbs}
+    eyebrow={`Since ${s.business.foundedYear} · ${c.locality}, ${c.city}`}
+    title="About Virnobyte"
+    lede={`A Pune hardware, networking and IT services company that repairs, installs and supports technology for homes and businesses — from a workshop in ${c.locality}.`}
+    image="virnobyte-custom-it-solutions-server"
+    imageAlt="Server rack with organised network cabling"
+  />
+
+  <section class="section">
+    <div class="wrap about">
+      <div class="prose" data-reveal>
+        <h2>Who we are</h2>
+        <p>
+          {c.legalName} is based at Sadichha Complex on Mahadev Temple Road, Jadhav Wadi, in {c.locality}. We provide computer and laptop repair,
+          networking, CCTV installation, printer services, software support, annual maintenance contracts and on-site technical help for
+          customers in {c.city} and across Pune.
+        </p>
+        <p>
+          Alongside services, we supply new and refurbished laptops and desktops, printers, CCTV systems, networking equipment, RAM, SSDs,
+          UPS units and other hardware — so customers can get advice, equipment and installation from one place.
+        </p>
+        <h2>Experience</h2>
+        <p>
+          {years > 0 ? `With more than ${years} years of hands-on work, ` : ''}our technicians have seen most of the ways computers,
+          networks and CCTV systems fail. That experience is what lets us diagnose accurately, quote honestly and fix things properly the first time.
+        </p>
+        <h2>How we work</h2>
+        <p>
+          Every job starts with a diagnosis. We explain what we found, give you an itemised quote, and begin only after you approve it.
+          We use tested components, keep a record of the work, and stay reachable afterwards. That approach is why many customers
+          move from one-off repairs to our <a href="/membership">membership card</a> or an <a href="/services/amc-services">IT AMC</a>.
+        </p>
+      </div>
+      <div class="side" data-reveal>
+        <div class="card mv">
+          <h2>Our mission</h2>
+          <p>To deliver reliable, transparent and customer-focused technology solutions through quality service, trusted support and continuous improvement for homes and businesses.</p>
+        </div>
+        <div class="card mv">
+          <h2>Our vision</h2>
+          <p>To become a trusted technology partner for homes and businesses by delivering dependable hardware, networking and IT support while continuously improving quality, innovation and long-term value.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--white">
+    <div class="wrap">
+      <div class="section-head" data-reveal>
+        <span class="eyebrow">What guides the work</span>
+        <h2>Customer-first, and transparent about it</h2>
+      </div>
+      <ul class="values">
+        {
+          VALUES.map((v) => (
+            <li data-reveal>
+              <h3>{v.t}</h3>
+              <p>{v.d}</p>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap split">
+      <div class="stack" data-reveal>
+        <span class="eyebrow">Technology and services</span>
+        <h2>What our team handles</h2>
+        <p class="lede">Repairs, installations and ongoing support across {svc.length} service areas:</p>
+        <ul class="svc-list">
+          {svc.map((x) => <li><a href={`/services/${x.slug}`}>{x.name}</a></li>)}
+        </ul>
+      </div>
+      <div class="stack" data-reveal>
+        <span class="eyebrow">Service coverage</span>
+        <h2>Where we work</h2>
+        <p>
+          Walk-in repairs are handled at our {c.locality} workshop. Our technicians visit homes, shops and offices across {c.city}
+          and Pune for on-site repairs, installations, networking and AMC visits.
+        </p>
+        <ul class="ticks">
+          {s.business.serviceAreas.map((a) => <li>{a}</li>)}
+        </ul>
+        <Photo image="virnobyte-wifi-router-setup" alt="Wi-Fi router connected with a network cable during an installation" sizes="(min-width: 1024px) 45vw, 100vw" class="cov-img" />
+      </div>
+    </div>
+  </section>
+
+  <CtaBand />
+</Base>
+
+<style>
+  .about {
+    display: grid;
+    gap: var(--space-7);
+  }
+  .side {
+    display: grid;
+    gap: var(--space-5);
+    align-content: start;
+  }
+  .mv {
+    display: grid;
+    gap: var(--space-3);
+  }
+  .mv h2 {
+    font-size: 1.375rem;
+  }
+  .mv p {
+    color: var(--ink-2);
+  }
+  .values {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: var(--space-5);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  }
+  .values li {
+    display: grid;
+    gap: var(--space-2);
+    padding-top: var(--space-4);
+    border-top: 2px solid var(--ink);
+  }
+  .values p {
+    color: var(--ink-2);
+  }
+  .split {
+    display: grid;
+    gap: var(--space-7);
+  }
+  .svc-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    columns: 2 200px;
+    column-gap: var(--space-5);
+  }
+  .svc-list li {
+    padding: 6px 0;
+    break-inside: avoid;
+    border-bottom: 1px solid var(--line);
+  }
+  .svc-list a {
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .svc-list a:hover {
+    text-decoration: underline;
+  }
+  .split :global(.cov-img) {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    border-radius: var(--radius-l);
+  }
+  @media (min-width: 1024px) {
+    .about {
+      grid-template-columns: 1.4fr 1fr;
+      gap: var(--space-8);
+    }
+    .split {
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-8);
+    }
+  }
+</style>

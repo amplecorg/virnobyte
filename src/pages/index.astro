@@ -1,0 +1,784 @@
+---
+import { getImage } from 'astro:assets';
+import Base from '@/layouts/Base.astro';
+import Photo from '@/components/Photo.astro';
+import Icon from '@/components/Icon.astro';
+import ServiceGrid from '@/components/ServiceGrid.astro';
+import MembershipCard from '@/components/MembershipCard.astro';
+import FaqList from '@/components/FaqList.astro';
+import CtaBand from '@/components/CtaBand.astro';
+import { getSettings, contactInfo } from '@/lib/settings';
+import { services, plans, homeFaqs, testimonials, posts } from '@/lib/data';
+import { resolveImage } from '@/lib/images';
+import { localBusiness, website, faqPage } from '@/lib/schema';
+import { formatDate, num } from '@/lib/format';
+
+const s = getSettings();
+const c = contactInfo(s);
+const site = Astro.site!;
+const allServices = services();
+const featured = allServices.filter((x) => x.footer).slice(0, 8);
+const planList = plans();
+const faqs = homeFaqs().map((f) => ({ q: f.question, a: f.answer }));
+const reviews = testimonials();
+const latest = posts(3);
+const years = new Date().getFullYear() - s.business.foundedYear;
+
+// Preload the hero photo (LCP) at the same srcset the <picture> uses.
+const heroImg = resolveImage(s.home.heroImage);
+const heroSizes = '100vw';
+const preload =
+  heroImg.kind === 'asset'
+    ? await getImage({ src: heroImg.meta, format: 'avif', widths: [768, 1080, 1440, 1920, 2560, 3840].filter((w) => w <= heroImg.meta.width), sizes: heroSizes })
+    : null;
+
+// Rotating "We fix …" line — built from published services so it never links to a missing page.
+const FIX_LABELS: Record<string, string> = {
+  'laptop-repair': 'laptops',
+  'computer-repair': 'desktops',
+  'cctv-installation': 'CCTV cameras',
+  networking: 'office Wi-Fi',
+  'data-recovery': 'failed hard disks',
+  'printer-repair': 'printers',
+  'virus-removal': 'virus infections',
+  'inverter-installation': 'power backup',
+  'software-installation': 'Windows installs',
+  'amc-services': 'office IT, every month',
+};
+const rotating = allServices.filter((x) => FIX_LABELS[x.slug]).map((x) => ({ slug: x.slug, label: FIX_LABELS[x.slug] }));
+
+// Circuit traces for the hero (viewBox 800×600, anchored to the right edge).
+const TRACES = [
+  'M800 90H610l-30 30H430l-26 26H300',
+  'M800 170H660l-24-24H520',
+  'M800 250H700l-40 40H560l-20 20H420',
+  'M800 330H640l-30-30H500l-24 24H380',
+  'M800 420H720l-28 28H600l-26-26H470',
+  'M800 500H660l-36 36H520',
+  'M690 0v60l-30 30',
+  'M560 600v-70l24-24h70',
+];
+const NODES = [[300, 146], [520, 146], [420, 310], [380, 324], [470, 422], [520, 536], [660, 90], [654, 506]];
+
+const STEPS = [
+  { title: 'Tell us the problem', text: 'Call, WhatsApp, book online or walk in. Many issues can be narrowed down over the phone.' },
+  { title: 'Diagnosis and quote', text: 'We find the cause, then give you an itemised quote. Nothing is changed until you approve it.' },
+  { title: 'Repair or install', text: 'At our Chikhali workshop or at your door, with tested parts and a record of what was done.' },
+  { title: 'Hand-over and support', text: 'We show you the fix, explain any warranty, and stay reachable if the problem returns.' },
+];
+---
+
+<Base
+  title="Virnobyte – IT Services, Computer Repair & IT Solutions in Pune"
+  description="Virnobyte provides computer repair, laptop repair, CCTV installation, networking, IT support, data recovery and business IT solutions in Chikhali, Pimpri-Chinchwad and Pune."
+  canonical="/"
+  jsonLd={[localBusiness(site, s), website(site, s.business.name), ...(faqs.length ? [faqPage(faqs)] : [])]}
+  preloadImage={preload ? { srcset: preload.srcSet.attribute, sizes: heroSizes, type: 'image/avif' } : undefined}
+>
+  <!-- Hero: one promise, three facts, full screen on laptops -->
+  <section class="hero">
+    <Photo
+      image={s.home.heroImage}
+      alt={s.home.heroAlt}
+      eager
+      sizes={heroSizes}
+      widths={[768, 1080, 1440, 1920, 2560, 3840]}
+      class="hero-img"
+      position="60% 50%"
+    />
+    <!-- Current pulses along circuit traces: the same motif as the membership card -->
+    <svg class="hero-traces" viewBox="0 0 800 600" preserveAspectRatio="xMaxYMid slice" aria-hidden="true">
+      <g class="tr-base">
+        {TRACES.map((d) => <path d={d} />)}
+      </g>
+      <g class="tr-pulse">
+        {TRACES.map((d, i) => <path d={d} pathLength="100" style={`animation-delay:${(i * 0.9) % 5.4}s;animation-duration:${4.5 + (i % 3)}s`} />)}
+      </g>
+      <g class="tr-nodes">
+        {NODES.map(([x, y], i) => <circle cx={x} cy={y} r="3.5" style={`animation-delay:${i * 0.7}s`} />)}
+      </g>
+    </svg>
+    <div class="wrap hero-inner">
+      <span class="eyebrow live"><span class="dot" aria-hidden="true"></span>{s.home.eyebrow}</span>
+      <h1>{s.home.h1}</h1>
+      <p class="hero-lede">{s.home.lede}</p>
+      <p class="fixes">
+        <span class="fixes-label">We fix</span>
+        <span class="rotator" data-rotator aria-hidden="true">
+          {rotating.map((r, i) => <a href={`/services/${r.slug}`} class:list={['rot-item', { on: i === 0 }]} tabindex="-1">{r.label}</a>)}
+        </span>
+        <span class="sr-only">{rotating.map((r) => r.label).join(', ')}</span>
+      </p>
+      <div class="btn-row">
+        <a class="btn" href="/contact#book"><Icon name="calendar" /> Book a Service</a>
+        <a class="btn btn--light" href={c.tel}><Icon name="phone" /> Call Now</a>
+        <a class="btn btn--light" href={c.whatsappUrl()} rel="noopener" target="_blank"><Icon name="whatsapp" /> WhatsApp Now</a>
+      </div>
+      <dl class="facts">
+        {
+          s.home.facts.map((f) => (
+            <div>
+              <dt>{f.label}</dt>
+              <dd>{f.value}</dd>
+            </div>
+          ))
+        }
+      </dl>
+    </div>
+  </section>
+
+  <!-- Services -->
+  <section class="section" aria-labelledby="services-h">
+    <div class="wrap">
+      <div class="section-head" data-reveal>
+        <span class="eyebrow">What we fix, install and support</span>
+        <h2 id="services-h">Computer repair, CCTV, networking and IT support under one roof</h2>
+        <p class="lede">
+          Whether it is a single laptop with a cracked screen or a 30-seat office that needs a network, CCTV and
+          yearly maintenance, the same team handles it — from our workshop in {c.locality} and on-site across {c.city} and Pune.
+        </p>
+      </div>
+      <ServiceGrid items={featured} />
+      <p class="all-link" data-reveal>
+        <a class="btn btn--ghost" href="/services">See all {allServices.length} IT services <Icon name="arrow" /></a>
+      </p>
+    </div>
+  </section>
+
+  <!-- Process: an actual sequence, so it is numbered -->
+  <section class="section section--white" aria-labelledby="process-h">
+    <div class="wrap">
+      <div class="section-head" data-reveal>
+        <span class="eyebrow">How a job works</span>
+        <h2 id="process-h">You approve the quote before any work begins</h2>
+      </div>
+      <ol class="steps">
+        {
+          STEPS.map((st, i) => (
+            <li data-reveal>
+              <span class="step-n" aria-hidden="true">{i + 1}</span>
+              <h3>{st.title}</h3>
+              <p>{st.text}</p>
+            </li>
+          ))
+        }
+      </ol>
+    </div>
+  </section>
+
+  <!-- Membership: the signature -->
+  {
+    planList.length > 0 && (
+      <section class="section section--night member" aria-labelledby="member-h">
+        <div class="wrap member-grid">
+          <div class="member-copy" data-reveal>
+            <span class="eyebrow">Virnobyte membership card</span>
+            <h2 id="member-h">A year of IT support in your wallet — with {s.coins.name} to spend</h2>
+            <p class="lede">
+              Members get free service labour for a year, discounts on repairs and software, doorstep visits, and coins
+              credited straight to their card. Every card shows its live coin balance when you sign in.
+            </p>
+            <ul class="ticks">
+              <li>Plans from ₹{num(Math.min(...planList.map((p) => p.price)))} a year</li>
+              <li>Up to {num(Math.max(...planList.map((p) => p.coins)))} {s.coins.name} on activation ({s.coins.valueInr === 1 ? '1 coin = ₹1' : `1 coin = ₹${s.coins.valueInr}`})</li>
+              <li>Up to {Math.max(...planList.map((p) => p.doorstep_visits))} doorstep visits included</li>
+            </ul>
+            <div class="btn-row">
+              <a class="btn" href="/membership">Compare membership plans</a>
+            </div>
+          </div>
+          <div class="fan" data-reveal aria-hidden="true">
+            {planList.slice(0, 3).map((p, i) => (
+              <div class={`fan-card f${i}`}>
+                <MembershipCard planName={p.name} from={p.card_from} to={p.card_to} text={p.card_text} pattern={p.card_pattern} coins={p.coins} status="sample" holder="Member name" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  <!-- Local -->
+  <section class="section" aria-labelledby="local-h">
+    <div class="wrap local">
+      <div class="stack" data-reveal>
+        <span class="eyebrow">Local IT support</span>
+        <h2 id="local-h">Computer and laptop repair in Chikhali, Pimpri-Chinchwad and Pune</h2>
+        <p class="lede">
+          Our office is on Mahadev Temple Road in Jadhav Wadi, Chikhali — easy to reach from Moshi, Talawade, Akurdi,
+          Nigdi and the rest of Pimpri-Chinchwad. Bring in a laptop or desktop for diagnosis, or book a technician to
+          visit your home or office.
+        </p>
+        <p class="muted">
+          {years > 0 ? `For more than ${years} years, ` : ''}businesses across Pune have relied on us for IT support:
+          setting up office networks and Wi-Fi, installing CCTV for shops and factories, recovering data from failed
+          drives, and keeping systems healthy under an annual maintenance contract. Homes call us for slow computers,
+          broken laptop screens, printer problems and virus clean-ups.
+        </p>
+        <address class="nap">
+          <strong>{c.name}</strong><br />
+          {c.street},<br />{c.locality}, {c.city}, {c.region} – {c.postalCode}
+        </address>
+        <div class="btn-row">
+          <a class="btn btn--ghost" href={c.directions} rel="noopener" target="_blank"><Icon name="directions" /> Get Directions</a>
+          <a class="btn btn--ghost" href={c.tel}><Icon name="phone" /> {c.phone}</a>
+        </div>
+      </div>
+      <div class="map" data-reveal>
+        <iframe
+          title={`Map showing ${c.name} in ${c.locality}, ${c.city}`}
+          src={c.mapEmbed}
+          loading="lazy"
+          referrerpolicy="no-referrer-when-downgrade"
+          allowfullscreen></iframe>
+      </div>
+    </div>
+  </section>
+
+  {
+    reviews.length > 0 && (
+      <section class="section section--white" aria-labelledby="reviews-h">
+        <div class="wrap">
+          <div class="section-head" data-reveal>
+            <span class="eyebrow">Customers</span>
+            <h2 id="reviews-h">What customers say after the job</h2>
+          </div>
+          <ul class="quotes">
+            {reviews.map((r) => (
+              <li data-reveal>
+                <blockquote>
+                  <p>“{r.quote}”</p>
+                  <footer>
+                    <strong>{r.name}</strong>
+                    {r.role && <span class="muted">{r.role}</span>}
+                  </footer>
+                </blockquote>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+    )
+  }
+
+  {
+    faqs.length > 0 && (
+      <section class="section" aria-labelledby="faq-h">
+        <div class="wrap two-col">
+          <div class="section-head" data-reveal>
+            <span class="eyebrow">Questions</span>
+            <h2 id="faq-h">Before you book</h2>
+            <p class="lede">
+              Answers to what people ask us most. More on the <a href="/faq">FAQ page</a>.
+            </p>
+          </div>
+          <div data-reveal>
+            <FaqList faqs={faqs} />
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  {
+    latest.length > 0 && (
+      <section class="section section--white" aria-labelledby="blog-h">
+        <div class="wrap">
+          <div class="section-head" data-reveal>
+            <span class="eyebrow">Guides</span>
+            <h2 id="blog-h">Practical IT advice from the workshop</h2>
+          </div>
+          <ul class="posts">
+            {latest.map((p) => (
+              <li data-reveal>
+                <a href={`/blog/${p.slug}`} class="post">
+                  <Photo image={p.image} alt={p.title} sizes="(min-width: 1000px) 30vw, 100vw" widths={[480, 768, 1080]} />
+                  <span class="small muted">{formatDate(p.published_at)}</span>
+                  <h3>{p.title}</h3>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+    )
+  }
+
+  <CtaBand />
+</Base>
+
+<script>
+  // Cycle the "We fix …" line. Paused for reduced motion and while the tab is hidden.
+  const rot = document.querySelector<HTMLElement>('[data-rotator]');
+  if (rot && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const items = [...rot.querySelectorAll<HTMLElement>('.rot-item')];
+    let i = 0;
+    setInterval(() => {
+      if (document.hidden || items.length < 2) return;
+      const cur = items[i];
+      i = (i + 1) % items.length;
+      const next = items[i];
+      cur.classList.remove('on');
+      cur.classList.add('out');
+      next.classList.remove('out');
+      next.classList.add('on');
+      setTimeout(() => cur.classList.remove('out'), 520);
+    }, 2200);
+  }
+</script>
+
+<style>
+  /* Hero */
+  .hero {
+    position: relative;
+    isolation: isolate;
+    display: grid;
+    align-items: end;
+    min-height: min(88svh, 900px);
+    color: #fff;
+    background: var(--night);
+    overflow: hidden;
+  }
+  .hero :global(.hero-img) {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: -2;
+  }
+  .hero::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background:
+      linear-gradient(180deg, rgb(11 23 36 / 0.35) 0%, rgb(11 23 36 / 0.55) 40%, rgb(11 23 36 / 0.94) 100%),
+      linear-gradient(90deg, rgb(11 23 36 / 0.75) 0%, rgb(11 23 36 / 0) 70%);
+  }
+  .hero-inner {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    gap: var(--space-5);
+    justify-items: start;
+    padding-block: var(--space-8) var(--space-6);
+  }
+
+  /* ── Hero life ─────────────────────────────────────────────── */
+  .hero-traces {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none;
+    /* Keep the traces off the headline: fade them in from the right. */
+    -webkit-mask-image: linear-gradient(90deg, transparent 30%, #000 62%);
+    mask-image: linear-gradient(90deg, transparent 30%, #000 62%);
+  }
+  .hero-traces path {
+    fill: none;
+    stroke-width: 1.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .tr-base path {
+    stroke: rgb(158 201 255 / 0.14);
+  }
+  .tr-pulse path {
+    stroke: #6db6ff;
+    stroke-width: 2.2;
+    stroke-dasharray: 8 92;
+    stroke-dashoffset: 100;
+    opacity: 0;
+    filter: drop-shadow(0 0 6px rgb(109 182 255 / 0.9));
+  }
+  .tr-nodes circle {
+    fill: #9ec9ff;
+    opacity: 0.35;
+  }
+  .live .dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin-right: 8px;
+    border-radius: 50%;
+    background: #3ddc97;
+    box-shadow: 0 0 0 0 rgb(61 220 151 / 0.6);
+    vertical-align: 1px;
+  }
+  .fixes {
+    display: flex;
+    align-items: baseline;
+    gap: 0.45em;
+    font-size: clamp(1.125rem, 1rem + 0.6vw, 1.5rem);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: #fff;
+    margin-top: calc(var(--space-2) * -1);
+  }
+  .fixes-label {
+    color: #c9d6e3;
+    font-weight: 600;
+  }
+  .rotator {
+    position: relative;
+    display: inline-grid;
+    height: 1.3em;
+    overflow: hidden;
+    min-width: 12ch;
+  }
+  .rot-item {
+    grid-area: 1 / 1;
+    color: #9ec9ff;
+    text-decoration: none;
+    border-bottom: 2px solid rgb(158 201 255 / 0.45);
+    line-height: 1.25;
+    white-space: nowrap;
+    transform: translateY(110%);
+    opacity: 0;
+    transition: transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1), opacity 0.4s;
+    justify-self: start;
+  }
+  .rot-item.on {
+    transform: none;
+    opacity: 1;
+  }
+  .rot-item.out {
+    transform: translateY(-110%);
+    opacity: 0;
+  }
+  .rot-item:hover {
+    color: #fff;
+  }
+  .scroll-cue {
+    display: none;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .hero :global(.hero-img) {
+      animation: drift 28s ease-in-out infinite alternate;
+      transform-origin: 65% 45%;
+    }
+    @keyframes drift {
+      from {
+        transform: scale(1.04) translate3d(0, 0, 0);
+      }
+      to {
+        transform: scale(1.14) translate3d(-1.5%, -1%, 0);
+      }
+    }
+    .tr-pulse path {
+      animation-name: pulse-run;
+      animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
+      animation-iteration-count: infinite;
+    }
+    @keyframes pulse-run {
+      0% {
+        stroke-dashoffset: 100;
+        opacity: 0;
+      }
+      8% {
+        opacity: 1;
+      }
+      70% {
+        opacity: 1;
+      }
+      100% {
+        stroke-dashoffset: 0;
+        opacity: 0;
+      }
+    }
+    .tr-nodes circle {
+      animation: node 3.2s ease-in-out infinite;
+    }
+    @keyframes node {
+      0%,
+      100% {
+        opacity: 0.25;
+      }
+      50% {
+        opacity: 0.9;
+      }
+    }
+    .live .dot {
+      animation: ping 2s ease-out infinite;
+    }
+    @keyframes ping {
+      0% {
+        box-shadow: 0 0 0 0 rgb(61 220 151 / 0.6);
+      }
+      80%,
+      100% {
+        box-shadow: 0 0 0 9px rgb(61 220 151 / 0);
+      }
+    }
+    /* Staged entrance: transform-only so the LCP image is never delayed. */
+    .hero-inner > * {
+      animation: rise 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+    }
+    .hero-inner > :nth-child(1) {
+      animation-delay: 0.05s;
+    }
+    .hero-inner > :nth-child(2) {
+      animation-delay: 0.15s;
+    }
+    .hero-inner > :nth-child(3) {
+      animation-delay: 0.28s;
+    }
+    .hero-inner > :nth-child(4) {
+      animation-delay: 0.4s;
+    }
+    .hero-inner > :nth-child(5) {
+      animation-delay: 0.52s;
+    }
+    .hero-inner > :nth-child(6) {
+      animation-delay: 0.64s;
+    }
+    @keyframes rise {
+      from {
+        transform: translateY(24px);
+        opacity: 0.001;
+      }
+      to {
+        transform: none;
+        opacity: 1;
+      }
+    }
+  }
+  @media (max-width: 700px) {
+    .tr-base path {
+      stroke: rgb(158 201 255 / 0.08);
+    }
+    .tr-pulse path {
+      stroke-width: 1.6;
+    }
+  }
+  .hero .eyebrow {
+    color: #d5e1ee;
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: var(--fs-small);
+  }
+  .hero h1 {
+    max-width: 15ch;
+  }
+  .hero-lede {
+    max-width: 56ch;
+    color: #dde6ef;
+  }
+  .facts {
+    margin: var(--space-4) 0 0;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+    max-width: 900px;
+    border-top: 1px solid rgb(255 255 255 / 0.25);
+    padding-top: var(--space-5);
+    gap: var(--space-4);
+  }
+  .facts div {
+    display: flex;
+    flex-direction: column-reverse;
+    justify-content: flex-end;
+    gap: 4px;
+  }
+  .facts dd {
+    margin: 0;
+    font-weight: 750;
+    font-size: clamp(1.125rem, 0.9rem + 1vw, 1.625rem);
+    letter-spacing: -0.02em;
+  }
+  .facts dt {
+    font-size: var(--fs-small);
+    color: #c9d6e3;
+  }
+  @media (min-width: 1024px) {
+    .hero {
+      min-height: calc(100svh - var(--header-h));
+    }
+  }
+
+  .all-link {
+    margin-top: var(--space-6);
+  }
+
+  /* Steps */
+  .steps {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: var(--space-5);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+    counter-reset: s;
+  }
+  .steps li {
+    display: grid;
+    gap: var(--space-3);
+    align-content: start;
+    padding-top: var(--space-5);
+    border-top: 2px solid var(--ink);
+  }
+  .step-n {
+    font-weight: 800;
+    font-size: var(--fs-title);
+    line-height: 1;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+  .steps p {
+    color: var(--ink-2);
+  }
+
+  /* Membership */
+  .member {
+    overflow: hidden;
+  }
+  .member-grid {
+    display: grid;
+    gap: var(--space-8);
+    align-items: center;
+  }
+  .member-copy {
+    display: grid;
+    gap: var(--space-5);
+    justify-items: start;
+  }
+  .member-copy h2 {
+    max-width: 20ch;
+  }
+  .fan {
+    position: relative;
+    height: clamp(260px, 50vw, 440px);
+    max-width: 640px;
+    width: 100%;
+    margin-inline: auto;
+  }
+  .fan-card {
+    position: absolute;
+    width: min(78%, 440px);
+    transition: transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  .fan-card.f0 {
+    left: 0;
+    top: 18%;
+    transform: rotate(-9deg);
+  }
+  .fan-card.f1 {
+    left: 14%;
+    top: 4%;
+    transform: rotate(-2deg);
+    z-index: 3;
+  }
+  .fan-card.f2 {
+    right: 0;
+    top: 26%;
+    transform: rotate(7deg);
+    z-index: 2;
+  }
+  @media (hover: hover) and (prefers-reduced-motion: no-preference) {
+    .fan:hover .f0 {
+      transform: rotate(-13deg) translate(-4%, 2%);
+    }
+    .fan:hover .f2 {
+      transform: rotate(11deg) translate(4%, 4%);
+    }
+  }
+  @media (min-width: 1024px) {
+    .member-grid {
+      grid-template-columns: 1fr 1.1fr;
+    }
+  }
+
+  /* Local */
+  .local {
+    display: grid;
+    gap: var(--space-7);
+    align-items: center;
+  }
+  .nap {
+    font-style: normal;
+    line-height: 1.7;
+    padding: var(--space-4) var(--space-5);
+    border-left: 3px solid var(--accent);
+    background: var(--surface);
+    border-radius: 0 var(--radius-s) var(--radius-s) 0;
+  }
+  .map iframe {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    border: 0;
+    border-radius: var(--radius-l);
+    background: var(--line);
+  }
+  @media (min-width: 1024px) {
+    .local {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  /* Quotes */
+  .quotes {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: var(--space-5);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  }
+  blockquote {
+    margin: 0;
+    height: 100%;
+    display: grid;
+    gap: var(--space-4);
+    align-content: space-between;
+    padding: var(--space-5);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+  }
+  blockquote footer {
+    display: grid;
+    font-size: var(--fs-small);
+  }
+
+  .two-col {
+    display: grid;
+    gap: var(--space-5);
+    align-items: start;
+  }
+  @media (min-width: 1024px) {
+    .two-col {
+      grid-template-columns: 1fr 1.5fr;
+      gap: var(--space-8);
+    }
+  }
+
+  /* Posts */
+  .posts {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: var(--space-5);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  }
+  .post {
+    display: grid;
+    gap: var(--space-3);
+    color: inherit;
+    text-decoration: none;
+  }
+  .post :global(img) {
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    object-fit: cover;
+    border-radius: var(--radius);
+  }
+  .post:hover h3 {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+</style>

@@ -1,0 +1,266 @@
+---
+import Base from '@/layouts/Base.astro';
+import PageHero from '@/components/PageHero.astro';
+import MembershipCard from '@/components/MembershipCard.astro';
+import FaqList from '@/components/FaqList.astro';
+import CtaBand from '@/components/CtaBand.astro';
+import Icon from '@/components/Icon.astro';
+import { plans, allFaqs, currentMembership } from '@/lib/data';
+import { contactInfo, getSettings } from '@/lib/settings';
+import { breadcrumbs, faqPage } from '@/lib/schema';
+import { inr, num } from '@/lib/format';
+
+const s = getSettings();
+const c = contactInfo(s);
+const list = plans();
+const user = Astro.locals.user;
+const mine = user ? currentMembership(user.id) : undefined;
+const faqs = allFaqs()
+  .filter((f) => f.topic === 'Membership')
+  .map((f) => ({ q: f.question, a: f.answer }));
+const crumbs = [
+  { name: 'Home', href: '/' },
+  { name: 'Membership', href: '/membership' },
+];
+const requested = Astro.url.searchParams.get('requested');
+const coinValue = s.coins.valueInr === 1 ? '1 coin = ₹1' : `1 coin = ₹${s.coins.valueInr}`;
+---
+
+<Base
+  title="IT Membership Card & Plans in Pune | Virnobyte"
+  description={`Virnobyte IT membership cards for Pune homes and offices: a year of free service labour, repair discounts, doorstep visits and ${s.coins.name} on your card.`}
+  canonical="/membership"
+  image="/og/pages/membership.jpg"
+  jsonLd={[breadcrumbs(Astro.site!, crumbs), ...(faqs.length ? [faqPage(faqs)] : [])]}
+>
+  <PageHero
+    crumbs={crumbs}
+    eyebrow={`Membership card · ${s.coins.name}`}
+    title="A membership card that pays for your IT support"
+    lede={`Pick a plan, and your card comes loaded with ${s.coins.name} (${coinValue}), free service labour for a year and doorstep visits from our technicians.`}
+  />
+
+  {
+    requested && (
+      <div class="wrap" style="margin-top:var(--space-6)">
+        <p class="alert alert--ok" role="status">
+          Your request has been sent. We will call you to confirm and collect payment, then activate your card. You can follow its status in <a href="/account">your account</a>.
+        </p>
+      </div>
+    )
+  }
+
+  <section class="section" aria-labelledby="plans-h">
+    <div class="wrap">
+      <h2 id="plans-h" class="sr-only">Membership plans</h2>
+      <ul class="plans">
+        {
+          list.map((p) => (
+            <li class:list={['plan', { featured: p.featured }]} data-reveal>
+              {p.badge && <span class="badge">{p.badge}</span>}
+              <MembershipCard planName={p.name} from={p.card_from} to={p.card_to} text={p.card_text} pattern={p.card_pattern} coins={p.coins} holder="Member name" />
+              <div class="plan-body">
+                <h3>{p.name} membership</h3>
+                <p class="muted small">{p.tagline}</p>
+                <p class="price">
+                  <strong>{inr(p.price)}</strong>
+                  <span class="muted"> / year</span>
+                  {p.mrp > p.price && <s class="muted">{inr(p.mrp)}</s>}
+                </p>
+                <dl class="keys">
+                  <div><dt>{s.coins.name}</dt><dd>{num(p.coins)}</dd></div>
+                  <div><dt>Doorstep visits</dt><dd>{p.doorstep_visits}</dd></div>
+                  <div><dt>Validity</dt><dd>{Math.round(p.validity_days / 30.4)} months</dd></div>
+                </dl>
+                <ul class="ticks">
+                  {p.benefits.map((b) => <li>{b}</li>)}
+                </ul>
+                {mine && (mine.status === 'active' || mine.status === 'pending') ? (
+                  <p class="small muted mine">
+                    {mine.plan_id === p.id ? `This is your ${mine.status === 'active' ? 'current' : 'requested'} plan.` : 'You already have a card. Contact us to change plans.'}
+                  </p>
+                ) : (
+                  <form method="post" action="/api/membership">
+                    <input type="hidden" name="plan_id" value={p.id} />
+                    <button class:list={['btn btn--block', { 'btn--ghost': !p.featured }]} type="submit">
+                      Get the {p.name} card
+                    </button>
+                  </form>
+                )}
+              </div>
+            </li>
+          ))
+        }
+      </ul>
+      <p class="small muted note">
+        Payment is collected at our counter or during the first visit — your card is activated as soon as it is confirmed.
+      </p>
+    </div>
+  </section>
+
+  <section class="section section--night" aria-labelledby="coins-h">
+    <div class="wrap coins">
+      <div class="stack" data-reveal>
+        <span class="eyebrow">How {s.coins.name} work</span>
+        <h2 id="coins-h">Coins land on your card the day it is activated</h2>
+        <p class="lede">
+          {coinValue}. Use them on repair labour, consumables and products{s.coins.maxRedeemPercent > 0 ? `, for up to ${s.coins.maxRedeemPercent}% of any bill` : ''}.
+          {s.coins.expiryMonths > 0 ? ` Coins stay valid for ${s.coins.expiryMonths} months from when they are credited.` : ''}
+        </p>
+        <ul class="ticks">
+          {s.coins.rules.map((r) => <li>{r}</li>)}
+        </ul>
+      </div>
+      <ol class="how" data-reveal>
+        <li><strong>Choose a plan</strong><span>Request it here or at our {c.locality} counter.</span></li>
+        <li><strong>We confirm and collect payment</strong><span>A quick call to confirm your details.</span></li>
+        <li><strong>Card activated, coins credited</strong><span>Your card number and validity are issued.</span></li>
+        <li><strong>Track everything online</strong><span>Sign in to see your balance, visits left and history.</span></li>
+      </ol>
+    </div>
+  </section>
+
+  {
+    faqs.length > 0 && (
+      <section class="section" aria-labelledby="mfaq-h">
+        <div class="wrap faq-wrap">
+          <h2 id="mfaq-h">Membership questions</h2>
+          <FaqList faqs={faqs} />
+        </div>
+      </section>
+    )
+  }
+
+  <CtaBand heading="Prefer to ask first?" text="Message us on WhatsApp and we will help you choose the right plan." whatsappText={`Hi ${c.name}, I'd like to know more about the membership card.`} />
+</Base>
+
+<style>
+  .plans {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: var(--space-6);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+    align-items: start;
+  }
+  .plan {
+    position: relative;
+    display: grid;
+    gap: var(--space-5);
+    padding: var(--space-5);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-l);
+  }
+  .plan.featured {
+    border: 2px solid var(--ink);
+  }
+  .badge {
+    position: absolute;
+    top: -14px;
+    left: var(--space-5);
+    background: var(--ink);
+    color: #fff;
+    font-size: var(--fs-small);
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 999px;
+    z-index: 2;
+  }
+  .plan :global(.vcard) {
+    max-width: none;
+  }
+  .plan-body {
+    display: grid;
+    gap: var(--space-4);
+  }
+  .plan-body h3 {
+    font-size: 1.375rem;
+  }
+  .price {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .price strong {
+    font-size: var(--fs-title);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+  }
+  .keys {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    margin: 0;
+    border-block: 1px solid var(--line);
+    padding-block: var(--space-4);
+  }
+  .keys div {
+    display: flex;
+    flex-direction: column-reverse;
+    justify-content: flex-end;
+  }
+  .keys dt {
+    font-size: var(--fs-small);
+    color: var(--ink-3);
+  }
+  .keys dd {
+    margin: 0;
+    font-weight: 750;
+    font-size: 1.25rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .note {
+    margin-top: var(--space-5);
+    max-width: 80ch;
+  }
+  .mine {
+    padding: var(--space-3);
+    background: var(--paper);
+    border-radius: var(--radius-s);
+  }
+  .coins {
+    display: grid;
+    gap: var(--space-7);
+  }
+  .how {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: var(--space-4);
+    counter-reset: h;
+  }
+  .how li {
+    counter-increment: h;
+    display: grid;
+    grid-template-columns: 2.5rem 1fr;
+    gap: 2px var(--space-3);
+    padding: var(--space-4) 0;
+    border-top: 1px solid rgb(255 255 255 / 0.14);
+  }
+  .how li::before {
+    content: counter(h);
+    grid-row: span 2;
+    font-weight: 800;
+    font-size: 1.5rem;
+    color: #9ec9ff;
+  }
+  .how span {
+    color: var(--on-night-2);
+    font-size: var(--fs-small);
+  }
+  @media (min-width: 1024px) {
+    .coins {
+      grid-template-columns: 1.1fr 1fr;
+      gap: var(--space-8);
+      align-items: center;
+    }
+  }
+  .faq-wrap {
+    display: grid;
+    gap: var(--space-5);
+    max-width: 960px;
+  }
+</style>

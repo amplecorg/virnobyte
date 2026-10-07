@@ -1,0 +1,136 @@
+---
+import { getImage } from 'astro:assets';
+import type { FieldDef } from '@/lib/admin/resources';
+import { PHOTOS, PHOTO_KEYS, photoLabel } from '@/lib/images';
+
+interface Props {
+  field: FieldDef;
+  value: string;
+  error?: string;
+  scope?: string;
+}
+const { field: f, value, error, scope = '' } = Astro.props;
+const id = `af-${scope}${f.name}`.replace(/\./g, '-');
+
+let thumbs: Record<string, string> = {};
+let preview = '';
+if (f.type === 'image') {
+  const entries = await Promise.all(
+    PHOTO_KEYS.map(async (k) => [k, (await getImage({ src: PHOTOS[k], width: 480, format: 'webp' })).src] as const),
+  );
+  thumbs = Object.fromEntries(entries);
+  preview = value.startsWith('/uploads/') ? value : thumbs[value] ?? '';
+}
+---
+
+<div class:list={['field', { half: f.half }]} data-invalid={error ? '' : undefined}>
+  {
+    f.type === 'bool' ? (
+      <label class="switch">
+        <input type="checkbox" name={f.name} checked={value === '1'} />
+        {f.label}
+      </label>
+    ) : (
+      <label for={id}>
+        {f.label}
+        {f.required && <span class="muted"> *</span>}
+      </label>
+    )
+  }
+  {f.help && <span class="hint">{f.help}</span>}
+
+  {
+    (f.type === 'text' || f.type === 'slug') && (
+      <input id={id} name={f.name} type="text" value={value} required={f.required} data-max={f.max} />
+    )
+  }
+  {(f.type === 'number' || f.type === 'money') && <input id={id} name={f.name} type="number" inputmode="numeric" value={value} step="1" />}
+  {f.type === 'date' && <input id={id} name={f.name} type="date" value={value.slice(0, 10)} />}
+  {
+    (f.type === 'textarea' || f.type === 'markdown' || f.type === 'list' || f.type === 'faqs' || f.type === 'kv') && (
+      <textarea
+        id={id}
+        name={f.name}
+        rows={f.rows ?? (f.type === 'faqs' ? 10 : f.type === 'list' ? 6 : 4)}
+        class={f.type !== 'textarea' ? 'mono' : undefined}
+        data-max={f.max}
+        placeholder={f.type === 'faqs' ? 'Q: Question?\nA: Answer.\n\nQ: Next question?\nA: Answer.' : undefined}
+      >{value}</textarea>
+    )
+  }
+  {
+    f.type === 'select' && (
+      <select id={id} name={f.name}>
+        {f.options!.map((o) => (
+          <option value={o.value} selected={o.value === value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    )
+  }
+  {
+    f.type === 'color' && (
+      <div class="color-row">
+        <input id={id} name={f.name} type="color" value={value || '#0b2545'} data-color-for={f.name} />
+        <code class="small">{value}</code>
+      </div>
+    )
+  }
+  {
+    f.type === 'image' && (
+      <div class="img-field" data-img-field data-thumbs={JSON.stringify(thumbs)}>
+        {preview && <img class="preview" src={preview} alt="" loading="lazy" />}
+        <select id={id} name={f.name}>
+          <option value="">No image</option>
+          {value.startsWith('/uploads/') && (
+            <option value={value} selected>
+              Uploaded: {value.split('/').pop()}
+            </option>
+          )}
+          <optgroup label="Photo library (4K)">
+            {PHOTO_KEYS.map((k) => (
+              <option value={k} selected={k === value}>
+                {photoLabel(k)}
+              </option>
+            ))}
+          </optgroup>
+        </select>
+        <label class="small">
+          Or upload a new photo (converted to WebP, up to 3840px):
+          <input type="file" name={`${f.name}__upload`} accept="image/jpeg,image/png,image/webp" />
+        </label>
+      </div>
+    )
+  }
+  {f.type === 'readonly' && <p style="white-space:pre-wrap;margin:0">{value || '—'}</p>}
+  {f.max && <span class="count" data-count />}
+  {error && <span class="error">{error}</span>}
+</div>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-img-field]').forEach((wrap) => {
+    if (wrap.dataset.bound) return;
+    wrap.dataset.bound = '1';
+    const thumbs = JSON.parse(wrap.dataset.thumbs || '{}');
+    const sel = wrap.querySelector('select')!;
+    sel.addEventListener('change', () => {
+      let img = wrap.querySelector<HTMLImageElement>('img.preview');
+      const src = sel.value.startsWith('/uploads/') ? sel.value : thumbs[sel.value];
+      if (!src) return img?.remove();
+      if (!img) {
+        img = document.createElement('img');
+        img.className = 'preview';
+        img.alt = '';
+        wrap.prepend(img);
+      }
+      img.src = src;
+    });
+  });
+  document.querySelectorAll<HTMLInputElement>('[data-color-for]').forEach((el) => {
+    el.addEventListener('input', () => {
+      const code = el.parentElement?.querySelector('code');
+      if (code) code.textContent = el.value;
+    });
+  });
+</script>

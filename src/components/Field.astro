@@ -1,0 +1,72 @@
+---
+interface Props {
+  label: string;
+  name: string;
+  type?: 'text' | 'email' | 'tel' | 'password' | 'number' | 'date' | 'textarea' | 'select' | 'url' | 'color';
+  required?: boolean;
+  hint?: string;
+  value?: string | number | null;
+  options?: (string | { value: string; label: string })[];
+  autocomplete?: string;
+  pattern?: string;
+  placeholder?: string;
+  minlength?: number;
+  rows?: number;
+  msgRequired?: string;
+  msgPattern?: string;
+  error?: string;
+  inputmode?: 'numeric' | 'tel' | 'email' | 'text' | 'decimal';
+  min?: number;
+  max?: number;
+  step?: number | string;
+  class?: string;
+}
+const p = Astro.props;
+const id = `f-${p.name}-${Math.random().toString(36).slice(2, 7)}`;
+const describedBy = [p.hint ? `${id}-hint` : '', `${id}-err`].filter(Boolean).join(' ');
+const common = {
+  id,
+  name: p.name,
+  required: p.required,
+  'aria-describedby': describedBy,
+  'aria-invalid': p.error ? 'true' : undefined,
+  'data-label': p.label,
+  'data-msg-required': p.msgRequired,
+  'data-msg-pattern': p.msgPattern,
+};
+const opts = (p.options ?? []).map((o) => (typeof o === 'string' ? { value: o, label: o } : o));
+---
+
+<div class:list={['field', p.class]} data-invalid={p.error ? '' : undefined}>
+  <label for={id}>{p.label}{!p.required && <span class="muted"> (optional)</span>}</label>
+  {p.hint && <span class="hint" id={`${id}-hint`}>{p.hint}</span>}
+  {
+    p.type === 'textarea' ? (
+      <textarea {...common} rows={p.rows ?? 4} placeholder={p.placeholder} minlength={p.minlength}>{p.value ?? ''}</textarea>
+    ) : p.type === 'select' ? (
+      <select {...common}>
+        <option value="">Choose…</option>
+        {opts.map((o) => (
+          <option value={o.value} selected={String(p.value ?? '') === o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    ) : (
+      <input
+        {...common}
+        type={p.type ?? 'text'}
+        value={p.value ?? undefined}
+        autocomplete={p.autocomplete}
+        pattern={p.pattern}
+        placeholder={p.placeholder}
+        minlength={p.minlength}
+        inputmode={p.inputmode}
+        min={p.min}
+        max={p.max}
+        step={p.step}
+      />
+    )
+  }
+  <span class="error" id={`${id}-err`} aria-live="polite">{p.error ?? ''}</span>
+</div>

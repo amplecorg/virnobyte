@@ -1,0 +1,68 @@
+---
+import Base from '@/layouts/Base.astro';
+import PageHero from '@/components/PageHero.astro';
+import Photo from '@/components/Photo.astro';
+import CtaBand from '@/components/CtaBand.astro';
+import { gallery } from '@/lib/data';
+import { breadcrumbs } from '@/lib/schema';
+
+const items = gallery();
+const crumbs = [
+  { name: 'Home', href: '/' },
+  { name: 'Gallery', href: '/gallery' },
+];
+---
+
+<Base
+  title="Gallery | Workshop & Installation Photos | Virnobyte"
+  description="Photos from Virnobyte's workshop in Chikhali and installations across Pimpri-Chinchwad and Pune: CCTV, networking, repairs and office IT."
+  canonical="/gallery"
+  noindex={items.length === 0}
+  jsonLd={breadcrumbs(Astro.site!, crumbs)}
+>
+  <PageHero crumbs={crumbs} eyebrow="Gallery" title="From the workshop and on-site" lede="Real photos of our repairs and installations." />
+  <section class="section">
+    <div class="wrap">
+      {
+        items.length ? (
+          <ul class="gal">
+            {items.map((g) => (
+              <li data-reveal>
+                <figure>
+                  <Photo image={g.image} alt={g.caption || 'Virnobyte project photo'} sizes="(min-width: 1200px) 33vw, (min-width: 700px) 50vw, 100vw" widths={[480, 768, 1080, 1440]} />
+                  {g.caption && <figcaption class="small muted">{g.caption}</figcaption>}
+                </figure>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p class="lede">Photos are being added. Follow our <a href="/portfolio">portfolio</a> for project write-ups.</p>
+        )
+      }
+    </div>
+  </section>
+  <CtaBand />
+</Base>
+
+<style>
+  .gal {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    columns: 3 320px;
+    column-gap: var(--space-4);
+  }
+  .gal li {
+    break-inside: avoid;
+    margin-bottom: var(--space-4);
+  }
+  figure {
+    margin: 0;
+    display: grid;
+    gap: 8px;
+  }
+  figure :global(img) {
+    width: 100%;
+    border-radius: var(--radius);
+  }
+</style>

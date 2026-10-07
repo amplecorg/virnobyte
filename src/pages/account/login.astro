@@ -1,0 +1,38 @@
+---
+import Auth from '@/layouts/Auth.astro';
+import Field from '@/components/Field.astro';
+import { authenticate, createSession, rateLimit } from '@/lib/auth';
+
+const next = Astro.url.searchParams.get('next');
+const safeNext = next && next.startsWith('/') && !next.startsWith('//') ? next : null;
+let error = '';
+let email = '';
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  email = String(form.get('email') ?? '').trim();
+  const password = String(form.get('password') ?? '');
+  if (!rateLimit(`login:${Astro.clientAddress}`, 10, 15 * 60_000)) {
+    error = 'Too many sign-in attempts. Wait 15 minutes and try again.';
+  } else {
+    const user = authenticate(email, password);
+    if (!user) error = 'That email and password do not match an account.';
+    else {
+      createSession(Astro.cookies, user.id, Astro.url.protocol === 'https:');
+      return Astro.redirect(safeNext ?? (user.role === 'admin' ? '/admin' : '/account'), 303);
+    }
+  }
+}
+---
+
+<Auth title="Sign in | Virnobyte" heading="Sign in to your account" lede="See your membership card, coin balance and service history.">
+  {error && <p class="alert alert--error" role="alert">{error}</p>}
+  <form method="post">
+    <Field label="Email" name="email" type="email" required autocomplete="email" value={email} />
+    <Field label="Password" name="password" type="password" required autocomplete="current-password" />
+    <button class="btn btn--block" type="submit">Sign in</button>
+  </form>
+  <p class="small muted">
+    New here? <a href={`/account/register${safeNext ? `?next=${encodeURIComponent(safeNext)}` : ''}`}>Create an account</a>. Forgot your password? Call us and we will reset it.
+  </p>
+</Auth>

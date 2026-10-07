@@ -1,0 +1,164 @@
+---
+import Base from '@/layouts/Base.astro';
+import Breadcrumbs from '@/components/Breadcrumbs.astro';
+import Photo from '@/components/Photo.astro';
+import Icon from '@/components/Icon.astro';
+import CtaBand from '@/components/CtaBand.astro';
+import { post, posts, services } from '@/lib/data';
+import { getSettings } from '@/lib/settings';
+import { article, breadcrumbs } from '@/lib/schema';
+import { formatDate, markdown, readingMinutes } from '@/lib/format';
+
+const p = post(Astro.params.slug!);
+if (!p) return Astro.rewrite('/404');
+
+const s = getSettings();
+const site = Astro.site!;
+const crumbs = [
+  { name: 'Home', href: '/' },
+  { name: 'Blog', href: '/blog' },
+  { name: p.title, href: `/blog/${p.slug}` },
+];
+const related = services().filter((x) => p.related.includes(x.slug));
+const more = posts(4).filter((x) => x.slug !== p.slug).slice(0, 3);
+const og = `/og/posts/${p.slug}.jpg`;
+---
+
+<Base
+  title={`${p.title} | ${s.business.name}`}
+  description={p.description}
+  canonical={`/blog/${p.slug}`}
+  type="article"
+  image={og}
+  publishedTime={p.published_at}
+  modifiedTime={p.updated_at}
+  jsonLd={[article(site, p, new URL(og, site).href), breadcrumbs(site, crumbs)]}
+>
+  <article>
+    <header class="section--tight head">
+      <div class="wrap narrow stack">
+        <Breadcrumbs items={crumbs} />
+        <h1>{p.title}</h1>
+        <p class="lede">{p.description}</p>
+        <p class="small muted">
+          By the {s.business.name} team · <time datetime={p.published_at}>{formatDate(p.published_at)}</time> · {readingMinutes(p.body)} min read
+        </p>
+      </div>
+      <div class="wrap cover">
+        <Photo image={p.image} alt={p.title} eager sizes="(min-width: 1200px) 1100px, 100vw" widths={[768, 1080, 1440, 1920, 2560]} />
+      </div>
+    </header>
+
+    <div class="section--tight">
+      <div class="wrap narrow body">
+        <div class="prose" set:html={markdown(p.body)} />
+
+        {
+          related.length > 0 && (
+            <aside class="card rel" aria-label="Related services">
+              <h2>Related services</h2>
+              <ul>
+                {related.map((r) => (
+                  <li>
+                    <a href={`/services/${r.slug}`} class="text-link">
+                      {r.name} <Icon name="arrow" size={16} />
+                    </a>
+                    <span class="small muted">{r.short}</span>
+                  </li>
+                ))}
+              </ul>
+            </aside>
+          )
+        }
+      </div>
+    </div>
+  </article>
+
+  {
+    more.length > 0 && (
+      <section class="section section--white">
+        <div class="wrap">
+          <h2 class="more-h">More guides</h2>
+          <ul class="more">
+            {more.map((m) => (
+              <li>
+                <a href={`/blog/${m.slug}`}>{m.title}</a>
+                <span class="small muted">{formatDate(m.published_at)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+    )
+  }
+
+  <CtaBand />
+</Base>
+
+<style>
+  .head {
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 0;
+  }
+  .narrow {
+    max-width: calc(780px + 2 * var(--gutter));
+  }
+  .head h1 {
+    font-size: clamp(2rem, 1.4rem + 2.6vw, 3.5rem);
+  }
+  .cover {
+    max-width: calc(1200px + 2 * var(--gutter));
+    margin-top: var(--space-7);
+    transform: translateY(var(--space-6));
+  }
+  .cover :global(img) {
+    width: 100%;
+    aspect-ratio: 2 / 1;
+    object-fit: cover;
+    border-radius: var(--radius-l);
+  }
+  .body {
+    padding-top: var(--space-7);
+    display: grid;
+    gap: var(--space-7);
+  }
+  .prose {
+    font-size: var(--fs-body);
+  }
+  .rel h2 {
+    font-size: 1.25rem;
+    margin-bottom: var(--space-4);
+  }
+  .rel ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: var(--space-4);
+  }
+  .rel li {
+    display: grid;
+    gap: 2px;
+  }
+  .more-h {
+    margin-bottom: var(--space-5);
+  }
+  .more {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: var(--space-4);
+  }
+  .more li {
+    display: grid;
+    gap: 2px;
+    padding-bottom: var(--space-4);
+    border-bottom: 1px solid var(--line);
+  }
+  .more a {
+    font-weight: 650;
+    font-size: 1.125rem;
+  }
+</style>

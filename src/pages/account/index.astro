@@ -1,0 +1,222 @@
+---
+import Base from '@/layouts/Base.astro';
+import MembershipCard from '@/components/MembershipCard.astro';
+import Icon from '@/components/Icon.astro';
+import { currentMembership, coinBalance, coinHistory } from '@/lib/data';
+import { contactInfo, getSettings } from '@/lib/settings';
+import { formatDate, num } from '@/lib/format';
+
+const user = Astro.locals.user!;
+if (user.role === 'admin') return Astro.redirect('/admin');
+const s = getSettings();
+const c = contactInfo(s);
+const m = currentMembership(user.id);
+const balance = coinBalance(user.id);
+const history = coinHistory(user.id);
+const visitsLeft = m ? Math.max(0, m.plan.doorstep_visits - m.visits_used) : 0;
+const requested = Astro.url.searchParams.get('requested');
+const STATUS: Record<string, string> = {
+  pending: 'Awaiting activation',
+  active: 'Active',
+  expired: 'Expired',
+  cancelled: 'Cancelled',
+};
+---
+
+<Base title="My account | Virnobyte" description="Your Virnobyte membership card, coin balance and service visits." noindex>
+  <section class="section">
+    <div class="wrap acct">
+      <header class="head">
+        <div>
+          <span class="eyebrow">My account</span>
+          <h1>Hello, {user.name.split(' ')[0]}</h1>
+        </div>
+        <form method="post" action="/account/logout">
+          <button class="btn btn--ghost btn--sm" type="submit"><Icon name="logout" /> Sign out</button>
+        </form>
+      </header>
+
+      {requested && <p class="alert alert--ok" role="status">Your card request has been sent. We will call you on {user.phone || 'your number'} to confirm and activate it.</p>}
+
+      {
+        m ? (
+          <div class="grid-a">
+            <div class="card-col">
+              <MembershipCard
+                planName={m.plan.name}
+                from={m.plan.card_from}
+                to={m.plan.card_to}
+                text={m.plan.card_text}
+                pattern={m.plan.card_pattern}
+                holder={user.name}
+                number={m.card_number}
+                validThru={m.end_date}
+                coins={balance}
+                status={m.status}
+              />
+              <p class="small muted">{s.card.terms}</p>
+            </div>
+            <dl class="stats">
+              <div>
+                <dt>{s.coins.name}</dt>
+                <dd>{num(balance)}</dd>
+                <span class="small muted">Worth ₹{num(balance * s.coins.valueInr)}</span>
+              </div>
+              <div>
+                <dt>Doorstep visits left</dt>
+                <dd>{m.status === 'active' ? `${visitsLeft} of ${m.plan.doorstep_visits}` : '—'}</dd>
+              </div>
+              <div>
+                <dt>Status</dt>
+                <dd>{STATUS[m.status]}</dd>
+                {m.end_date && <span class="small muted">{m.status === 'expired' ? 'Expired' : 'Valid until'} {formatDate(m.end_date)}</span>}
+              </div>
+              <div>
+                <dt>Plan</dt>
+                <dd>{m.plan.name}</dd>
+                <a class="small" href="/membership">See plan benefits</a>
+              </div>
+            </dl>
+          </div>
+        ) : (
+          <div class="card empty">
+            <h2>You don't have a membership card yet</h2>
+            <p class="muted">Members get a year of free service labour, repair discounts, doorstep visits and {s.coins.name} on their card.</p>
+            <a class="btn" href="/membership">Choose a plan</a>
+          </div>
+        )
+      }
+
+      <section class="card" aria-labelledby="hist-h">
+        <h2 id="hist-h" class="h-sm">Coin history</h2>
+        {
+          history.length ? (
+            <table class="ledger">
+              <thead>
+                <tr><th scope="col">Date</th><th scope="col">Details</th><th scope="col" class="r">Coins</th></tr>
+              </thead>
+              <tbody>
+                {history.map((h) => (
+                  <tr>
+                    <td>{formatDate(h.created_at)}</td>
+                    <td>{h.reason}</td>
+                    <td class:list={['r', h.delta > 0 ? 'plus' : 'minus']}>{h.delta > 0 ? '+' : '−'}{num(Math.abs(h.delta))}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p class="muted">No coin activity yet. Coins appear here when your card is activated.</p>
+          )
+        }
+      </section>
+
+      <section class="card help">
+        <h2 class="h-sm">Need a technician?</h2>
+        <p class="muted">Book a doorstep visit or bring your device to our {c.locality} workshop. Mention your card number.</p>
+        <div class="btn-row">
+          <a class="btn" href="/contact#book">Book a Service</a>
+          <a class="btn btn--ghost" href={c.whatsappUrl(m ? `Hi, I'm a member (card ${m.card_number}). I need help with` : undefined)} rel="noopener" target="_blank"><Icon name="whatsapp" /> WhatsApp</a>
+        </div>
+      </section>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .acct {
+    display: grid;
+    gap: var(--space-6);
+    max-width: calc(1200px + 2 * var(--gutter));
+  }
+  .head {
+    display: flex;
+    justify-content: space-between;
+    align-items: end;
+    gap: var(--space-4);
+    flex-wrap: wrap;
+  }
+  .head h1 {
+    font-size: var(--fs-title);
+  }
+  .grid-a {
+    display: grid;
+    gap: var(--space-6);
+    align-items: center;
+  }
+  .card-col {
+    display: grid;
+    gap: var(--space-3);
+    justify-items: start;
+  }
+  .stats {
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-4);
+  }
+  .stats div {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: var(--space-4) var(--space-5);
+    display: grid;
+    gap: 2px;
+    align-content: start;
+  }
+  .stats dt {
+    font-size: var(--fs-small);
+    color: var(--ink-3);
+  }
+  .stats dd {
+    margin: 0;
+    font-size: clamp(1.375rem, 1.1rem + 1vw, 2rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  @media (min-width: 960px) {
+    .grid-a {
+      grid-template-columns: minmax(320px, 440px) 1fr;
+      gap: var(--space-7);
+    }
+  }
+  .empty,
+  .help {
+    display: grid;
+    gap: var(--space-3);
+    justify-items: start;
+  }
+  .h-sm {
+    font-size: 1.25rem;
+    margin-bottom: var(--space-3);
+  }
+  .ledger {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--fs-small);
+  }
+  .ledger th,
+  .ledger td {
+    text-align: left;
+    padding: 10px 8px;
+    border-bottom: 1px solid var(--line);
+  }
+  .ledger th {
+    color: var(--ink-3);
+    font-weight: 600;
+  }
+  .r {
+    text-align: right !important;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .plus {
+    color: var(--ok);
+    font-weight: 700;
+  }
+  .minus {
+    color: var(--danger);
+    font-weight: 700;
+  }
+</style>

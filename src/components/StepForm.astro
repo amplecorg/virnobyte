@@ -1,0 +1,226 @@
+---
+/**
+ * Multi-step form shell. Children are <fieldset data-step data-title="..."> blocks.
+ * Without JS every step shows and the form posts normally. With JS: one step at a time,
+ * a progress bar, drafts saved to localStorage as people type, and errors beside each field.
+ */
+interface Props {
+  action: string;
+  id: string;
+  submitLabel: string;
+  draftKey: string;
+}
+const { action, id, submitLabel, draftKey } = Astro.props;
+---
+
+<form class="stepform" method="post" action={action} id={id} data-stepform data-draft={draftKey} novalidate>
+  <div class="progress" aria-hidden="true" hidden>
+    <div class="progress-meta">
+      <span data-step-label></span>
+      <span data-step-count></span>
+    </div>
+    <div class="bar"><span data-bar></span></div>
+  </div>
+  <p class="sr-only" aria-live="polite" data-announce></p>
+
+  <div class="hp" aria-hidden="true">
+    <label>Leave this empty <input type="text" name="website" tabindex="-1" autocomplete="off" /></label>
+  </div>
+
+  <slot />
+
+  <div class="nav">
+    <button type="button" class="btn btn--ghost" data-prev hidden>Back</button>
+    <button type="button" class="btn" data-next hidden>Continue</button>
+    <button type="submit" class="btn" data-submit>{submitLabel}</button>
+  </div>
+  <p class="small muted draft-note" data-draft-note hidden>Your answers are saved on this device until you send them.</p>
+</form>
+
+<style>
+  .stepform {
+    display: grid;
+    gap: var(--space-5);
+    min-width: 0;
+  }
+  .stepform > :global(*) {
+    min-width: 0;
+  }
+  .stepform :global(fieldset) {
+    border: 0;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: var(--space-4);
+    min-width: 0;
+  }
+  .stepform :global(fieldset > legend) {
+    font-size: 1.25rem;
+    font-weight: 750;
+    margin-bottom: var(--space-2);
+    padding: 0;
+  }
+  .stepform :global(.two) {
+    display: grid;
+    gap: var(--space-4);
+  }
+  @media (min-width: 560px) {
+    .stepform :global(.two) {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+  .progress-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: var(--fs-small);
+    font-weight: 650;
+    color: var(--ink-2);
+    margin-bottom: 8px;
+  }
+  .bar {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--line);
+    overflow: hidden;
+  }
+  .bar span {
+    display: block;
+    height: 100%;
+    width: 0;
+    background: var(--accent);
+    border-radius: inherit;
+    transition: width 0.3s ease;
+  }
+  .nav {
+    display: flex;
+    gap: var(--space-3);
+    justify-content: space-between;
+  }
+  .nav [data-next],
+  .nav [data-submit] {
+    margin-left: auto;
+  }
+</style>
+
+<script>
+  type Field = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+
+  function message(f: Field): string {
+    const label = f.dataset.label || f.name;
+    const v = f.validity;
+    if (v.valueMissing) return f.dataset.msgRequired || `Enter your ${label.toLowerCase()}.`;
+    if (v.typeMismatch && f.type === 'email') return 'Enter an email address like name@example.com.';
+    if (v.patternMismatch) return f.dataset.msgPattern || `Check the ${label.toLowerCase()} and try again.`;
+    if (v.tooShort) return `Use at least ${f.getAttribute('minlength')} characters.`;
+    return '';
+  }
+
+  function showError(f: Field) {
+    const field = f.closest('.field');
+    const err = field?.querySelector('.error');
+    const msg = f.checkValidity() ? '' : message(f);
+    if (err) err.textContent = msg;
+    if (msg) {
+      field?.setAttribute('data-invalid', '');
+      f.setAttribute('aria-invalid', 'true');
+    } else {
+      field?.removeAttribute('data-invalid');
+      f.removeAttribute('aria-invalid');
+    }
+    return !msg;
+  }
+
+  document.querySelectorAll<HTMLFormElement>('[data-stepform]').forEach((form) => {
+    const steps = [...form.querySelectorAll<HTMLFieldSetElement>('fieldset[data-step]')];
+    const prev = form.querySelector<HTMLButtonElement>('[data-prev]')!;
+    const next = form.querySelector<HTMLButtonElement>('[data-next]')!;
+    const submit = form.querySelector<HTMLButtonElement>('[data-submit]')!;
+    const progress = form.querySelector<HTMLElement>('.progress')!;
+    const bar = form.querySelector<HTMLElement>('[data-bar]')!;
+    const label = form.querySelector<HTMLElement>('[data-step-label]')!;
+    const count = form.querySelector<HTMLElement>('[data-step-count]')!;
+    const announce = form.querySelector<HTMLElement>('[data-announce]')!;
+    const key = 'vb-draft:' + form.dataset.draft;
+    const fields = () => [...form.querySelectorAll<Field>('input, select, textarea')].filter((f) => f.name && f.name !== 'website' && f.type !== 'hidden' && f.type !== 'file');
+    let i = 0;
+
+    // Restore draft
+    try {
+      const saved = JSON.parse(localStorage.getItem(key) || '{}');
+      fields().forEach((f) => {
+        if (saved[f.name] == null) return;
+        if (f instanceof HTMLInputElement && (f.type === 'checkbox' || f.type === 'radio')) f.checked = saved[f.name] === f.value || (Array.isArray(saved[f.name]) && saved[f.name].includes(f.value));
+        else if (!f.value) f.value = saved[f.name];
+      });
+      if (Object.keys(saved).length) form.querySelector<HTMLElement>('[data-draft-note]')!.hidden = false;
+    } catch {}
+
+    form.addEventListener('input', (e) => {
+      const t = e.target as Field;
+      if (t.closest('.field')?.hasAttribute('data-invalid')) showError(t);
+      try {
+        const data: Record<string, unknown> = {};
+        fields().forEach((f) => {
+          if (f instanceof HTMLInputElement && f.type === 'checkbox') {
+            if (f.checked) data[f.name] = [...((data[f.name] as string[]) || []), f.value];
+          } else if (f instanceof HTMLInputElement && f.type === 'radio') {
+            if (f.checked) data[f.name] = f.value;
+          } else if (f.type !== 'password') data[f.name] = f.value;
+        });
+        localStorage.setItem(key, JSON.stringify(data));
+        form.querySelector<HTMLElement>('[data-draft-note]')!.hidden = false;
+      } catch {}
+    });
+    form.addEventListener('focusout', (e) => {
+      const t = e.target as Field;
+      if (t.matches('input, select, textarea') && t.value) showError(t);
+    });
+
+    function render(focus = false) {
+      if (steps.length < 2) return;
+      steps.forEach((s, n) => (s.hidden = n !== i));
+      prev.hidden = i === 0;
+      next.hidden = i === steps.length - 1;
+      submit.hidden = i !== steps.length - 1;
+      progress.hidden = false;
+      bar.style.width = `${((i + 1) / steps.length) * 100}%`;
+      label.textContent = steps[i].dataset.title || '';
+      count.textContent = `Step ${i + 1} of ${steps.length}`;
+      announce.textContent = `Step ${i + 1} of ${steps.length}: ${steps[i].dataset.title || ''}`;
+      if (focus) steps[i].querySelector<HTMLElement>('input, select, textarea')?.focus();
+    }
+
+    function validStep(n: number) {
+      const list = [...steps[n].querySelectorAll<Field>('input, select, textarea')].filter((f) => f.name);
+      const ok = list.map(showError).every(Boolean);
+      if (!ok) list.find((f) => !f.checkValidity())?.focus();
+      return ok;
+    }
+
+    next.addEventListener('click', () => {
+      if (!validStep(i)) return;
+      i++;
+      render(true);
+    });
+    prev.addEventListener('click', () => {
+      i--;
+      render(true);
+    });
+    form.addEventListener('submit', (e) => {
+      for (let n = 0; n < steps.length; n++) {
+        if (!validStep(n)) {
+          e.preventDefault();
+          i = n;
+          render(true);
+          return;
+        }
+      }
+      submit.disabled = true;
+      submit.textContent = 'Sending…';
+      try {
+        localStorage.removeItem(key);
+      } catch {}
+    });
+    render();
+  });
+</script>

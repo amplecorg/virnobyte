@@ -1,0 +1,288 @@
+---
+import { cardExpiry, groupCardNumber, num } from '@/lib/format';
+import { getSettings } from '@/lib/settings';
+
+interface Props {
+  planName: string;
+  from: string;
+  to: string;
+  text?: string;
+  pattern?: string;
+  holder?: string;
+  number?: string;
+  validThru?: string | null;
+  coins?: number;
+  status?: 'pending' | 'active' | 'expired' | 'cancelled' | 'sample';
+  /** Adds data-* hooks so the admin editor can update the preview live. */
+  live?: boolean;
+  class?: string;
+  headingLevel?: 'h2' | 'h3' | 'p';
+}
+
+const s = getSettings();
+const {
+  planName,
+  from,
+  to,
+  text = '#ffffff',
+  pattern = 'circuit',
+  holder = 'Your name',
+  number = `${s.card.prefix}00 0000 0000`,
+  validThru = null,
+  coins = 0,
+  status = 'sample',
+  live = false,
+  class: cls,
+} = Astro.props;
+
+const statusLabel = { pending: 'Awaiting activation', expired: 'Expired', cancelled: 'Cancelled' } as Record<string, string>;
+---
+
+<div
+  class:list={['vcard', `pattern-${pattern}`, `status-${status}`, cls]}
+  style={`--from:${from};--to:${to};--fg:${text}`}
+  data-card={live ? '' : undefined}
+  role="img"
+  aria-label={`${s.business.name} ${planName} membership card${status !== 'sample' ? `, ${num(coins)} ${s.coins.name}` : ''}`}
+>
+  <div class="face">
+    <svg class="traces" viewBox="0 0 400 252" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <g fill="none" stroke="currentColor" stroke-width="1.2">
+        <path d="M-10 40h120l20 20h90l16-16h180" />
+        <path d="M-10 70h70l18 18h70" />
+        <path d="M250 252v-60l22-22h140" />
+        <path d="M300 252v-38l14-14h96" />
+        <path d="M150 252v-30l-16-16H80l-14-14H-10" />
+        <path d="M330 -10v52l18 18h62" />
+      </g>
+      <g fill="currentColor">
+        <circle cx="130" cy="60" r="3" /><circle cx="236" cy="44" r="3" /><circle cx="128" cy="88" r="3" />
+        <circle cx="272" cy="170" r="3" /><circle cx="314" cy="200" r="3" /><circle cx="134" cy="206" r="3" />
+        <circle cx="348" cy="60" r="3" />
+      </g>
+    </svg>
+
+    <div class="row top">
+      <span class="issuer">
+        <img src="/virnobyte-logo-white.png" alt="" width="30" height="23" loading="lazy" />
+        {s.business.name}
+      </span>
+      <span class="plan" data-f="name">{planName}</span>
+    </div>
+
+    <div class="row mid">
+      <span class="chip" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span class="coins">
+        <span class="coin" aria-hidden="true">V</span>
+        <span>
+          <b data-f="coins">{num(coins)}</b>
+          <small>{s.coins.name}</small>
+        </span>
+      </span>
+    </div>
+
+    <div class="number" data-f="number">{groupCardNumber(number)}</div>
+
+    <div class="row bottom">
+      <span class="holder">
+        <small>Member</small>
+        <span data-f="holder">{holder}</span>
+      </span>
+      <span class="valid">
+        <small>Valid thru</small>
+        <span data-f="valid">{cardExpiry(validThru)}</span>
+      </span>
+    </div>
+
+    {statusLabel[status] && <span class="ribbon">{statusLabel[status]}</span>}
+  </div>
+</div>
+
+<style>
+  .vcard {
+    --fg: #fff;
+    container-type: inline-size;
+    width: 100%;
+    max-width: 440px;
+    aspect-ratio: 1.586;
+    perspective: 900px;
+  }
+  .face {
+    position: relative;
+    height: 100%;
+    border-radius: 6.5cqi;
+    padding: 6.5cqi 7cqi;
+    color: var(--fg);
+    background:
+      radial-gradient(120% 90% at 100% 0%, rgb(255 255 255 / 0.18), transparent 55%),
+      linear-gradient(135deg, var(--from), var(--to));
+    box-shadow:
+      0 1px 0 rgb(255 255 255 / 0.25) inset,
+      0 22px 40px -22px rgb(11 23 36 / 0.65),
+      0 4px 10px -4px rgb(11 23 36 / 0.3);
+    display: grid;
+    grid-template-rows: auto 1fr auto auto;
+    overflow: hidden;
+    isolation: isolate;
+    transition: transform 0.4s cubic-bezier(0.2, 0.7, 0.2, 1);
+    transform-style: preserve-3d;
+  }
+  .face::after {
+    /* sheen */
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(115deg, transparent 30%, rgb(255 255 255 / 0.16) 45%, transparent 60%);
+    transform: translateX(-60%);
+    transition: transform 0.9s ease;
+    pointer-events: none;
+  }
+  .vcard:hover .face::after {
+    transform: translateX(60%);
+  }
+  .traces {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0.16;
+    z-index: -1;
+  }
+  .pattern-grid .traces,
+  .pattern-none .traces {
+    display: none;
+  }
+  .pattern-grid .face {
+    background:
+      radial-gradient(circle, rgb(255 255 255 / 0.14) 1px, transparent 1.4px) 0 0 / 4.5cqi 4.5cqi,
+      linear-gradient(135deg, var(--from), var(--to));
+  }
+  .row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 3cqi;
+  }
+  .issuer {
+    display: inline-flex;
+    align-items: center;
+    gap: 2cqi;
+    font-weight: 750;
+    font-size: 4.6cqi;
+    letter-spacing: -0.02em;
+  }
+  .issuer img {
+    width: 7.5cqi;
+    height: auto;
+  }
+  .plan {
+    font-weight: 800;
+    font-size: 6.4cqi;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+  }
+  .mid {
+    align-self: center;
+  }
+  .chip {
+    width: 13cqi;
+    aspect-ratio: 1.3;
+    border-radius: 2cqi;
+    background: linear-gradient(135deg, #f7dd9a, #c99a3b 55%, #f1d27e);
+    display: grid;
+    grid-template-rows: repeat(3, 1fr);
+    padding: 1.4cqi 0;
+    box-shadow: inset 0 0 0 0.4cqi rgb(120 80 10 / 0.35);
+  }
+  .chip i {
+    border-bottom: 0.35cqi solid rgb(120 80 10 / 0.4);
+  }
+  .chip i:last-child {
+    border: 0;
+  }
+  .coins {
+    display: inline-flex;
+    align-items: center;
+    gap: 2.4cqi;
+    padding: 1.8cqi 3.4cqi 1.8cqi 1.8cqi;
+    border-radius: 999px;
+    background: rgb(0 0 0 / 0.22);
+    backdrop-filter: blur(4px);
+  }
+  .coin {
+    display: grid;
+    place-items: center;
+    width: 8.4cqi;
+    height: 8.4cqi;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #ffe7a8, var(--coin) 55%, #b97f12);
+    color: #6b4300;
+    font-weight: 800;
+    font-size: 4.4cqi;
+    box-shadow: inset 0 0 0 0.5cqi rgb(255 255 255 / 0.35);
+  }
+  .coins b {
+    display: block;
+    font-size: 5.2cqi;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .coins small {
+    display: block;
+    font-size: 2.8cqi;
+    opacity: 0.85;
+    margin-top: 0.6cqi;
+  }
+  .number {
+    font-size: 6cqi;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    font-variant-numeric: tabular-nums;
+    margin-block: 2cqi 3cqi;
+    text-shadow: 0 1px 1px rgb(0 0 0 / 0.25);
+  }
+  .bottom {
+    align-items: end;
+  }
+  .holder,
+  .valid {
+    display: grid;
+    gap: 0.6cqi;
+    font-size: 4cqi;
+    font-weight: 650;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    min-width: 0;
+  }
+  .holder span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .valid {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .holder small,
+  .valid small {
+    font-size: 2.5cqi;
+    opacity: 0.8;
+    letter-spacing: 0.1em;
+  }
+  .ribbon {
+    position: absolute;
+    top: 4cqi;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #fff;
+    color: var(--ink);
+    font-size: 3cqi;
+    font-weight: 700;
+    padding: 1cqi 3cqi;
+    border-radius: 999px;
+  }
+  .status-expired .face,
+  .status-cancelled .face {
+    filter: grayscale(0.85);
+  }
+</style>

@@ -1,0 +1,38 @@
+---
+import Base from './Base.astro';
+interface Props {
+  title: string;
+  heading: string;
+  lede?: string;
+}
+const { title, heading, lede } = Astro.props;
+---
+
+<Base title={title} description={lede ?? heading} noindex>
+  <section class="section auth">
+    <div class="wrap">
+      <div class="card box">
+        <h1>{heading}</h1>
+        {lede && <p class="muted">{lede}</p>}
+        <slot />
+      </div>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .box {
+    max-width: 480px;
+    margin-inline: auto;
+    display: grid;
+    gap: var(--space-5);
+    padding: var(--space-6);
+  }
+  .box h1 {
+    font-size: var(--fs-title);
+  }
+  .box :global(form) {
+    display: grid;
+    gap: var(--space-4);
+  }
+</style>

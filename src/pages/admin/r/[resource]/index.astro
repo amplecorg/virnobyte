@@ -1,0 +1,107 @@
+---
+import Admin from '@/layouts/Admin.astro';
+import Icon from '@/components/Icon.astro';
+import { RESOURCES } from '@/lib/admin/resources';
+import { listRows } from '@/lib/admin/forms';
+import { formatDate, inr } from '@/lib/format';
+
+const def = RESOURCES[Astro.params.resource!];
+if (!def) return Astro.redirect('/admin');
+
+const q = Astro.url.searchParams.get('q')?.trim() ?? '';
+const status = def.key === 'enquiries' ? Astro.url.searchParams.get('status') ?? '' : '';
+const rows = listRows(def, q, status ? { col: 'status', val: status } : undefined);
+const saved = Astro.url.searchParams.get('saved');
+const deleted = Astro.url.searchParams.get('deleted');
+const first = def.columns[0].name;
+---
+
+<Admin title={def.label} active={def.key}>
+  <div class="page-head">
+    <div>
+      <h1>{def.label}</h1>
+      {def.intro && <p>{def.intro}</p>}
+    </div>
+    {
+      def.canCreate !== false && (
+        <a class="btn" href={`/admin/r/${def.key}/new`}>
+          <Icon name="plus" /> New {def.singular}
+        </a>
+      )
+    }
+  </div>
+
+  {saved && <p class="alert alert--ok" role="status" style="margin-bottom:14px">Saved.</p>}
+  {deleted && <p class="alert alert--ok" role="status" style="margin-bottom:14px">Deleted.</p>}
+
+  <div class="toolbar">
+    {
+      def.search && (
+        <form method="get" role="search">
+          {status && <input type="hidden" name="status" value={status} />}
+          <input type="search" name="q" value={q} placeholder={`Search ${def.label.toLowerCase()}`} aria-label={`Search ${def.label}`} />
+        </form>
+      )
+    }
+    {
+      def.key === 'enquiries' && (
+        <nav class="tabs" aria-label="Filter by status">
+          {[['', 'All'], ['new', 'New'], ['contacted', 'Contacted'], ['closed', 'Closed']].map(([v, l]) => (
+            <a href={v ? `?status=${v}` : '?'} aria-current={status === v ? 'true' : undefined}>{l}</a>
+          ))}
+        </nav>
+      )
+    }
+  </div>
+
+  <div class="table-wrap">
+    {
+      rows.length ? (
+        <table class="tbl">
+          <thead>
+            <tr>
+              {def.columns.map((c) => (
+                <th scope="col" class={c.type === 'money' ? 'num' : undefined}>{c.label}</th>
+              ))}
+              {def.publicUrl && <th scope="col"><span class="sr-only">View</span></th>}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r: any) => {
+              const url = def.publicUrl?.(r);
+              return (
+                <tr>
+                  {def.columns.map((c) => {
+                    const v = r[c.name];
+                    const content =
+                      c.type === 'bool' ? <span class:list={['pill', v ? 'on' : 'off']}>{v ? 'Yes' : 'No'}</span>
+                      : c.type === 'money' ? (v == null ? '—' : inr(v))
+                      : c.type === 'date' ? formatDate(v)
+                      : c.type === 'status' ? <span class:list={['pill', v]}>{v}</span>
+                      : v;
+                    return (
+                      <td class={c.type === 'money' ? 'num' : undefined}>
+                        {c.name === first ? <a class="row-link" href={`/admin/r/${def.key}/${r.id}`}>{content || '(untitled)'}</a> : content}
+                      </td>
+                    );
+                  })}
+                  {def.publicUrl && (
+                    <td class="num">
+                      {url && (
+                        <a href={url} target="_blank" rel="noopener" class="small" aria-label="View on site">
+                          View <Icon name="external" size={14} />
+                        </a>
+                      )}
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      ) : (
+        <p class="empty-state">{q ? `Nothing matches “${q}”.` : `No ${def.label.toLowerCase()} yet.`}</p>
+      )
+    }
+  </div>
+</Admin>
