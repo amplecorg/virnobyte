@@ -1,0 +1,30 @@
+services:
+  virnobyte:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: virnobyte:latest
+    container_name: virnobyte-app
+    restart: unless-stopped
+    ports:
+      - "4321:4321"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=4321
+      - NODE_ENV=production
+      - DATA_DIR=/app/data
+      - PUBLIC_SITE_URL=${PUBLIC_SITE_URL:-http://localhost:4321}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@example.com}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-change-me-to-a-long-password}
+    volumes:
+      - virnobyte_data:/app/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4321/').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  virnobyte_data:
+    name: virnobyte_data

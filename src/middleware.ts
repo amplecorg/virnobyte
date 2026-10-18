@@ -16,7 +16,7 @@ const LEGACY: Record<string, string> = {
   '/annual-maintenance-contract': '/services/amc-services',
   '/latest-news': '/blog',
   '/contact-us': '/contact',
-  '/our-certificates': '/about',
+  '/our-certificates': '/about#certificates',
   '/our-leadership-vision': '/about',
   '/about-us': '/about',
   '/product/canon-printer': '/products',

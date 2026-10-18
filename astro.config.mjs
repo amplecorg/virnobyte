@@ -21,7 +21,13 @@ export default defineConfig({
     // Responsive widths up to 4K for hero and full-bleed photography.
     breakpoints: [480, 768, 1080, 1440, 1920, 2560, 3840],
   },
+  server: {
+    host: true,
+  },
   vite: {
+    server: {
+      allowedHosts: true,
+    },
     ssr: { external: ['node:sqlite'] },
   },
 });
