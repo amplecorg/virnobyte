@@ -3,6 +3,7 @@
 // ==============================================================================
 import process from 'node:process';
 import { existsSync } from 'node:fs';
+import { execSync } from 'node:child_process';
 
 // Automatically load .env if present
 try {
@@ -18,10 +19,15 @@ process.env.NODE_ENV = 'production';
 
 const entryPath = './dist/server/entry.mjs';
 
+// If dist folder is missing, build it automatically on the fly
 if (!existsSync(entryPath)) {
-  console.error(`[Virnobyte Error] Built server entry '${entryPath}' was not found!`);
-  console.error('Please ensure "npm run build" has been executed before starting the server.');
-  process.exit(1);
+  console.log('[Virnobyte] Built server entry not found. Running "npm run build" automatically...');
+  try {
+    execSync('npm run build', { stdio: 'inherit' });
+  } catch (err) {
+    console.error('[Virnobyte Error] Failed to auto-build application:', err);
+    process.exit(1);
+  }
 }
 
 console.log(`[Virnobyte] Launching server on http://${process.env.HOST}:${process.env.PORT}`);
