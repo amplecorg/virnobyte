@@ -70,11 +70,7 @@ var $$Header = createComponent(($$result, $$props, $$slots) => {
 		"name": "chevron",
 		"size": 16,
 		"data-astro-cid-nen7h5rs": true
-	})} </summary> <div class="mega" data-astro-cid-nen7h5rs> <div class="mega-grid" data-astro-cid-nen7h5rs> ${groups.map((g) => renderTemplate`<div class="mega-col" data-astro-cid-nen7h5rs> <p class="mega-group" data-astro-cid-nen7h5rs>${g}</p> <ul data-astro-cid-nen7h5rs> ${svc.filter((s) => s.group_name === g).map((s) => renderTemplate`<li data-astro-cid-nen7h5rs> <a${addAttribute(`/services/${s.slug}`, "href")} data-astro-cid-nen7h5rs>${s.name}</a> </li>`)} </ul> </div>`)} </div> <div class="mega-footer" data-astro-cid-nen7h5rs> <a class="text-link" href="/services" data-astro-cid-nen7h5rs> <span data-astro-cid-nen7h5rs>Explore all ${svc.length} IT Services</span> ${renderComponent($$result, "Icon", $$Icon, {
-		"name": "arrow",
-		"size": 16,
-		"data-astro-cid-nen7h5rs": true
-	})} </a> </div> </div> </details> ${NAV.map((n) => renderTemplate`<a${addAttribute(n.href, "href")}${addAttribute(is(n.href) ? "page" : void 0, "aria-current")} class="nav-link" data-astro-cid-nen7h5rs> <span data-astro-cid-nen7h5rs>${n.label}</span> ${n.pill && renderTemplate`<span class="nav-pill" data-astro-cid-nen7h5rs>${n.pill}</span>`} </a>`)} </nav> <div class="actions" data-astro-cid-nen7h5rs> <a class="phone"${addAttribute(c.tel, "href")} data-astro-cid-nen7h5rs> ${renderComponent($$result, "Icon", $$Icon, {
+	})} </summary> <div class="mega" data-astro-cid-nen7h5rs> <div class="mega-grid" data-astro-cid-nen7h5rs> ${groups.map((g) => renderTemplate`<div class="mega-col" data-astro-cid-nen7h5rs> <p class="mega-group" data-astro-cid-nen7h5rs>${g}</p> <ul data-astro-cid-nen7h5rs> ${svc.filter((s) => s.group_name === g).map((s) => renderTemplate`<li data-astro-cid-nen7h5rs> <a${addAttribute(`/services/${s.slug}`, "href")} data-astro-cid-nen7h5rs>${s.name}</a> </li>`)} </ul> </div>`)} </div> </div> </details> ${NAV.map((n) => renderTemplate`<a${addAttribute(n.href, "href")}${addAttribute(is(n.href) ? "page" : void 0, "aria-current")} class="nav-link" data-astro-cid-nen7h5rs> <span data-astro-cid-nen7h5rs>${n.label}</span> ${n.pill && renderTemplate`<span class="nav-pill" data-astro-cid-nen7h5rs>${n.pill}</span>`} </a>`)} </nav> <div class="actions" data-astro-cid-nen7h5rs> <a class="phone"${addAttribute(c.tel, "href")} data-astro-cid-nen7h5rs> ${renderComponent($$result, "Icon", $$Icon, {
 		"name": "phone",
 		"size": 18,
 		"data-astro-cid-nen7h5rs": true

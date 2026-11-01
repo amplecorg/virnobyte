@@ -2,7 +2,7 @@ import { t as __exportAll } from "./rolldown-runtime_8H4AJuhK.mjs";
 import { A as renderTemplate, T as Fragment, V as createAstro, j as maybeRenderHead, w as renderComponent } from "./sequence_BTIhAKFo.mjs";
 import { t as createComponent } from "./compiler_B6nf2Usq.mjs";
 import { a as rateLimit, s as resetPasswordWithToken, u as validateResetToken } from "./auth_DFm_x978.mjs";
-import { t as $$Auth } from "./Auth_BJcQeF7j.mjs";
+import { t as $$Auth } from "./Auth_BCLFLVI0.mjs";
 import { t as $$Field } from "./Field_DozAohjX.mjs";
 //#region src/pages/account/reset-password.astro
 var reset_password_exports = /* @__PURE__ */ __exportAll({

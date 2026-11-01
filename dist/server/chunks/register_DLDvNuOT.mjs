@@ -4,7 +4,7 @@ import { t as createComponent } from "./compiler_B6nf2Usq.mjs";
 import { r as get } from "./db_DgpM4awz.mjs";
 import { a as rateLimit, o as registerCustomer, r as createSession } from "./auth_DFm_x978.mjs";
 import { b as requestMembership, m as planById } from "./data_Bs0BnE5b.mjs";
-import { t as $$Auth } from "./Auth_BJcQeF7j.mjs";
+import { t as $$Auth } from "./Auth_BCLFLVI0.mjs";
 import { t as $$Field } from "./Field_DozAohjX.mjs";
 //#region src/pages/account/register.astro
 var register_exports = /* @__PURE__ */ __exportAll({

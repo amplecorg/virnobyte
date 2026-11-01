@@ -1,6 +1,6 @@
 import { A as renderTemplate, D as renderSlot, V as createAstro, j as maybeRenderHead, w as renderComponent } from "./sequence_BTIhAKFo.mjs";
 import { t as createComponent } from "./compiler_B6nf2Usq.mjs";
-import { t as $$Base } from "./Base_OysXX2EZ.mjs";
+import { t as $$Base } from "./Base_D1NnyMaX.mjs";
 //#region src/layouts/Auth.astro
 createAstro("https://virnobyte.com");
 var $$Auth = createComponent(($$result, $$props, $$slots) => {

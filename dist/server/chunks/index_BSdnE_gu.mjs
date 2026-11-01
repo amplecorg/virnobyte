@@ -3,7 +3,7 @@ import { A as renderTemplate, N as addAttribute, V as createAstro, j as maybeRen
 import { t as createComponent } from "./compiler_B6nf2Usq.mjs";
 import { n as renderScript, t as $$Icon } from "./Icon_CAVYTX4O.mjs";
 import { t as getImage } from "./_astro_assets_DgDUkxWr.mjs";
-import { t as $$Base } from "./Base_OysXX2EZ.mjs";
+import { t as $$Base } from "./Base_D1NnyMaX.mjs";
 import { n as getSettings, t as contactInfo } from "./settings_D4sn-e6I.mjs";
 import { C as services, _ as posts, h as plans, l as homeFaqs, w as testimonials } from "./data_Bs0BnE5b.mjs";
 import { i as resolveImage } from "./images_4iK9SaiJ.mjs";

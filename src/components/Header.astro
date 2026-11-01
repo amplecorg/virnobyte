@@ -69,12 +69,6 @@ const groups = [...new Set(svc.map((s) => s.group_name))];
               ))
             }
           </div>
-          <div class="mega-footer">
-            <a class="text-link" href="/services">
-              <span>Explore all {svc.length} IT Services</span>
-              <Icon name="arrow" size={16} />
-            </a>
-          </div>
         </div>
       </details>
 
@@ -483,9 +477,10 @@ const groups = [...new Set(svc.map((s) => s.group_name))];
   .mega {
     position: absolute;
     top: calc(100% + 10px);
-    left: 50%;
-    transform: translateX(-50%);
-    width: min(780px, 92vw);
+    left: 0;
+    transform: none;
+    width: min(800px, calc(100vw - 32px));
+    max-width: calc(100vw - 32px);
     max-height: calc(88vh - var(--header-h));
     overflow-y: auto;
     background: var(--surface);
@@ -493,8 +488,6 @@ const groups = [...new Set(svc.map((s) => s.group_name))];
     border-radius: var(--radius);
     box-shadow: 0 16px 36px -8px rgb(11 23 36 / 0.18);
     padding: var(--space-5);
-    display: grid;
-    gap: var(--space-4);
     z-index: 60;
   }
   .mega-grid {
@@ -516,30 +509,23 @@ const groups = [...new Set(svc.map((s) => s.group_name))];
     list-style: none;
     margin: 0;
     padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
   }
   .mega li a {
     display: block;
-    padding: 6px 0;
+    padding: 6px 8px;
+    border-radius: 6px;
     color: var(--ink);
     text-decoration: none;
     font-weight: 550;
     font-size: 0.92rem;
-    transition: color 0.15s ease;
+    transition: background-color 0.15s ease, color 0.15s ease;
   }
   .mega li a:hover {
     color: var(--accent);
-  }
-  .mega-footer {
-    border-top: 1px solid var(--line);
-    padding-top: var(--space-3);
-  }
-  .mega-footer a {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-weight: 700;
-    color: var(--accent);
-    text-decoration: none;
+    background: var(--paper);
   }
 
   /* ── Header Actions ─────────────────────────────────────────── */
