@@ -3,7 +3,7 @@
 # Designed for Hostinger VPS & Cloud Linux Servers
 #
 # Key Features:
-#   1. Isolated Network: Node.js (4321) is NEVER exposed directly to the internet.
+#   1. Isolated Network: Node.js (3000) is NEVER exposed directly to the internet.
 #   2. Caddy Reverse Proxy: Automated SSL/TLS (Let's Encrypt / ZeroSSL), HTTP/2 & HTTP/3.
 #   3. Zero Maintenance: Auto-renewing HTTPS certificates, brotli/zstd/gzip compression.
 #   4. High Reliability: Healthcheck-gated dependency startup and automatic restarts.
@@ -25,13 +25,13 @@ services:
     restart: always
     # Security: Internal only. Only accessible through the reverse proxy network.
     expose:
-      - "4321"
+      - "3000"
     env_file:
       - .env
     environment:
       - NODE_ENV=production
       - HOST=0.0.0.0
-      - PORT=4321
+      - PORT=3000
       - DATA_DIR=/app/data
       - PUBLIC_SITE_URL=${PUBLIC_SITE_URL:-https://virnobyte.com}
       - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@virnobyte.com}
@@ -58,7 +58,7 @@ services:
           memory: 256M
     # Health monitoring: Validates that the Node server is actively returning HTTP 200
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4321/').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
       interval: 15s
       timeout: 5s
       retries: 3

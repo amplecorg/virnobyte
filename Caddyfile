@@ -10,8 +10,8 @@
     # Automatic HTTP/2 & HTTP/3 with compression
     encode zstd gzip
 
-    # Reverse proxy to the isolated internal container
-    reverse_proxy virnobyte:4321 {
+    # Reverse proxy to the isolated internal container on port 3000
+    reverse_proxy virnobyte:3000 {
         header_up Host {upstream_hostport}
         header_up X-Real-IP {remote_host}
         header_up X-Forwarded-For {remote_host}
@@ -45,4 +45,3 @@
         format console
     }
 }
-
