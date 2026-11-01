@@ -1,6 +1,7 @@
 import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
+import process from 'node:process';
 import { seedDatabase } from './seed';
 
 // Load .env for both `astro dev` and the standalone server (no-op if missing).
@@ -34,6 +35,18 @@ CREATE TABLE IF NOT EXISTS sessions (
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   expires_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS password_resets (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash TEXT NOT NULL UNIQUE,
+  expires_at TEXT NOT NULL,
+  used_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_password_resets_token ON password_resets(token_hash);
+CREATE INDEX IF NOT EXISTS idx_password_resets_user ON password_resets(user_id);
 
 CREATE TABLE IF NOT EXISTS plans (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

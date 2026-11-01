@@ -19,7 +19,8 @@ if (Astro.request.method === 'POST') {
     const user = authenticate(email, String(form.get('password') ?? ''));
     if (!user || user.role !== 'admin') error = 'These details do not match an administrator account.';
     else {
-      createSession(Astro.cookies, user.id, Astro.url.protocol === 'https:');
+      const isSecure = Astro.url.protocol === 'https:' || Astro.request.headers.get('x-forwarded-proto') === 'https';
+      createSession(Astro.cookies, user.id, isSecure);
       return Astro.redirect(safeNext, 303);
     }
   }
@@ -31,6 +32,9 @@ if (Astro.request.method === 'POST') {
   <form method="post">
     <Field label="Email" name="email" type="email" required autocomplete="username" value={email} />
     <Field label="Password" name="password" type="password" required autocomplete="current-password" />
+    <div style="display: flex; justify-content: flex-end; margin-top: -0.5rem; margin-bottom: 0.25rem;">
+      <a href="/account/forgot-password" class="small muted">Forgot password?</a>
+    </div>
     <button class="btn btn--block" type="submit">Sign in</button>
   </form>
 </Auth>

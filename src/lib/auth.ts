@@ -1,7 +1,8 @@
-import { randomBytes } from 'node:crypto';
+import { randomBytes, createHash } from 'node:crypto';
 import type { AstroCookies } from 'astro';
 import { get, run } from './db';
 import { hashPassword, verifyPassword } from './password';
+import { sendPasswordResetEmail } from './mail';
 
 export const SESSION_COOKIE = 'vb_session';
 const SESSION_DAYS = 14;
@@ -82,4 +83,101 @@ export function rateLimit(key: string, max: number, windowMs: number): boolean {
   }
   h.count++;
   return h.count <= max;
+}
+
+export async function createPasswordReset(
+  email: string,
+  origin: string,
+): Promise<{ success: boolean; devUrl?: string; error?: string }> {
+  const cleanEmail = email.trim().toLowerCase();
+  if (!cleanEmail) return { success: false, error: 'Email is required.' };
+
+  const user = get<User>('SELECT id, email, name, phone, role, created_at FROM users WHERE lower(email) = ?', cleanEmail);
+  if (!user) {
+    // Return success to prevent email enumeration / account snooping
+    return { success: true };
+  }
+
+  // Token is 32 random bytes in hex (64 chars)
+  const rawToken = randomBytes(32).toString('hex');
+  const tokenHash = createHash('sha256').update(rawToken).digest('hex');
+  // 1 hour expiry
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+
+  // Invalidate any existing unused reset tokens for this user
+  run("UPDATE password_resets SET used_at = datetime('now') WHERE user_id = ? AND used_at IS NULL", user.id);
+
+  // Store new token hash
+  run(
+    'INSERT INTO password_resets (user_id, token_hash, expires_at) VALUES (?, ?, ?)',
+    user.id,
+    tokenHash,
+    expiresAt,
+  );
+
+  const cleanOrigin = origin.replace(/\/+$/, '');
+  const resetUrl = `${cleanOrigin}/account/reset-password?token=${rawToken}`;
+
+  const mailRes = await sendPasswordResetEmail({
+    to: user.email,
+    name: user.name,
+    resetUrl,
+  });
+
+  return {
+    success: mailRes.success,
+    devUrl: mailRes.devMode ? resetUrl : undefined,
+    error: mailRes.error,
+  };
+}
+
+export function validateResetToken(rawToken: string): { valid: boolean; userId?: number; error?: string } {
+  const token = (rawToken || '').trim();
+  if (!token) {
+    return { valid: false, error: 'Reset token is required.' };
+  }
+
+  const tokenHash = createHash('sha256').update(token).digest('hex');
+  const row = get<{ id: number; user_id: number; expires_at: string; used_at: string | null }>(
+    'SELECT id, user_id, expires_at, used_at FROM password_resets WHERE token_hash = ?',
+    tokenHash,
+  );
+
+  if (!row) {
+    return { valid: false, error: 'This password reset link is invalid or has expired.' };
+  }
+
+  if (row.used_at) {
+    return { valid: false, error: 'This password reset link has already been used. Please request a new one.' };
+  }
+
+  if (new Date(row.expires_at).getTime() < Date.now()) {
+    return { valid: false, error: 'This password reset link has expired. Please request a new one.' };
+  }
+
+  return { valid: true, userId: row.user_id };
+}
+
+export function resetPasswordWithToken(
+  rawToken: string,
+  newPassword: string,
+): { success: boolean; error?: string } {
+  const check = validateResetToken(rawToken);
+  if (!check.valid || !check.userId) {
+    return { success: false, error: check.error || 'Invalid reset token.' };
+  }
+
+  if (newPassword.length < 8) {
+    return { success: false, error: 'Password must be at least 8 characters long.' };
+  }
+
+  const tokenHash = createHash('sha256').update(rawToken.trim()).digest('hex');
+
+  // Update password and invalidate all active sessions
+  setPassword(check.userId, newPassword);
+
+  // Mark token as used
+  run("UPDATE password_resets SET used_at = datetime('now') WHERE token_hash = ?", tokenHash);
+
+  return { success: true };
 }

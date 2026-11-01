@@ -53,7 +53,11 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
   if (pathname.startsWith('/api/admin') && (!user || user.role !== 'admin')) {
     return new Response('Forbidden', { status: 403 });
   }
-  if (pathname === '/account' || (pathname.startsWith('/account/') && !/^\/account\/(login|register)$/.test(pathname))) {
+  if (
+    pathname === '/account' ||
+    (pathname.startsWith('/account/') &&
+      !/^\/account\/(login|register|forgot-password|reset-password)$/.test(pathname))
+  ) {
     if (!user) return ctx.redirect(`/account/login?next=${encodeURIComponent(pathname + url.search)}`);
   }
 
