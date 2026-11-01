@@ -6,6 +6,10 @@ import type { FieldDef } from '@/lib/admin/resources';
 import { getSettings, saveSetting, type Settings } from '@/lib/settings';
 import { saveUpload } from '@/lib/admin/forms';
 import { plans } from '@/lib/data';
+import { get, run } from '@/lib/db';
+import { setPassword } from '@/lib/auth';
+
+const currentUser = Astro.locals.user!;
 
 type Section = { key: keyof Settings; title: string; intro: string; fields: FieldDef[] };
 
@@ -136,42 +140,72 @@ const errors: Record<string, string> = {};
 
 if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
-  const sec = SECTIONS.find((x) => x.key === form.get('_section'));
-  if (sec) {
-    const value: any = structuredClone(settings[sec.key]);
-    for (const f of sec.fields) {
-      const raw = String(form.get(f.name) ?? '').trim();
-      let v: any = raw;
-      if (f.type === 'number') v = Math.max(0, Math.trunc(Number(raw) || 0));
-      if (f.type === 'bool') v = form.get(f.name) === 'on';
-      if (f.type === 'list') {
-        const lines = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-        v = sec.key === 'careers' && f.name === 'steps'
-          ? lines.map((l) => {
-              const [title, detail = '', duration = ''] = l.split('|').map((x) => x.trim());
-              return { title, detail, duration };
-            })
-          : lines;
-      }
-      if (f.type === 'image') {
-        const up = form.get(`${f.name}__upload`);
-        if (up instanceof File && up.size > 0) {
-          try {
-            v = await saveUpload(up, `virnobyte-${sec.key}-hero`);
-          } catch (e: any) {
-            errors[`${sec.key}.${f.name}`] = e.message;
+
+  if (form.get('_action') === 'admin_account') {
+    const adminEmail = String(form.get('admin_email') ?? '').trim().toLowerCase();
+    const adminName = String(form.get('admin_name') ?? '').trim();
+    const newPassword = String(form.get('new_password') ?? '');
+
+    if (!adminEmail || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(adminEmail)) {
+      error = 'Please enter a valid admin email address.';
+    } else {
+      const existing = get('SELECT id FROM users WHERE lower(email) = ? AND id != ?', adminEmail, currentUser.id);
+      if (existing) {
+        error = 'Another user account already uses this email address.';
+      } else {
+        run('UPDATE users SET email = ?, name = ? WHERE id = ?', adminEmail, adminName || currentUser.name, currentUser.id);
+        if (newPassword) {
+          if (newPassword.length < 8) {
+            error = 'New password must be at least 8 characters long.';
+          } else {
+            setPassword(currentUser.id, newPassword);
           }
         }
+        if (!error) {
+          flash = 'Admin account updated successfully. Your new login email is now active.';
+          currentUser.email = adminEmail;
+          if (adminName) currentUser.name = adminName;
+        }
       }
-      if (f.required && !v) errors[`${sec.key}.${f.name}`] = `${f.label} is required.`;
-      setPath(value, f.name, v);
     }
-    if (sec.key === 'card') value.prefix = String(value.prefix).toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4) || 'VB';
-    if (Object.keys(errors).length) error = 'Some fields need attention.';
-    else {
-      saveSetting(sec.key, value);
-      settings = getSettings();
-      flash = `${sec.title} saved. Changes are live on the website.`;
+  } else {
+    const sec = SECTIONS.find((x) => x.key === form.get('_section'));
+    if (sec) {
+      const value: any = structuredClone(settings[sec.key]);
+      for (const f of sec.fields) {
+        const raw = String(form.get(f.name) ?? '').trim();
+        let v: any = raw;
+        if (f.type === 'number') v = Math.max(0, Math.trunc(Number(raw) || 0));
+        if (f.type === 'bool') v = form.get(f.name) === 'on';
+        if (f.type === 'list') {
+          const lines = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+          v = sec.key === 'careers' && f.name === 'steps'
+            ? lines.map((l) => {
+                const [title, detail = '', duration = ''] = l.split('|').map((x) => x.trim());
+                return { title, detail, duration };
+              })
+            : lines;
+        }
+        if (f.type === 'image') {
+          const up = form.get(`${f.name}__upload`);
+          if (up instanceof File && up.size > 0) {
+            try {
+              v = await saveUpload(up, `virnobyte-${sec.key}-hero`);
+            } catch (e: any) {
+              errors[`${sec.key}.${f.name}`] = e.message;
+            }
+          }
+        }
+        if (f.required && !v) errors[`${sec.key}.${f.name}`] = `${f.label} is required.`;
+        setPath(value, f.name, v);
+      }
+      if (sec.key === 'card') value.prefix = String(value.prefix).toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4) || 'VB';
+      if (Object.keys(errors).length) error = 'Some fields need attention.';
+      else {
+        saveSetting(sec.key, value);
+        settings = getSettings();
+        flash = `${sec.title} saved. Changes are live on the website.`;
+      }
     }
   }
 }
@@ -191,16 +225,45 @@ const sample = plans()[1] ?? plans()[0];
 <Admin title="Settings" active="settings">
   <div class="page-head">
     <div>
-      <h1>Business, home & SEO settings</h1>
-      <p>Each section saves separately and updates the whole website immediately.</p>
+      <h1>Website & Admin Settings</h1>
+      <p>Each section saves separately and updates immediately.</p>
     </div>
     <nav class="tabs" aria-label="Sections">
+      <a href="#account">Admin Account</a>
       {SECTIONS.map((s) => <a href={`#${s.key}`}>{s.title}</a>)}
     </nav>
   </div>
 
   {flash && <p class="alert alert--ok" role="status" style="margin-bottom:14px">{flash}</p>}
   {error && <p class="alert alert--error" role="alert" style="margin-bottom:14px">{error}</p>}
+
+  <!-- Admin Credentials Section -->
+  <section class="panel" id="account" style="scroll-margin-top:20px; border-left: 4px solid var(--accent, #0b2545);">
+    <form method="post">
+      <input type="hidden" name="_action" value="admin_account" />
+      <h2>Administrator Login Account</h2>
+      <p class="small muted" style="margin:4px 0 14px">
+        Manage the login credentials used to access the /admin portal.
+      </p>
+      <div class="form-grid">
+        <div class="field">
+          <label for="admin_name">Admin Display Name</label>
+          <input id="admin_name" name="admin_name" type="text" value={currentUser.name} required />
+        </div>
+        <div class="field">
+          <label for="admin_email">Admin Login Email</label>
+          <input id="admin_email" name="admin_email" type="email" value={currentUser.email} required autocomplete="email" />
+          <span class="hint">The email address you use to sign in to /admin.</span>
+        </div>
+        <div class="field" style="grid-column: 1 / -1;">
+          <label for="new_password">New Password (optional)</label>
+          <input id="new_password" name="new_password" type="password" minlength={8} autocomplete="new-password" placeholder="Leave empty to keep your existing password" />
+          <span class="hint">Only enter a value if you wish to change your password (minimum 8 characters).</span>
+        </div>
+      </div>
+      <button class="btn" type="submit" style="margin-top:14px">Save Admin Account</button>
+    </form>
+  </section>
 
   {
     SECTIONS.map((sec) => (
