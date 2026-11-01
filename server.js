@@ -25,6 +25,15 @@ try {
   // no .env file
 }
 
+// Hostinger Web Apps: ensure persistent data directory outside ephemeral hbuilds/
+if (!env.DATA_DIR && typeof __dirname === 'string' && __dirname.includes('/hbuilds/')) {
+  try {
+    const domainRoot = __dirname.split('/hbuilds/')[0];
+    env.DATA_DIR = resolve(domainRoot, 'persistent_data');
+    console.log(`[Virnobyte] Hostinger persistent data directory configured: ${env.DATA_DIR}`);
+  } catch {}
+}
+
 // Hostinger Web Apps and Cloud PaaS use port 3000 by default
 env.PORT = env.PORT || '3000';
 env.HOST = env.HOST || '0.0.0.0';

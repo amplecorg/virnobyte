@@ -1,5 +1,5 @@
 import { createRequire } from 'node:module';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, existsSync, copyFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import os from 'node:os';
 import { seedDatabase } from './seed';
@@ -37,14 +37,75 @@ function resolveDataDir(): string {
 
   const cwd = proc?.cwd ? proc.cwd() : '.';
 
-  // 1. Try project root / data
+  // 1. If running on Hostinger Web Apps (path has /hbuilds/):
+  // Hostinger creates a new random UUID folder under /hbuilds/versions/<uuid> on EVERY deploy.
+  // To keep data permanent across all deploys, store it in /home/u.../domains/virnobyte.com/persistent_data/
+  if (typeof cwd === 'string' && cwd.includes('/hbuilds/')) {
+    try {
+      const domainRoot = cwd.split('/hbuilds/')[0];
+      const persistentDir = join(domainRoot, 'persistent_data');
+      mkdirSync(persistentDir, { recursive: true });
+
+      const persistentDb = join(persistentDir, 'virnobyte.db');
+      if (!existsSync(persistentDb)) {
+        // Look for the most recent virnobyte.db across previous version directories to rescue user data
+        let bestCandidate: string | null = null;
+        let latestTime = 0;
+
+        const checkCandidate = (f: string) => {
+          if (existsSync(f)) {
+            try {
+              const st = statSync(f);
+              if (st.size > 0 && st.mtimeMs > latestTime) {
+                latestTime = st.mtimeMs;
+                bestCandidate = f;
+              }
+            } catch {}
+          }
+        };
+
+        // Check local cwd first
+        checkCandidate(join(cwd, 'data', 'virnobyte.db'));
+
+        // Check previous versions in hbuilds/versions
+        const versionsDir = join(domainRoot, 'hbuilds', 'versions');
+        if (existsSync(versionsDir)) {
+          try {
+            const dirs = readdirSync(versionsDir);
+            for (const d of dirs) {
+              checkCandidate(join(versionsDir, d, 'nodejs', 'data', 'virnobyte.db'));
+            }
+          } catch {}
+        }
+
+        if (bestCandidate) {
+          try {
+            copyFileSync(bestCandidate, persistentDb);
+            console.log(`[Virnobyte DB] Rescued and migrated existing DB from ${bestCandidate} to ${persistentDb}`);
+          } catch (copyErr) {
+            console.warn('[Virnobyte DB] Failed to copy candidate DB:', copyErr);
+          }
+        }
+      }
+
+      // Also ensure uploads directory exists in persistent storage
+      const persistentUploads = join(persistentDir, 'uploads');
+      mkdirSync(persistentUploads, { recursive: true });
+
+      return persistentDir;
+    } catch (e) {
+      console.warn('[Virnobyte DB] Failed to initialize Hostinger persistent directory:', e);
+    }
+  }
+
+  // 2. Try project root / data (for local development)
   try {
     const p = join(cwd, 'data');
     mkdirSync(p, { recursive: true });
     return p;
   } catch {}
 
-  // 2. Try OS temp directory (CageFS / CloudLinux always grants write access to tmp)
+  // 3. Try OS temp directory (CageFS / CloudLinux always grants write access to tmp)
   try {
     const tmp = join(os.tmpdir(), 'virnobyte_data');
     mkdirSync(tmp, { recursive: true });
