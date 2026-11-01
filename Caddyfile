@@ -1,0 +1,48 @@
+{
+    # Global ACME email for Let's Encrypt / ZeroSSL renewal notices & security advisories
+    email {$ACME_EMAIL:admin@virnobyte.com}
+    admin off
+}
+
+# The site address: accepts your domain(s) e.g. "virnobyte.com, www.virnobyte.com"
+# Defaults to localhost for local testing
+{$DOMAIN_NAME:localhost} {
+    # Automatic HTTP/2 & HTTP/3 with compression
+    encode zstd gzip
+
+    # Reverse proxy to the isolated internal container
+    reverse_proxy virnobyte:4321 {
+        header_up Host {upstream_hostport}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+
+    # Static asset and uploaded media caching
+    @cached {
+        path /_astro/* /uploads/* /models/* *.webp *.jpg *.jpeg *.png *.svg *.ico *.woff2 *.css *.js
+    }
+    header @cached Cache-Control "public, max-age=31536000, immutable"
+
+    # Strict security headers
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        -Server
+    }
+
+    # Allow photo uploads up to 25MB in the admin panel
+    request_body {
+        max_size 25MB
+    }
+
+    # Output access logs to stdout (captured and rotated by Docker logging driver)
+    log {
+        output stdout
+        format console
+    }
+}
+

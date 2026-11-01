@@ -1,30 +1,137 @@
+# ==============================================================================
+# Virnobyte Production Docker Compose Architecture
+# Designed for Hostinger VPS & Cloud Linux Servers
+#
+# Key Features:
+#   1. Isolated Network: Node.js (4321) is NEVER exposed directly to the internet.
+#   2. Caddy Reverse Proxy: Automated SSL/TLS (Let's Encrypt / ZeroSSL), HTTP/2 & HTTP/3.
+#   3. Zero Maintenance: Auto-renewing HTTPS certificates, brotli/zstd/gzip compression.
+#   4. High Reliability: Healthcheck-gated dependency startup and automatic restarts.
+#   5. Scalability & Stability: CPU/RAM resource limits protect VPS from OOM lockups.
+#   6. Disk Protection: Container log rotation prevents unbounded disk growth.
+#   7. Data Persistence: Dedicated volume for SQLite database (WAL mode) and media uploads.
+# ==============================================================================
+
 services:
+  # ----------------------------------------------------------------------------
+  # 1. Main Application Server (Astro Standalone Node.js SSR)
+  # ----------------------------------------------------------------------------
   virnobyte:
     build:
       context: .
       dockerfile: Dockerfile
     image: virnobyte:latest
     container_name: virnobyte-app
-    restart: unless-stopped
-    ports:
-      - "4321:4321"
+    restart: always
+    # Security: Internal only. Only accessible through the reverse proxy network.
+    expose:
+      - "4321"
+    env_file:
+      - .env
     environment:
+      - NODE_ENV=production
       - HOST=0.0.0.0
       - PORT=4321
-      - NODE_ENV=production
       - DATA_DIR=/app/data
-      - PUBLIC_SITE_URL=${PUBLIC_SITE_URL:-http://localhost:4321}
-      - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@example.com}
+      - PUBLIC_SITE_URL=${PUBLIC_SITE_URL:-https://virnobyte.com}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@virnobyte.com}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-change-me-to-a-long-password}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - SMTP_SECURE=${SMTP_SECURE:-false}
+      - SMTP_FROM=${SMTP_FROM:-}
     volumes:
+      # Persistent storage for SQLite database (virnobyte.db + WAL files) and uploaded media
       - virnobyte_data:/app/data
+    networks:
+      - virnobyte_network
+    # Resource management: Keeps the VPS responsive even under high visitor traffic
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2048M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    # Health monitoring: Validates that the Node server is actively returning HTTP 200
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://localhost:4321/').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
-      interval: 10s
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4321/').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 15s
       timeout: 5s
-      retries: 5
-      start_period: 10s
+      retries: 3
+      start_period: 15s
+    # Log rotation: Caps Docker logs to 30MB total to prevent VPS disk exhaustion
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    security_opt:
+      - no-new-privileges:true
 
+  # ----------------------------------------------------------------------------
+  # 2. Edge Reverse Proxy (Caddy with Automated SSL/TLS & HTTP/3)
+  # ----------------------------------------------------------------------------
+  reverse-proxy:
+    image: caddy:2.8-alpine
+    container_name: virnobyte-proxy
+    restart: always
+    ports:
+      # Standard HTTP (automatically redirected to HTTPS)
+      - "80:80"
+      # Secure HTTPS (TLS 1.2 / 1.3)
+      - "443:443"
+      # Ultra-fast HTTP/3 QUIC protocol
+      - "443:443/udp"
+    environment:
+      - DOMAIN_NAME=${DOMAIN_NAME:-localhost}
+      - ACME_EMAIL=${ACME_EMAIL:-admin@virnobyte.com}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data       # Persists SSL certificates and cryptographic keys
+      - caddy_config:/config   # Persists runtime configuration
+    networks:
+      - virnobyte_network
+    depends_on:
+      virnobyte:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    security_opt:
+      - no-new-privileges:true
+
+# ------------------------------------------------------------------------------
+# Isolated Bridge Network
+# ------------------------------------------------------------------------------
+networks:
+  virnobyte_network:
+    name: virnobyte_network
+    driver: bridge
+
+# ------------------------------------------------------------------------------
+# Persistent Volume Storage
+# ------------------------------------------------------------------------------
 volumes:
+  # SQLite database, WAL logs, and /uploads folder
   virnobyte_data:
     name: virnobyte_data
+  # Let's Encrypt / ZeroSSL TLS certificates & keys
+  caddy_data:
+    name: virnobyte_caddy_data
+  # Caddy internal runtime state
+  caddy_config:
+    name: virnobyte_caddy_config

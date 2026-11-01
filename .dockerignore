@@ -9,6 +9,7 @@ data/*.db-wal
 data/*.db-shm
 data/uploads/*
 data/og-cache/*
+data/backups/*
 .env
 .env.*
 !.env.example

@@ -3,4 +3,8 @@ dist
 .astro
 data/*.db*
 data/uploads
+data/backups
+data/og-cache
 .env
+.env.*
+!.env.example

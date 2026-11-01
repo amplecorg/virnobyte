@@ -2,7 +2,7 @@
 
 Astro 7 website for Virnobyte (IT services, computer repair, CCTV and networking in Chikhali, Pimpri-Chinchwad and Pune). It includes an admin panel, a membership card and coin system, and a 3D custom PC builder.
 
-## Run it
+## Run it locally
 
 ```bash
 npm install
@@ -44,23 +44,53 @@ Requires Node 22.12+ (uses the built-in `node:sqlite`, so there are no native mo
 - Middleware 301s: uppercase → lowercase, trailing slash removal, and all old WordPress URLs (`/memberships`, `/shop`, `/terms-conditions`, `/latest-news`, …).
 - No invented ratings, reviews, hours, certifications or benchmark scores.
 
-## Deploying
+## Production Deployment (Hostinger VPS & Cloud Linux)
 
-1. Set `PUBLIC_SITE_URL` (canonical domain), `ADMIN_EMAIL`, `ADMIN_PASSWORD`, and optionally `DATA_DIR` (persistent volume for the database and uploads).
-2. `npm ci && npm run build && npm start` behind HTTPS (nginx/Caddy or a Node host). Keep `src/assets/photos` deployed alongside `dist` (used by the OG image generator).
-3. Back up `DATA_DIR` regularly — it holds members, coins, enquiries and uploads.
+The project includes an enterprise-grade `docker-compose.yml` pre-configured for Hostinger VPS with:
+- **Private Network Isolation**: Node.js port 4321 is not exposed to the public internet.
+- **Caddy Edge Reverse Proxy**: Fully automated Let's Encrypt / ZeroSSL TLS certificates, HTTP/2 & HTTP/3 (QUIC), and auto-renewals.
+- **Resource Constraints**: CPU and Memory limits to protect the VPS from out-of-memory lockups.
+- **Log Rotation**: Capped container logs (30MB max) to protect VPS disk space.
+- **Zero-Downtime Live Backups**: Atomic snapshots using SQLite `VACUUM INTO`.
 
-## Before launch — please verify
+### Quick Setup Steps on Hostinger VPS
 
-- **PC builder prices and specs** are indicative seed values. Update them in *Parts & prices*.
-- **Photos** are free-licence Unsplash images (no attribution required). Replace the hero, careers and portfolio images with real photos of your workshop and work.
-- **Testimonials** imported from the old site are unpublished until verified.
-- **Careers**: the seeded *Field Service Technician* role is a draft and needs a real pay range before it can be published.
-- **Hiring timeline**, **coin rules**, **terms** and **privacy policy** text are drafts written for Virnobyte; review them.
-- Opening hours are blank on purpose. Add them in Settings once confirmed.
-- 3D `.glb` models: add files under `public/models/<category>/` and set the part's *3D model URL*; otherwise the built-in procedural model is used.
+1. **Point your domain** DNS `A` records (`@` and `www`) to your Hostinger VPS public IP.
+2. **SSH into your Hostinger VPS**:
+   ```bash
+   ssh root@<YOUR_HOSTINGER_VPS_IP>
+   ```
+3. **Clone the repository**:
+   ```bash
+   git clone <YOUR_GIT_REPO_URL> /opt/virnobyte
+   cd /opt/virnobyte
+   ```
+4. **Create and edit your production `.env`**:
+   ```bash
+   cp .env.example .env
+   nano .env
+   ```
+   *Set `PUBLIC_SITE_URL`, `DOMAIN_NAME`, `ACME_EMAIL`, `ADMIN_PASSWORD`, and your SMTP credentials.*
+5. **Start the containers in the background**:
+   ```bash
+   docker compose up -d --build
+   ```
+6. **Check health and logs**:
+   ```bash
+   docker compose ps
+   docker compose logs -f
+   ```
+
+### Database Live Backup
+
+To create an atomic, zero-downtime backup of the live SQLite database:
+```bash
+docker compose exec virnobyte node scripts/backup.mjs
+```
+*Backups are saved to `/app/data/backups/` and older snapshots are automatically pruned after 14 days.*
 
 ## Scripts
 
 - `npm run images` — re-download the 4K photo library.
 - `node scripts/brand-assets.mjs` — rebuild logo variants, favicons and the web manifest from `src/assets/virnobyte-logo.png`.
+- `node scripts/backup.mjs` — create an atomic snapshot of `data/virnobyte.db`.
