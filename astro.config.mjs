@@ -25,6 +25,7 @@ export default defineConfig({
     breakpoints: [480, 768, 1080, 1440, 1920, 2560, 3840],
   },
   server: {
+    port: 3000,
     host: true,
   },
   vite: {

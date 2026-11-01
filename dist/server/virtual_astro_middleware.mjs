@@ -1,5 +1,5 @@
 import { t as sequence, ut as defineMiddleware } from "./chunks/sequence_BTIhAKFo.mjs";
-import { l as userFromCookies } from "./chunks/auth_BKr3at0j.mjs";
+import { l as userFromCookies } from "./chunks/auth_TJIaQvBZ.mjs";
 //#region src/middleware.ts
 var LEGACY = {
 	"/memberships": "/membership",
@@ -35,7 +35,12 @@ var onRequest$1 = defineMiddleware(async (ctx, next) => {
 		const target = LEGACY[clean] ?? clean;
 		if (target !== pathname) return ctx.redirect(target + url.search, 301);
 	}
-	const user = userFromCookies(ctx.cookies);
+	let user = null;
+	try {
+		user = userFromCookies(ctx.cookies);
+	} catch (err) {
+		console.error("[Middleware Auth Error]:", err?.message);
+	}
 	ctx.locals.user = user;
 	if (pathname.startsWith("/admin") && pathname !== "/admin/login") {
 		if (!user || user.role !== "admin") return ctx.redirect(`/admin/login?next=${encodeURIComponent(pathname)}`);

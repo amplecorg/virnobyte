@@ -44,7 +44,12 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
     }
   }
 
-  const user = userFromCookies(ctx.cookies);
+  let user = null;
+  try {
+    user = userFromCookies(ctx.cookies);
+  } catch (err: any) {
+    console.error('[Middleware Auth Error]:', err?.message);
+  }
   ctx.locals.user = user;
 
   if (pathname.startsWith('/admin') && pathname !== '/admin/login') {

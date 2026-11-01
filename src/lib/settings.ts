@@ -97,16 +97,21 @@ function merge<T>(base: T, over: any): T {
 }
 
 export function getSettings(): Settings {
-  const rows = all<{ key: string; value: string }>('SELECT key, value FROM settings');
-  const stored: Record<string, unknown> = {};
-  for (const r of rows) {
-    try {
-      stored[r.key] = JSON.parse(r.value);
-    } catch {
-      /* ignore corrupt rows; defaults apply */
+  try {
+    const rows = all<{ key: string; value: string }>('SELECT key, value FROM settings');
+    const stored: Record<string, unknown> = {};
+    for (const r of rows) {
+      try {
+        stored[r.key] = JSON.parse(r.value);
+      } catch {
+        /* ignore corrupt rows; defaults apply */
+      }
     }
+    return merge(DEFAULT_SETTINGS, stored);
+  } catch (err) {
+    console.warn('[Virnobyte Settings] Failed to load settings from DB, using defaults:', err);
+    return DEFAULT_SETTINGS;
   }
-  return merge(DEFAULT_SETTINGS, stored);
 }
 
 export function saveSetting<K extends SettingsKey>(key: K, value: Settings[K]) {

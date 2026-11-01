@@ -1,8 +1,11 @@
-import { DatabaseSync } from 'node:sqlite';
+import { createRequire } from 'node:module';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
+import os from 'node:os';
 import process from 'node:process';
 import { seedDatabase } from './seed';
+import { SERVICES } from './content/services';
+import { POSTS } from './content/posts';
 
 // Load .env for both `astro dev` and the standalone server (no-op if missing).
 try {
@@ -11,8 +14,47 @@ try {
   /* no .env file */
 }
 
-const DATA_DIR = process.env.DATA_DIR || join(process.cwd(), 'data');
+let DatabaseSyncClass: any = null;
+let sqliteLoadError: string | null = null;
+
+try {
+  const req = createRequire(import.meta.url);
+  DatabaseSyncClass = req('node:sqlite').DatabaseSync;
+} catch (err: any) {
+  sqliteLoadError = err?.message || String(err);
+  console.warn('[Virnobyte DB Warning] node:sqlite module could not be loaded:', sqliteLoadError);
+}
+
+function resolveDataDir(): string {
+  if (process.env.DATA_DIR) {
+    try {
+      mkdirSync(process.env.DATA_DIR, { recursive: true });
+      return process.env.DATA_DIR;
+    } catch {}
+  }
+
+  // 1. Try project root / data
+  try {
+    const p = join(process.cwd(), 'data');
+    mkdirSync(p, { recursive: true });
+    return p;
+  } catch {}
+
+  // 2. Try OS temp directory (CageFS / CloudLinux always grants write access to tmp)
+  try {
+    const tmp = join(os.tmpdir(), 'virnobyte_data');
+    mkdirSync(tmp, { recursive: true });
+    return tmp;
+  } catch {}
+
+  return join(process.cwd(), 'data');
+}
+
+export const DATA_DIR = resolveDataDir();
 export const UPLOAD_DIR = join(DATA_DIR, 'uploads');
+try {
+  mkdirSync(UPLOAD_DIR, { recursive: true });
+} catch {}
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS settings (
@@ -267,42 +309,184 @@ CREATE TABLE IF NOT EXISTS enquiries (
 );
 `;
 
-let instance: DatabaseSync | null = null;
+let instance: any = null;
+let dbInitError: string | null = null;
 
-export function db(): DatabaseSync {
+export function getDbStatus() {
+  return {
+    ok: !!instance,
+    sqliteAvailable: !!DatabaseSyncClass,
+    sqliteLoadError,
+    dbInitError,
+    dataDir: DATA_DIR,
+    nodeVersion: process.version,
+  };
+}
+
+export function db(): any {
   if (instance) return instance;
-  mkdirSync(UPLOAD_DIR, { recursive: true });
-  const d = new DatabaseSync(join(DATA_DIR, 'virnobyte.db'));
-  d.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;');
-  d.exec(SCHEMA);
-  seedDatabase(d);
-  instance = d;
-  return d;
+
+  if (!DatabaseSyncClass) {
+    return null;
+  }
+
+  try {
+    const dbPath = join(DATA_DIR, 'virnobyte.db');
+    let d: any;
+    try {
+      d = new DatabaseSyncClass(dbPath);
+    } catch (diskErr: any) {
+      console.warn(`[Virnobyte DB] Disk DB (${dbPath}) failed: ${diskErr?.message}. Falling back to in-memory database.`);
+      d = new DatabaseSyncClass(':memory:');
+    }
+
+    // Try WAL mode, fallback to DELETE if WAL fails (e.g. shared hosting / CageFS)
+    try {
+      d.exec('PRAGMA journal_mode = WAL;');
+    } catch (walErr: any) {
+      console.warn('[Virnobyte DB] WAL mode failed, falling back to DELETE mode:', walErr?.message);
+      try {
+        d.exec('PRAGMA journal_mode = DELETE;');
+      } catch {}
+    }
+
+    try {
+      d.exec('PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;');
+    } catch {}
+
+    d.exec(SCHEMA);
+    seedDatabase(d);
+    instance = d;
+    return d;
+  } catch (err: any) {
+    dbInitError = err?.message || String(err);
+    console.error('[Virnobyte DB Init Error]:', err);
+    return null;
+  }
+}
+
+function serviceToRow(s: any, idx = 0) {
+  return {
+    id: idx + 1,
+    slug: s.slug,
+    name: s.name,
+    short: s.short,
+    title: s.title,
+    description: s.description,
+    h1: s.h1,
+    intro: s.intro,
+    problems: JSON.stringify(s.problems || []),
+    includes: JSON.stringify(s.includes || []),
+    benefits: JSON.stringify(s.benefits || []),
+    faqs: JSON.stringify(s.faqs || []),
+    note: s.note ?? '',
+    image: s.image,
+    group_name: s.group,
+    footer: s.footer ? 1 : 0,
+    published: 1,
+    sort: idx,
+  };
+}
+
+function fallbackAll(sql: string, params: any[]): any[] {
+  const s = sql.toLowerCase();
+  if (s.includes('from services')) {
+    if (params && params.length > 0 && typeof params[0] === 'string') {
+      const match = SERVICES.find((x) => x.slug === params[0]);
+      return match ? [serviceToRow(match)] : [];
+    }
+    return SERVICES.map((svc, i) => serviceToRow(svc, i));
+  }
+  if (s.includes('from posts')) {
+    return POSTS.map((p, i) => ({
+      id: i + 1,
+      slug: p.slug,
+      title: p.title,
+      description: p.description,
+      body: p.body,
+      image: p.image,
+      related: JSON.stringify(p.related || []),
+      published: 1,
+      published_at: new Date().toISOString().split('T')[0],
+      updated_at: new Date().toISOString().split('T')[0],
+    }));
+  }
+  if (s.includes('from plans')) {
+    return [
+      { id: 1, slug: 'basic', name: 'Basic', tagline: 'For a home computer or laptop', price: 999, mrp: 1299, coins: 500, doorstep_visits: 2, validity_days: 365, benefits: '[]', card_from: '#0f2a4a', card_to: '#2a5d8f', card_text: '#ffffff', card_pattern: 'circuit', badge: '', featured: 0, active: 1, sort: 0 },
+      { id: 2, slug: 'pro', name: 'Pro', tagline: 'For families and home offices', price: 1799, mrp: 1999, coins: 1000, doorstep_visits: 4, validity_days: 365, benefits: '[]', card_from: '#062c5c', card_to: '#0a66c2', card_text: '#ffffff', card_pattern: 'circuit', badge: 'Most chosen', featured: 1, active: 1, sort: 1 },
+      { id: 3, slug: 'pro-plus', name: 'Pro+', tagline: 'For shops and small offices', price: 2499, mrp: 2999, coins: 2000, doorstep_visits: 8, validity_days: 365, benefits: '[]', card_from: '#111418', card_to: '#3a3f47', card_text: '#ffffff', card_pattern: 'grid', badge: '', featured: 0, active: 1, sort: 2 },
+    ];
+  }
+  if (s.includes('from faqs')) {
+    return [
+      { id: 1, question: 'Where is Virnobyte located?', answer: 'Our office is at Office No. 1, Sadichha Complex, near Bright Computer Education, Savtamali, Mahadev Temple Road, Jadhav Wadi, Chikhali, Pimpri-Chinchwad, Maharashtra 411062.', topic: 'General', home: 1, published: 1, sort: 0 },
+      { id: 2, question: 'Which areas do you serve?', answer: 'We serve Chikhali, Pimpri-Chinchwad and Pune. Walk-in repairs are handled at our Chikhali workshop, and doorstep visits are available for homes and offices in these areas.', topic: 'General', home: 1, published: 1, sort: 1 },
+      { id: 3, question: 'Do you provide doorstep computer service?', answer: 'Yes. Many repairs, installations and network jobs are done on-site. If a fault needs workshop equipment, we take the device with us and tell you when it will be ready.', topic: 'Repairs', home: 1, published: 1, sort: 2 },
+    ];
+  }
+  if (s.includes('from testimonials')) {
+    return [];
+  }
+  if (s.includes('from settings')) {
+    return [];
+  }
+  return [];
 }
 
 type Row = Record<string, any>;
 
 export function all<T = Row>(sql: string, ...params: any[]): T[] {
-  return db().prepare(sql).all(...params) as T[];
+  try {
+    const d = db();
+    if (d && typeof d.prepare === 'function') {
+      return d.prepare(sql).all(...params) as T[];
+    }
+  } catch (err) {
+    console.warn('[Virnobyte DB Warning] Query failed in all():', err);
+  }
+  return fallbackAll(sql, params) as T[];
 }
+
 export function get<T = Row>(sql: string, ...params: any[]): T | undefined {
-  return db().prepare(sql).get(...params) as T | undefined;
+  try {
+    const d = db();
+    if (d && typeof d.prepare === 'function') {
+      return d.prepare(sql).get(...params) as T | undefined;
+    }
+  } catch (err) {
+    console.warn('[Virnobyte DB Warning] Query failed in get():', err);
+  }
+  const rows = fallbackAll(sql, params);
+  return (rows[0] as T) || undefined;
 }
+
 export function run(sql: string, ...params: any[]) {
-  return db().prepare(sql).run(...params);
+  try {
+    const d = db();
+    if (d && typeof d.prepare === 'function') {
+      return d.prepare(sql).run(...params);
+    }
+  } catch (err) {
+    console.warn('[Virnobyte DB Warning] Query failed in run():', err);
+  }
+  return { changes: 0, lastInsertRowid: 0 };
 }
 
 export function tx<T>(fn: () => T): T {
   const d = db();
-  d.exec('BEGIN');
-  try {
-    const out = fn();
-    d.exec('COMMIT');
-    return out;
-  } catch (e) {
-    d.exec('ROLLBACK');
-    throw e;
+  if (d && typeof d.exec === 'function') {
+    d.exec('BEGIN');
+    try {
+      const out = fn();
+      d.exec('COMMIT');
+      return out;
+    } catch (e) {
+      d.exec('ROLLBACK');
+      throw e;
+    }
   }
+  return fn();
 }
 
 export function json<T = any>(value: string | null | undefined, fallback: T): T {

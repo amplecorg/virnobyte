@@ -4,6 +4,16 @@
 import process from 'node:process';
 import { existsSync } from 'node:fs';
 import { execSync } from 'node:child_process';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { dirname, resolve } from 'node:path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Ensure process.cwd is always the project directory
+try {
+  process.chdir(__dirname);
+} catch {}
 
 // Automatically load .env if present
 try {
@@ -17,7 +27,7 @@ process.env.PORT = process.env.PORT || '3000';
 process.env.HOST = process.env.HOST || '0.0.0.0';
 process.env.NODE_ENV = 'production';
 
-const entryPath = './dist/server/entry.mjs';
+const entryPath = resolve(__dirname, 'dist', 'server', 'entry.mjs');
 
 // If dist folder is missing, build it automatically on the fly
 if (!existsSync(entryPath)) {
@@ -32,5 +42,5 @@ if (!existsSync(entryPath)) {
 
 console.log(`[Virnobyte] Launching server on http://${process.env.HOST}:${process.env.PORT}`);
 
-// Launch the compiled Astro standalone server
-await import(entryPath);
+// Launch the compiled Astro standalone server via valid file:// URL
+await import(pathToFileURL(entryPath).href);
