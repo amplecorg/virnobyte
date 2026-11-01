@@ -2,14 +2,16 @@ import { createRequire } from 'node:module';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import os from 'node:os';
-import process from 'node:process';
 import { seedDatabase } from './seed';
 import { SERVICES } from './content/services';
 import { POSTS } from './content/posts';
 
+const proc = typeof globalThis.process !== 'undefined' ? globalThis.process : (typeof process !== 'undefined' ? process : undefined);
+const env = proc?.env || {};
+
 // Load .env for both `astro dev` and the standalone server (no-op if missing).
 try {
-  process.loadEnvFile();
+  proc?.loadEnvFile?.();
 } catch {
   /* no .env file */
 }
@@ -26,16 +28,18 @@ try {
 }
 
 function resolveDataDir(): string {
-  if (process.env.DATA_DIR) {
+  if (env.DATA_DIR) {
     try {
-      mkdirSync(process.env.DATA_DIR, { recursive: true });
-      return process.env.DATA_DIR;
+      mkdirSync(env.DATA_DIR, { recursive: true });
+      return env.DATA_DIR;
     } catch {}
   }
 
+  const cwd = proc?.cwd ? proc.cwd() : '.';
+
   // 1. Try project root / data
   try {
-    const p = join(process.cwd(), 'data');
+    const p = join(cwd, 'data');
     mkdirSync(p, { recursive: true });
     return p;
   } catch {}
@@ -47,7 +51,7 @@ function resolveDataDir(): string {
     return tmp;
   } catch {}
 
-  return join(process.cwd(), 'data');
+  return join(cwd, 'data');
 }
 
 export const DATA_DIR = resolveDataDir();
@@ -319,7 +323,7 @@ export function getDbStatus() {
     sqliteLoadError,
     dbInitError,
     dataDir: DATA_DIR,
-    nodeVersion: process.version,
+    nodeVersion: proc?.version || 'unknown',
   };
 }
 

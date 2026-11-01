@@ -1,6 +1,8 @@
 import type { APIRoute } from 'astro';
-import process from 'node:process';
 import { getDbStatus, get } from '../../lib/db';
+
+const proc = typeof globalThis.process !== 'undefined' ? globalThis.process : undefined;
+const env = proc?.env || {};
 
 export const GET: APIRoute = async () => {
   let dbOk = false;
@@ -22,12 +24,12 @@ export const GET: APIRoute = async () => {
     JSON.stringify(
       {
         status: dbOk ? 'healthy' : 'degraded',
-        nodeVersion: process.version,
-        platform: process.platform,
-        cwd: process.cwd(),
-        dataDir: (dbStatus as any).dataDir || process.env.DATA_DIR || 'default',
-        port: process.env.PORT || '3000',
-        host: process.env.HOST || '0.0.0.0',
+        nodeVersion: proc?.version || 'unknown',
+        platform: proc?.platform || 'unknown',
+        cwd: proc?.cwd ? proc.cwd() : '.',
+        dataDir: (dbStatus as any).dataDir || env.DATA_DIR || 'default',
+        port: env.PORT || '3000',
+        host: env.HOST || '0.0.0.0',
         dbOk,
         dbStatus,
         testQueryError,

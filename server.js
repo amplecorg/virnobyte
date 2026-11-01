@@ -1,34 +1,36 @@
 // ==============================================================================
 // Hostinger Web Apps & Production Server Entrypoint
 // ==============================================================================
-import process from 'node:process';
 import http from 'node:http';
 import { existsSync, readdirSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
+const proc = typeof globalThis.process !== 'undefined' ? globalThis.process : undefined;
+const env = proc?.env || {};
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Ensure cwd is always the project directory
 try {
-  process.chdir(__dirname);
+  proc?.chdir?.(__dirname);
 } catch {}
 
 // Automatically load .env if present
 try {
-  process.loadEnvFile();
+  proc?.loadEnvFile?.();
 } catch {
   // no .env file
 }
 
 // Hostinger Web Apps and Cloud PaaS use port 3000 by default
-process.env.PORT = process.env.PORT || '3000';
-process.env.HOST = process.env.HOST || '0.0.0.0';
-process.env.NODE_ENV = 'production';
+env.PORT = env.PORT || '3000';
+env.HOST = env.HOST || '0.0.0.0';
+env.NODE_ENV = 'production';
 
-console.log(`[Virnobyte] Launching on ${process.env.HOST}:${process.env.PORT} with Node ${process.version}`);
+console.log(`[Virnobyte] Launching on ${env.HOST}:${env.PORT} with Node ${proc?.version}`);
 console.log(`[Virnobyte] Working directory: ${__dirname}`);
 
 const entryPath = resolve(__dirname, 'dist', 'server', 'entry.mjs');
@@ -52,8 +54,8 @@ try {
   console.error('[Virnobyte Fatal Startup Error]:', err);
 
   // Start an emergency diagnostic server so the error is visible in HTTP responses
-  const port = Number(process.env.PORT) || 3000;
-  const host = process.env.HOST || '0.0.0.0';
+  const port = Number(env.PORT) || 3000;
+  const host = env.HOST || '0.0.0.0';
   const nodeModulesPath = resolve(__dirname, 'node_modules');
   const hasNodeModules = existsSync(nodeModulesPath);
 
@@ -69,17 +71,17 @@ try {
           message: err?.message,
           code: err?.code,
           stack: err?.stack,
-          nodeVersion: process.version,
-          platform: process.platform,
-          cwd: process.cwd(),
+          nodeVersion: proc?.version,
+          platform: proc?.platform,
+          cwd: proc?.cwd ? proc.cwd() : '.',
           __dirname,
           hasDist: existsSync(entryPath),
           hasNodeModules,
           nodeModulesCount: hasNodeModules ? (readdirSync(nodeModulesPath).length) : 0,
           env: {
-            PORT: process.env.PORT,
-            HOST: process.env.HOST,
-            NODE_ENV: process.env.NODE_ENV,
+            PORT: env.PORT,
+            HOST: env.HOST,
+            NODE_ENV: env.NODE_ENV,
           },
         },
         null,

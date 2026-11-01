@@ -1,5 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite';
-import process from 'node:process';
+const proc = typeof globalThis.process !== 'undefined' ? globalThis.process : undefined;
+const env = proc?.env || {};
 import { hashPassword } from './password';
 import { SERVICES } from './content/services';
 import { POSTS } from './content/posts';
@@ -143,8 +144,8 @@ export function seedDatabase(d: DatabaseSync) {
 function ensureAdmin(d: DatabaseSync) {
   const admin = d.prepare("SELECT id FROM users WHERE role = 'admin' LIMIT 1").get();
   if (admin) return;
-  const email = process.env.ADMIN_EMAIL;
-  const password = process.env.ADMIN_PASSWORD;
+  const email = env.ADMIN_EMAIL;
+  const password = env.ADMIN_PASSWORD;
   if (!email || !password) {
     console.warn('[virnobyte] No admin account exists. Set ADMIN_EMAIL and ADMIN_PASSWORD in .env and restart.');
     return;

@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
-import process from 'node:process';
+const proc = typeof globalThis.process !== 'undefined' ? globalThis.process : undefined;
+const env = proc?.env || {};
 
 export interface SendMailOptions {
   to: string;
@@ -9,7 +10,7 @@ export interface SendMailOptions {
 }
 
 export function isMailConfigured(): boolean {
-  return Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+  return Boolean(env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASS);
 }
 
 export async function sendEmail({
@@ -18,14 +19,14 @@ export async function sendEmail({
   html,
   text,
 }: SendMailOptions): Promise<{ success: boolean; devMode?: boolean; error?: string }> {
-  const host = process.env.SMTP_HOST;
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
-  const port = Number(process.env.SMTP_PORT || 587);
-  const secure = process.env.SMTP_SECURE === 'true' || port === 465;
+  const host = env.SMTP_HOST;
+  const user = env.SMTP_USER;
+  const pass = env.SMTP_PASS;
+  const port = Number(env.SMTP_PORT || 587);
+  const secure = env.SMTP_SECURE === 'true' || port === 465;
   const from =
-    process.env.SMTP_FROM ||
-    process.env.MAIL_FROM ||
+    env.SMTP_FROM ||
+    env.MAIL_FROM ||
     (user ? `Virnobyte <${user}>` : 'Virnobyte <info@virnobyte.com>');
 
   if (!host || !user || !pass) {
