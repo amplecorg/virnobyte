@@ -48,10 +48,11 @@ var RESOURCES = {
 			},
 			{
 				name: "slug",
-				label: "Slug",
+				label: "Plan code / URL ID",
 				type: "slug",
 				required: true,
-				half: true
+				half: true,
+				help: "Unique short ID, e.g. basic, pro, pro-plus."
 			},
 			{
 				name: "tagline",
@@ -170,7 +171,7 @@ var RESOURCES = {
 		table: "services",
 		label: "Services",
 		singular: "service",
-		intro: "Each service has its own SEO page at /services/slug.",
+		intro: "Each service has its own SEO page at /services/[web-address].",
 		orderBy: "sort, id",
 		search: ["name", "slug"],
 		columns: [
@@ -205,11 +206,11 @@ var RESOURCES = {
 			},
 			{
 				name: "slug",
-				label: "URL slug",
+				label: "Web address (URL)",
 				type: "slug",
 				required: true,
 				half: true,
-				help: "Changing this changes the page URL."
+				help: "Short link name, e.g. laptop-repair becomes /services/laptop-repair. Changing this changes the page link."
 			},
 			{
 				name: "group_name",
@@ -261,7 +262,7 @@ var RESOURCES = {
 				type: "markdown",
 				rows: 12,
 				section: "Content",
-				help: "Paragraphs separated by a blank line. **bold**, [link text](/services/slug), ## Heading, - list."
+				help: "Paragraphs separated by a blank line. **bold**, [link text](/services/service-name), ## Heading, - list."
 			},
 			{
 				name: "problems",
@@ -346,10 +347,11 @@ var RESOURCES = {
 			},
 			{
 				name: "slug",
-				label: "URL slug",
+				label: "Article web address (URL)",
 				type: "slug",
 				required: true,
-				half: true
+				half: true,
+				help: "Short link name, e.g. ssd-vs-hdd becomes /blog/ssd-vs-hdd."
 			},
 			{
 				name: "image",
@@ -371,13 +373,13 @@ var RESOURCES = {
 				type: "markdown",
 				rows: 22,
 				required: true,
-				help: "Use ## for section headings. Link to services with [anchor text](/services/slug)."
+				help: "Use ## for section headings. Link to services with [anchor text](/services/service-name)."
 			},
 			{
 				name: "related",
-				label: "Related service slugs",
+				label: "Related service links",
 				type: "list",
-				help: "One per line, e.g. laptop-repair. Shown as links under the article."
+				help: "One service web address name per line (e.g. laptop-repair). Shown as links under the article."
 			},
 			{
 				name: "published_at",
@@ -506,7 +508,7 @@ var RESOURCES = {
 			},
 			{
 				name: "slug",
-				label: "Slug",
+				label: "Product code / ID",
 				type: "slug",
 				required: true,
 				half: true
@@ -607,10 +609,11 @@ var RESOURCES = {
 			},
 			{
 				name: "slug",
-				label: "Slug",
+				label: "Project identifier (ID)",
 				type: "slug",
 				required: true,
-				half: true
+				half: true,
+				help: "Unique short ID, e.g. office-it-setup."
 			},
 			{
 				name: "category",
@@ -761,10 +764,11 @@ var RESOURCES = {
 			},
 			{
 				name: "slug",
-				label: "Slug",
+				label: "Job web address (URL)",
 				type: "slug",
 				required: true,
-				half: true
+				half: true,
+				help: "Short link name, e.g. hardware-technician becomes /careers/hardware-technician."
 			},
 			{
 				name: "promise",
@@ -1023,11 +1027,11 @@ var RESOURCES = {
 			},
 			{
 				name: "slug",
-				label: "Slug",
+				label: "Part identifier (Part ID)",
 				type: "slug",
 				required: true,
 				half: true,
-				help: "Used by preset builds."
+				help: "Unique part ID used by preset builds (e.g. intel-core-i5-12400)."
 			},
 			{
 				name: "category",
@@ -1145,10 +1149,11 @@ var RESOURCES = {
 			},
 			{
 				name: "slug",
-				label: "Slug",
+				label: "Preset identifier (Preset ID)",
 				type: "slug",
 				required: true,
-				half: true
+				half: true,
+				help: "Unique short ID, e.g. gaming-pc."
 			},
 			{
 				name: "summary",
@@ -1158,9 +1163,9 @@ var RESOURCES = {
 			},
 			{
 				name: "parts",
-				label: "Part slugs",
+				label: "Included part IDs",
 				type: "list",
-				help: "One part slug per line (see Parts & prices)."
+				help: "One part ID per line (from Parts & prices, e.g. intel-core-i5-12400)."
 			},
 			{
 				name: "active",

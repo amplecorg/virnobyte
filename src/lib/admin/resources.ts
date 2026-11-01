@@ -56,7 +56,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
     publicUrl: () => '/membership',
     fields: [
       { name: 'name', label: 'Plan name', type: 'text', required: true, half: true, section: 'Plan' },
-      { name: 'slug', label: 'Slug', type: 'slug', required: true, half: true },
+      { name: 'slug', label: 'Plan code / URL ID', type: 'slug', required: true, half: true, help: 'Unique short ID, e.g. basic, pro, pro-plus.' },
       { name: 'tagline', label: 'Who it is for', type: 'text' },
       { name: 'price', label: 'Price (₹ / year)', type: 'money', required: true, half: true },
       { name: 'mrp', label: 'Crossed-out price (₹)', type: 'money', half: true, help: 'Leave 0 to hide.' },
@@ -79,7 +79,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
     table: 'services',
     label: 'Services',
     singular: 'service',
-    intro: 'Each service has its own SEO page at /services/slug.',
+    intro: 'Each service has its own SEO page at /services/[web-address].',
     orderBy: 'sort, id',
     search: ['name', 'slug'],
     columns: [
@@ -91,14 +91,14 @@ export const RESOURCES: Record<string, ResourceDef> = {
     publicUrl: (r) => `/services/${r.slug}`,
     fields: [
       { name: 'name', label: 'Service name', type: 'text', required: true, half: true, section: 'Basics' },
-      { name: 'slug', label: 'URL slug', type: 'slug', required: true, half: true, help: 'Changing this changes the page URL.' },
+      { name: 'slug', label: 'Web address (URL)', type: 'slug', required: true, half: true, help: 'Short link name, e.g. laptop-repair becomes /services/laptop-repair. Changing this changes the page link.' },
       { name: 'group_name', label: 'Group', type: 'select', half: true, options: opt('Repair & support', 'Security & networks', 'Business IT') },
       { name: 'image', label: 'Image', type: 'image', half: true },
       { name: 'short', label: 'Short summary', type: 'textarea', rows: 2, max: 160, help: 'Used on cards and under the heading.' },
       { name: 'title', label: 'SEO title', type: 'text', required: true, max: 65, section: 'Search engines', help: 'Format: Service + location | Virnobyte' },
       { name: 'description', label: 'Meta description', type: 'textarea', rows: 3, required: true, max: 160 },
       { name: 'h1', label: 'Page heading (H1)', type: 'text', required: true },
-      { name: 'intro', label: 'Main content', type: 'markdown', rows: 12, section: 'Content', help: 'Paragraphs separated by a blank line. **bold**, [link text](/services/slug), ## Heading, - list.' },
+      { name: 'intro', label: 'Main content', type: 'markdown', rows: 12, section: 'Content', help: 'Paragraphs separated by a blank line. **bold**, [link text](/services/service-name), ## Heading, - list.' },
       { name: 'problems', label: 'Common problems', type: 'list' },
       { name: 'includes', label: 'What the service includes', type: 'list' },
       { name: 'benefits', label: 'Benefits', type: 'list' },
@@ -124,11 +124,11 @@ export const RESOURCES: Record<string, ResourceDef> = {
     publicUrl: (r) => `/blog/${r.slug}`,
     fields: [
       { name: 'title', label: 'Title', type: 'text', required: true, max: 70 },
-      { name: 'slug', label: 'URL slug', type: 'slug', required: true, half: true },
+      { name: 'slug', label: 'Article web address (URL)', type: 'slug', required: true, half: true, help: 'Short link name, e.g. ssd-vs-hdd becomes /blog/ssd-vs-hdd.' },
       { name: 'image', label: 'Cover image', type: 'image', half: true },
       { name: 'description', label: 'Meta description', type: 'textarea', rows: 3, required: true, max: 160 },
-      { name: 'body', label: 'Article', type: 'markdown', rows: 22, required: true, help: 'Use ## for section headings. Link to services with [anchor text](/services/slug).' },
-      { name: 'related', label: 'Related service slugs', type: 'list', help: 'One per line, e.g. laptop-repair. Shown as links under the article.' },
+      { name: 'body', label: 'Article', type: 'markdown', rows: 22, required: true, help: 'Use ## for section headings. Link to services with [anchor text](/services/service-name).' },
+      { name: 'related', label: 'Related service links', type: 'list', help: 'One service web address name per line (e.g. laptop-repair). Shown as links under the article.' },
       { name: 'published_at', label: 'Publish date', type: 'date', half: true },
       { name: 'published', label: 'Published', type: 'bool', half: true },
     ],
@@ -173,7 +173,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
     publicUrl: () => '/products',
     fields: [
       { name: 'name', label: 'Name', type: 'text', required: true, half: true },
-      { name: 'slug', label: 'Slug', type: 'slug', required: true, half: true },
+      { name: 'slug', label: 'Product code / ID', type: 'slug', required: true, half: true },
       { name: 'category', label: 'Category', type: 'text', half: true, required: true },
       { name: 'condition', label: 'Condition', type: 'select', half: true, options: opt('New', 'Refurbished', 'Used') },
       { name: 'summary', label: 'Summary', type: 'textarea', rows: 3 },
@@ -202,7 +202,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
     publicUrl: (r) => `/portfolio/${r.category}`,
     fields: [
       { name: 'title', label: 'Title', type: 'text', required: true, half: true },
-      { name: 'slug', label: 'Slug', type: 'slug', required: true, half: true },
+      { name: 'slug', label: 'Project identifier (ID)', type: 'slug', required: true, half: true, help: 'Unique short ID, e.g. office-it-setup.' },
       { name: 'category', label: 'Category', type: 'select', required: true, half: true, options: Object.entries(PORTFOLIO_CATEGORIES).map(([value, c]) => ({ value, label: c.name })) },
       { name: 'client_type', label: 'Client type', type: 'text', half: true, help: 'e.g. Retail shop, Clinic, 20-seat office' },
       { name: 'location', label: 'Location', type: 'text', half: true },
@@ -253,7 +253,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
     },
     fields: [
       { name: 'title', label: 'Role title', type: 'text', required: true, half: true, section: 'Hero' },
-      { name: 'slug', label: 'Slug', type: 'slug', required: true, half: true },
+      { name: 'slug', label: 'Job web address (URL)', type: 'slug', required: true, half: true, help: 'Short link name, e.g. hardware-technician becomes /careers/hardware-technician.' },
       { name: 'promise', label: 'One-line promise', type: 'text', required: true, help: 'Specific, not "Join our team".' },
       { name: 'image', label: 'Hero photo', type: 'image', help: 'Prefer a real photo of your workshop or team.' },
       { name: 'employment_type', label: 'Type', type: 'select', half: true, options: [{ value: 'FULL_TIME', label: 'Full-time' }, { value: 'PART_TIME', label: 'Part-time' }, { value: 'INTERN', label: 'Internship' }, { value: 'CONTRACTOR', label: 'Contract' }] },
@@ -329,7 +329,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
     publicUrl: () => '/custom-pc-builder',
     fields: [
       { name: 'name', label: 'Name', type: 'text', required: true },
-      { name: 'slug', label: 'Slug', type: 'slug', required: true, half: true, help: 'Used by preset builds.' },
+      { name: 'slug', label: 'Part identifier (Part ID)', type: 'slug', required: true, half: true, help: 'Unique part ID used by preset builds (e.g. intel-core-i5-12400).' },
       {
         name: 'category', label: 'Category', type: 'select', required: true, half: true,
         options: [
@@ -363,9 +363,9 @@ export const RESOURCES: Record<string, ResourceDef> = {
     publicUrl: () => '/custom-pc-builder',
     fields: [
       { name: 'name', label: 'Name', type: 'text', required: true, half: true },
-      { name: 'slug', label: 'Slug', type: 'slug', required: true, half: true },
+      { name: 'slug', label: 'Preset identifier (Preset ID)', type: 'slug', required: true, half: true, help: 'Unique short ID, e.g. gaming-pc.' },
       { name: 'summary', label: 'Summary', type: 'textarea', rows: 2 },
-      { name: 'parts', label: 'Part slugs', type: 'list', help: 'One part slug per line (see Parts & prices).' },
+      { name: 'parts', label: 'Included part IDs', type: 'list', help: 'One part ID per line (from Parts & prices, e.g. intel-core-i5-12400).' },
       { name: 'active', label: 'Shown', type: 'bool', half: true },
       { name: 'sort', label: 'Display order', type: 'number', half: true },
     ],

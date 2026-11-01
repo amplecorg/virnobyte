@@ -8,7 +8,7 @@ import { h as plans } from "./data_Bs0BnE5b.mjs";
 import { t as $$MembershipCard } from "./MembershipCard_WLmIZgIv.mjs";
 import { t as $$Admin } from "./Admin_Dgg6he94.mjs";
 import { t as $$AdminField } from "./AdminField_p2UUjYP-.mjs";
-import { i as saveUpload } from "./forms_D7cfCAIR.mjs";
+import { i as saveUpload } from "./forms_BR44NJUQ.mjs";
 //#region src/pages/admin/settings.astro
 var settings_exports = /* @__PURE__ */ __exportAll({
 	default: () => $$Settings,

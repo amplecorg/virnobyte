@@ -6,8 +6,8 @@ import { o as run, r as get } from "./db_DgpM4awz.mjs";
 import { t as $$MembershipCard } from "./MembershipCard_WLmIZgIv.mjs";
 import { t as $$Admin } from "./Admin_Dgg6he94.mjs";
 import { t as $$AdminField } from "./AdminField_p2UUjYP-.mjs";
-import { t as RESOURCES } from "./resources_Bilaft9N.mjs";
-import { a as toFormValue, n as parseForm, r as saveRow } from "./forms_D7cfCAIR.mjs";
+import { t as RESOURCES } from "./resources__LjVz4IW.mjs";
+import { a as toFormValue, n as parseForm, r as saveRow } from "./forms_BR44NJUQ.mjs";
 //#region src/pages/admin/r/[resource]/[id].astro
 var _id__exports = /* @__PURE__ */ __exportAll({
 	default: () => $$Id,

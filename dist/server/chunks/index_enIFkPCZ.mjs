@@ -4,8 +4,8 @@ import { t as createComponent } from "./compiler_B6nf2Usq.mjs";
 import { t as $$Icon } from "./Icon_CAVYTX4O.mjs";
 import { a as inr, r as formatDate } from "./format_B1bSNQa_.mjs";
 import { t as $$Admin } from "./Admin_Dgg6he94.mjs";
-import { t as RESOURCES } from "./resources_Bilaft9N.mjs";
-import { t as listRows } from "./forms_D7cfCAIR.mjs";
+import { t as RESOURCES } from "./resources__LjVz4IW.mjs";
+import { t as listRows } from "./forms_BR44NJUQ.mjs";
 //#region src/pages/admin/r/[resource]/index.astro
 var _resource__exports = /* @__PURE__ */ __exportAll({
 	default: () => $$Index,

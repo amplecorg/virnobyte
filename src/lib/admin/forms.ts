@@ -69,8 +69,8 @@ export async function parseForm(def: ResourceDef, form: FormData, id: number | n
         break;
       case 'slug':
         val = slugify(val || String(form.get('name') ?? form.get('title') ?? ''));
-        if (!val) errors[f.name] = 'Enter a URL slug using letters, numbers and hyphens.';
-        else if (get(`SELECT 1 FROM ${def.table} WHERE slug = ? AND id != ?`, val, id ?? -1)) errors[f.name] = 'Another item already uses this slug.';
+        if (!val) errors[f.name] = 'Enter a web address name using letters, numbers and hyphens (e.g. laptop-repair).';
+        else if (get(`SELECT 1 FROM ${def.table} WHERE slug = ? AND id != ?`, val, id ?? -1)) errors[f.name] = 'Another item is already using this web address URL. Please choose a different one.';
         break;
       case 'list':
         val = JSON.stringify(val.split(/\r?\n/).map((s: string) => s.trim()).filter(Boolean));
