@@ -1,4 +1,5 @@
 import type { DatabaseSync } from 'node:sqlite';
+import process from 'node:process';
 import { hashPassword } from './password';
 import { SERVICES } from './content/services';
 import { POSTS } from './content/posts';
@@ -77,6 +78,18 @@ const JOB_DRAFT = {
 export function seedDatabase(d: DatabaseSync) {
   ensureAdmin(d);
   seedPcBuilder(d);
+
+  // Sync any newly added predefined services
+  const syncSvc = d.prepare(`INSERT OR IGNORE INTO services
+    (slug, name, short, title, description, h1, intro, problems, includes, benefits, faqs, note, image, group_name, footer, sort)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+  SERVICES.forEach((s, i) =>
+    syncSvc.run(
+      s.slug, s.name, s.short, s.title, s.description, s.h1, s.intro,
+      JSON.stringify(s.problems), JSON.stringify(s.includes), JSON.stringify(s.benefits),
+      JSON.stringify(s.faqs), s.note ?? '', s.image, s.group, s.footer ? 1 : 0, i
+    )
+  );
 
   const { n } = d.prepare('SELECT COUNT(*) AS n FROM services').get() as { n: number };
   if (n > 0) return;

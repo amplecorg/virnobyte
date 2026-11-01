@@ -6,6 +6,7 @@ import FaqList from '@/components/FaqList.astro';
 import CtaBand from '@/components/CtaBand.astro';
 import BookingForm from '@/components/BookingForm.astro';
 import ServiceGrid from '@/components/ServiceGrid.astro';
+import ThreeShowcase from '@/components/ThreeShowcase.astro';
 import { service, services, posts } from '@/lib/data';
 import { contactInfo, getSettings } from '@/lib/settings';
 import { breadcrumbs, faqPage, serviceNode } from '@/lib/schema';
@@ -64,6 +65,8 @@ const PROCESS = [
             </p>
           )
         }
+
+        {svc.slug === 'website-development' && <ThreeShowcase />}
 
         <div class="split" data-reveal>
           {

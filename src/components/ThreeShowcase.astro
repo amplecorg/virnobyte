@@ -1,0 +1,290 @@
+---
+// Lightweight interactive Three.js 3D WebGL showcase
+---
+
+<div class="three-showcase card" data-reveal>
+  <div class="showcase-header">
+    <div class="badge-live">
+      <span class="dot"></span>
+      <strong>Interactive Three.js WebGL Engine</strong>
+    </div>
+    <span class="hint-text">Click & drag to rotate 3D model</span>
+  </div>
+
+  <div class="canvas-container" id="webgl-canvas-box">
+    <canvas id="futuristic-webgl-canvas"></canvas>
+    <div class="stats-ribbon">
+      <div class="stat-item">
+        <span class="stat-num">4K UHD</span>
+        <span class="stat-label">Texture Mapping</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-num">60+ FPS</span>
+        <span class="stat-label">GPU Accelerated</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-num">Three.js</span>
+        <span class="stat-label">PBR Shaders</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-num">100%</span>
+        <span class="stat-label">Mobile Responsive</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  import * as THREE from 'three';
+
+  function init3D() {
+    const container = document.getElementById('webgl-canvas-box');
+    const canvas = document.getElementById('futuristic-webgl-canvas') as HTMLCanvasElement | null;
+    if (!container || !canvas) return;
+
+    const width = container.clientWidth;
+    const height = 340;
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
+    camera.position.z = 4.2;
+
+    const renderer = new THREE.WebGLRenderer({
+      canvas,
+      alpha: true,
+      antialias: true,
+      powerPreference: 'high-performance',
+    });
+    renderer.setSize(width, height);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+    // Outer wireframe futuristic dodecahedron / icosahedron
+    const outerGeo = new THREE.IcosahedronGeometry(1.4, 2);
+    const outerMat = new THREE.MeshStandardMaterial({
+      color: 0x38bdf8,
+      wireframe: true,
+      transparent: true,
+      opacity: 0.55,
+      roughness: 0.2,
+      metalness: 0.9,
+    });
+    const outerMesh = new THREE.Mesh(outerGeo, outerMat);
+    scene.add(outerMesh);
+
+    // Inner glowing core
+    const innerGeo = new THREE.TorusKnotGeometry(0.7, 0.22, 128, 32);
+    const innerMat = new THREE.MeshStandardMaterial({
+      color: 0x0284c7,
+      roughness: 0.15,
+      metalness: 0.95,
+      wireframe: false,
+    });
+    const innerMesh = new THREE.Mesh(innerGeo, innerMat);
+    scene.add(innerMesh);
+
+    // Surrounding particle starfield / data points
+    const particlesCount = 200;
+    const posArray = new Float32Array(particlesCount * 3);
+    for (let i = 0; i < particlesCount * 3; i++) {
+      posArray[i] = (Math.random() - 0.5) * 8;
+    }
+    const particlesGeo = new THREE.BufferGeometry();
+    particlesGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+    const particlesMat = new THREE.PointsMaterial({
+      size: 0.035,
+      color: 0x7dd3fc,
+      transparent: true,
+      opacity: 0.8,
+    });
+    const particles = new THREE.Points(particlesGeo, particlesMat);
+    scene.add(particles);
+
+    // Studio & cyber lights
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+    scene.add(ambientLight);
+
+    const cyanLight = new THREE.PointLight(0x00f0ff, 3, 20);
+    cyanLight.position.set(4, 3, 4);
+    scene.add(cyanLight);
+
+    const purpleLight = new THREE.PointLight(0x38bdf8, 2, 20);
+    purpleLight.position.set(-4, -3, 2);
+    scene.add(purpleLight);
+
+    // Interactive Drag / Touch
+    let isDragging = false;
+    let previousMousePosition = { x: 0, y: 0 };
+    let targetRotationX = 0;
+    let targetRotationY = 0;
+
+    function onPointerDown(e: MouseEvent | TouchEvent) {
+      isDragging = true;
+      const x = 'touches' in e ? e.touches[0].clientX : e.clientX;
+      const y = 'touches' in e ? e.touches[0].clientY : e.clientY;
+      previousMousePosition = { x, y };
+    }
+
+    function onPointerMove(e: MouseEvent | TouchEvent) {
+      if (!isDragging) return;
+      const x = 'touches' in e ? e.touches[0].clientX : e.clientX;
+      const y = 'touches' in e ? e.touches[0].clientY : e.clientY;
+      const deltaX = x - previousMousePosition.x;
+      const deltaY = y - previousMousePosition.y;
+
+      targetRotationY += deltaX * 0.008;
+      targetRotationX += deltaY * 0.008;
+
+      previousMousePosition = { x, y };
+    }
+
+    function onPointerUp() {
+      isDragging = false;
+    }
+
+    container.addEventListener('mousedown', onPointerDown);
+    window.addEventListener('mousemove', onPointerMove);
+    window.addEventListener('mouseup', onPointerUp);
+
+    container.addEventListener('touchstart', onPointerDown, { passive: true });
+    window.addEventListener('touchmove', onPointerMove, { passive: true });
+    window.addEventListener('touchend', onPointerUp);
+
+    // Resize handler
+    function onResize() {
+      if (!container) return;
+      const newWidth = container.clientWidth;
+      camera.aspect = newWidth / height;
+      camera.updateProjectionMatrix();
+      renderer.setSize(newWidth, height);
+    }
+    window.addEventListener('resize', onResize);
+
+    // Render loop
+    let animId: number;
+    function animate() {
+      animId = requestAnimationFrame(animate);
+
+      // Auto rotation + dampening user drag
+      outerMesh.rotation.y += 0.004;
+      outerMesh.rotation.x += 0.002;
+
+      innerMesh.rotation.y -= 0.006;
+      innerMesh.rotation.x += 0.005;
+
+      particles.rotation.y += 0.001;
+
+      // Smooth interpolation towards drag target
+      outerMesh.rotation.y += (targetRotationY - outerMesh.rotation.y) * 0.05;
+      outerMesh.rotation.x += (targetRotationX - outerMesh.rotation.x) * 0.05;
+      innerMesh.rotation.y += (targetRotationY - innerMesh.rotation.y) * 0.05;
+      innerMesh.rotation.x += (targetRotationX - innerMesh.rotation.x) * 0.05;
+
+      renderer.render(scene, camera);
+    }
+    animate();
+  }
+
+  // Run on page load
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    init3D();
+  } else {
+    document.addEventListener('DOMContentLoaded', init3D);
+  }
+</script>
+
+<style>
+  .three-showcase {
+    margin: var(--space-5) 0;
+    padding: var(--space-4);
+    background: radial-gradient(circle at 50% 20%, #0f2744 0%, #06111f 100%);
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    border-radius: var(--radius);
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+  }
+  .showcase-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: var(--space-3);
+  }
+  .badge-live {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: #e0f2fe;
+    background: rgba(56, 189, 248, 0.12);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    padding: 4px 12px;
+    border-radius: 999px;
+  }
+  .dot {
+    width: 8px;
+    height: 8px;
+    background: #38bdf8;
+    border-radius: 50%;
+    box-shadow: 0 0 10px #38bdf8;
+    animation: pulse 1.8s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.85); }
+  }
+  .hint-text {
+    font-size: 0.8rem;
+    color: #94a3b8;
+  }
+  .canvas-container {
+    width: 100%;
+    height: 340px;
+    position: relative;
+    cursor: grab;
+    user-select: none;
+    border-radius: var(--radius-s);
+    background: radial-gradient(circle, rgba(14, 165, 233, 0.08) 0%, transparent 70%);
+  }
+  .canvas-container:active {
+    cursor: grabbing;
+  }
+  canvas {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
+  }
+  .stats-ribbon {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    right: 12px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 8px;
+    background: rgba(15, 23, 42, 0.75);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-s);
+    padding: 8px 12px;
+  }
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  .stat-num {
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: #38bdf8;
+  }
+  .stat-label {
+    font-size: 0.68rem;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+</style>
+
