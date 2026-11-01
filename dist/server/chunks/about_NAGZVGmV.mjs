@@ -142,7 +142,7 @@ var $$About = createComponent(($$result, $$props, $$slots) => {
 		"image": "virnobyte-custom-it-solutions-server",
 		"imageAlt": "Server rack with organised network cabling",
 		"data-astro-cid-ta2fbyqs": true
-	})} ${maybeRenderHead($$result)}<section class="section" data-astro-cid-ta2fbyqs> <div class="wrap about" data-astro-cid-ta2fbyqs> <div class="prose" data-reveal data-astro-cid-ta2fbyqs> <h2 data-astro-cid-ta2fbyqs>Who we are</h2> <p data-astro-cid-ta2fbyqs> ${c.legalName} is based at Sadichha Complex on Mahadev Temple Road, Jadhav Wadi, in ${c.locality}. We provide computer and laptop repair,
+	})} ${maybeRenderHead($$result)}<section class="section" data-astro-cid-ta2fbyqs> <div class="wrap about" data-astro-cid-ta2fbyqs> <div class="prose" data-reveal data-astro-cid-ta2fbyqs> <h2 data-astro-cid-ta2fbyqs>Who we are</h2> <p data-astro-cid-ta2fbyqs> ${c.legalName} is based at Sadichha Complex near Mahadev Temple Road, Jadhav Wadi, in ${c.locality}. We provide computer and laptop repair,
           networking, CCTV installation, printer services, software support, annual maintenance contracts and on-site technical help for
           customers in ${c.city} and across Pune.
 </p> <p data-astro-cid-ta2fbyqs>
