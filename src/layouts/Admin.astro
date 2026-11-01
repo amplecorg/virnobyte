@@ -14,46 +14,46 @@ const newEnq = get<{ n: number }>("SELECT COUNT(*) AS n FROM enquiries WHERE sta
 const pending = get<{ n: number }>("SELECT COUNT(*) AS n FROM memberships WHERE status = 'pending'")!.n;
 const pcReq = get<{ n: number }>("SELECT COUNT(*) AS n FROM pc_builds WHERE status IN ('quote','ordered')")!.n;
 
-const NAV: { group: string; items: { href: string; label: string; key: string; badge?: number }[] }[] = [
-  { group: 'Overview', items: [{ href: '/admin', label: 'Dashboard', key: 'dashboard' }] },
+const NAV: { group: string; items: { href: string; label: string; key: string; icon: string; badge?: number }[] }[] = [
+  { group: 'Overview', items: [{ href: '/admin', label: 'Dashboard', key: 'dashboard', icon: 'dashboard' }] },
   {
     group: 'Membership',
     items: [
-      { href: '/admin/members', label: 'Members & coins', key: 'members', badge: pending },
-      { href: '/admin/r/plans', label: 'Plans & card design', key: 'plans' },
-      { href: '/admin/settings#coins', label: 'Coin program', key: 'coins' },
+      { href: '/admin/members', label: 'Members & coins', key: 'members', icon: 'users', badge: pending },
+      { href: '/admin/r/plans', label: 'Plans & card design', key: 'plans', icon: 'credit-card' },
+      { href: '/admin/settings#coins', label: 'Coin program', key: 'coins', icon: 'coin' },
     ],
   },
   {
     group: 'Leads',
     items: [
-      { href: '/admin/r/enquiries', label: 'Enquiries', key: 'enquiries', badge: newEnq },
-      { href: '/admin/r/pc_builds', label: 'PC build requests', key: 'pc_builds', badge: pcReq },
+      { href: '/admin/r/enquiries', label: 'Enquiries', key: 'enquiries', icon: 'mail', badge: newEnq },
+      { href: '/admin/r/pc_builds', label: 'PC build requests', key: 'pc_builds', icon: 'wrench', badge: pcReq },
     ],
   },
   {
     group: 'PC builder',
     items: [
-      { href: '/admin/r/pc_parts', label: 'Parts & prices', key: 'pc_parts' },
-      { href: '/admin/r/pc_presets', label: 'Preset builds', key: 'pc_presets' },
-      { href: '/admin/settings#pcbuilder', label: 'GST & fees', key: 'pcsettings' },
+      { href: '/admin/r/pc_parts', label: 'Parts & prices', key: 'pc_parts', icon: 'cpu' },
+      { href: '/admin/r/pc_presets', label: 'Preset builds', key: 'pc_presets', icon: 'shield' },
+      { href: '/admin/settings#pcbuilder', label: 'GST & fees', key: 'pcsettings', icon: 'receipt' },
     ],
   },
   {
     group: 'Content',
     items: [
-      { href: '/admin/r/services', label: 'Services', key: 'services' },
-      { href: '/admin/r/posts', label: 'Blog', key: 'posts' },
-      { href: '/admin/r/faqs', label: 'FAQs', key: 'faqs' },
-      { href: '/admin/r/products', label: 'Products', key: 'products' },
-      { href: '/admin/r/projects', label: 'Portfolio', key: 'projects' },
-      { href: '/admin/r/gallery', label: 'Gallery', key: 'gallery' },
-      { href: '/admin/r/jobs', label: 'Careers', key: 'jobs' },
-      { href: '/admin/r/testimonials', label: 'Testimonials', key: 'testimonials' },
-      { href: '/admin/r/pages', label: 'Legal & profile pages', key: 'pages' },
+      { href: '/admin/r/services', label: 'Services', key: 'services', icon: 'wrench' },
+      { href: '/admin/r/posts', label: 'Blog', key: 'posts', icon: 'file-text' },
+      { href: '/admin/r/faqs', label: 'FAQs', key: 'faqs', icon: 'message' },
+      { href: '/admin/r/products', label: 'Products', key: 'products', icon: 'shield' },
+      { href: '/admin/r/projects', label: 'Portfolio', key: 'projects', icon: 'briefcase' },
+      { href: '/admin/r/gallery', label: 'Gallery', key: 'gallery', icon: 'image' },
+      { href: '/admin/r/jobs', label: 'Careers', key: 'jobs', icon: 'clock' },
+      { href: '/admin/r/testimonials', label: 'Testimonials', key: 'testimonials', icon: 'message' },
+      { href: '/admin/r/pages', label: 'Legal & profile pages', key: 'pages', icon: 'file-text' },
     ],
   },
-  { group: 'Site', items: [{ href: '/admin/settings', label: 'Business, home & SEO', key: 'settings' }] },
+  { group: 'Site', items: [{ href: '/admin/settings', label: 'Business, home & SEO', key: 'settings', icon: 'settings' }] },
 ];
 ---
 
@@ -65,12 +65,32 @@ const NAV: { group: string; items: { href: string; label: string; key: string; b
     <meta name="robots" content="noindex, nofollow" />
     <title>{title} · Virnobyte admin</title>
     <link rel="icon" href="/favicon.ico" />
+    <script is:inline>
+      if (typeof localStorage !== 'undefined' && localStorage.getItem('vb_sidebar_collapsed') === 'true' && window.matchMedia('(min-width: 900px)').matches) {
+        document.documentElement.classList.add('sidebar-collapsed');
+      }
+    </script>
   </head>
   <body class="admin">
     <a class="skip-link" href="#content">Skip to content</a>
-    <div class="shell">
-      <aside class="side">
-        <a class="logo" href="/admin"><img src="/virnobyte-logo.png" alt="" width="32" height="25" /> Virnobyte <span>admin</span></a>
+    <div class="shell" id="admin-shell">
+      <aside class="side" id="admin-side">
+        <div class="side-head">
+          <a class="logo" href="/admin" title="Virnobyte Admin">
+            <img src="/virnobyte-logo.png" alt="" width="32" height="25" />
+            <span class="logo-text">Virnobyte <span class="logo-badge">admin</span></span>
+          </a>
+          <button
+            type="button"
+            class="side-toggle"
+            id="sidebar-toggle"
+            aria-label="Toggle sidebar"
+            title="Minimize sidebar (Ctrl+B)"
+          >
+            <Icon name="panel-close" size={18} class="icon-collapse" />
+            <Icon name="panel-open" size={18} class="icon-expand" />
+          </button>
+        </div>
         <details class="navwrap" open>
           <summary>Menu</summary>
           <nav aria-label="Admin">
@@ -79,8 +99,9 @@ const NAV: { group: string; items: { href: string; label: string; key: string; b
                 <div class="group">
                   <p>{g.group}</p>
                   {g.items.map((i) => (
-                    <a href={i.href} aria-current={active === i.key ? 'page' : undefined}>
-                      <span>{i.label}</span>
+                    <a href={i.href} aria-current={active === i.key ? 'page' : undefined} title={i.label}>
+                      <span class="nav-icon"><Icon name={i.icon as any} size={18} /></span>
+                      <span class="nav-label">{i.label}</span>
                       {i.badge ? <b class="badge">{i.badge}</b> : null}
                     </a>
                   ))}
@@ -90,21 +111,75 @@ const NAV: { group: string; items: { href: string; label: string; key: string; b
           </nav>
         </details>
         <div class="me">
-          <span class="small">{user.email}</span>
+          <span class="small me-email">{user.email}</span>
           <div class="me-actions">
-            <a href="/" target="_blank" rel="noopener" class="small">View site <Icon name="external" size={14} /></a>
-            <form method="post" action="/account/logout"><button type="submit" class="linkish small">Sign out</button></form>
+            <a href="/" target="_blank" rel="noopener" class="small" title="View site">
+              <Icon name="external" size={16} />
+              <span>View site</span>
+            </a>
+            <form method="post" action="/account/logout">
+              <button type="submit" class="linkish small" title="Sign out">
+                <Icon name="logout" size={16} />
+                <span>Sign out</span>
+              </button>
+            </form>
           </div>
         </div>
       </aside>
       <main id="content" class="content">
+        <div class="mobile-bar">
+          <button type="button" class="mobile-toggle" id="mobile-sidebar-toggle" aria-label="Toggle menu">
+            <Icon name="menu" size={18} />
+            <span>Menu</span>
+          </button>
+          <span class="mobile-title">{title}</span>
+        </div>
         <slot />
       </main>
     </div>
     <script>
+      // Sidebar minimize / maximize functionality
+      const toggle = document.getElementById('sidebar-toggle');
+      const mobileToggle = document.getElementById('mobile-sidebar-toggle');
+      const navwrap = document.querySelector<HTMLDetailsElement>('.navwrap');
+
+      const applySidebarState = (collapsed: boolean) => {
+        document.documentElement.classList.toggle('sidebar-collapsed', collapsed);
+        localStorage.setItem('vb_sidebar_collapsed', String(collapsed));
+        if (toggle) {
+          toggle.setAttribute('title', collapsed ? 'Maximize sidebar (Ctrl+B)' : 'Minimize sidebar (Ctrl+B)');
+          toggle.setAttribute('aria-label', collapsed ? 'Maximize sidebar' : 'Minimize sidebar');
+        }
+      };
+
+      toggle?.addEventListener('click', () => {
+        if (window.matchMedia('(max-width: 899px)').matches) {
+          if (navwrap) navwrap.open = !navwrap.open;
+        } else {
+          const isCollapsed = document.documentElement.classList.contains('sidebar-collapsed');
+          applySidebarState(!isCollapsed);
+        }
+      });
+
+      mobileToggle?.addEventListener('click', () => {
+        if (navwrap) {
+          navwrap.open = !navwrap.open;
+          if (navwrap.open) navwrap.scrollIntoView({ behavior: 'smooth' });
+        }
+      });
+
+      // Keyboard shortcut Ctrl+B / Cmd+B to toggle sidebar
+      document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b' && !e.altKey) {
+          e.preventDefault();
+          const isCollapsed = document.documentElement.classList.contains('sidebar-collapsed');
+          applySidebarState(!isCollapsed);
+        }
+      });
+
       // Collapse the menu on small screens by default.
-      const nav = document.querySelector<HTMLDetailsElement>('.navwrap');
-      if (nav && matchMedia('(max-width: 899px)').matches) nav.open = false;
+      if (navwrap && matchMedia('(max-width: 899px)').matches) navwrap.open = false;
+
       // Live character counters for SEO fields.
       document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('[data-max]').forEach((el) => {
         const out = el.closest('.field')?.querySelector<HTMLElement>('[data-count]');

@@ -26,7 +26,8 @@ if (Astro.request.method === 'POST') {
 
   if (!Object.keys(errors).length) {
     const id = registerCustomer({ ...values, password });
-    createSession(Astro.cookies, id, Astro.url.protocol === 'https:');
+    const isSecure = Astro.url.protocol === 'https:' || Astro.request.headers.get('x-forwarded-proto') === 'https';
+    createSession(Astro.cookies, id, isSecure);
     if (plan && plan.active) {
       requestMembership(id, plan.id);
       return Astro.redirect('/account?requested=1', 303);

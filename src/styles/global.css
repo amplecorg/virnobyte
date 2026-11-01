@@ -63,7 +63,7 @@
 html {
   -webkit-text-size-adjust: 100%;
   scroll-padding-top: calc(var(--header-h) + 16px);
-  overflow-x: hidden;
+  overflow-x: clip;
   max-width: 100%;
 }
 body {
@@ -76,7 +76,7 @@ body {
   font-optical-sizing: auto;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
+  overflow-x: clip;
   max-width: 100%;
 }
 img,

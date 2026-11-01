@@ -67,7 +67,10 @@ const statusLabel = { pending: 'Awaiting activation', expired: 'Expired', cancel
         <img src="/virnobyte-logo-white.png" alt="" width="30" height="23" loading="lazy" />
         {s.business.name}
       </span>
-      <span class="plan" data-f="name">{planName}</span>
+      <div class="plan-wrap">
+        <span class="plan" data-f="name">{planName}</span>
+        {statusLabel[status] && <span class="ribbon">{statusLabel[status]}</span>}
+      </div>
     </div>
 
     <div class="row mid">
@@ -93,8 +96,6 @@ const statusLabel = { pending: 'Awaiting activation', expired: 'Expired', cancel
         <span data-f="valid">{cardExpiry(validThru)}</span>
       </span>
     </div>
-
-    {statusLabel[status] && <span class="ribbon">{statusLabel[status]}</span>}
   </div>
 </div>
 
@@ -269,17 +270,47 @@ const statusLabel = { pending: 'Awaiting activation', expired: 'Expired', cancel
     opacity: 0.8;
     letter-spacing: 0.1em;
   }
+  .row.top {
+    align-items: flex-start;
+  }
+  .plan-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.8cqi;
+    min-width: 0;
+  }
   .ribbon {
-    position: absolute;
-    top: 4cqi;
-    left: 50%;
-    transform: translateX(-50%);
-    background: #fff;
-    color: var(--ink);
-    font-size: 3cqi;
+    display: inline-flex;
+    align-items: center;
+    gap: 1.2cqi;
+    background: rgb(255 255 255 / 0.95);
+    color: #0f172a;
+    font-size: 2.6cqi;
     font-weight: 700;
-    padding: 1cqi 3cqi;
+    line-height: 1;
+    padding: 0.9cqi 2.2cqi;
     border-radius: 999px;
+    box-shadow: 0 2px 8px rgb(0 0 0 / 0.22);
+    white-space: nowrap;
+    letter-spacing: 0.01em;
+  }
+  .ribbon::before {
+    content: '';
+    display: inline-block;
+    width: 1.5cqi;
+    height: 1.5cqi;
+    border-radius: 50%;
+    background: #f59e0b;
+    box-shadow: 0 0 0 0.35cqi rgb(245 158 11 / 0.25);
+  }
+  .status-expired .ribbon::before {
+    background: #ef4444;
+    box-shadow: 0 0 0 0.35cqi rgb(239 68 68 / 0.25);
+  }
+  .status-cancelled .ribbon::before {
+    background: #64748b;
+    box-shadow: 0 0 0 0.35cqi rgb(100 116 139 / 0.25);
   }
   .status-expired .face,
   .status-cancelled .face {

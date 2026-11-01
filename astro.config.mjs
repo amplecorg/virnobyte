@@ -9,6 +9,9 @@ const SITE = process.env.PUBLIC_SITE_URL || 'https://virnobyte.com';
 export default defineConfig({
   site: SITE,
   output: 'server',
+  security: {
+    checkOrigin: false,
+  },
   adapter: node({ mode: 'standalone' }),
   // React is used only for the PC builder island; no other page ships React.
   integrations: [react()],
