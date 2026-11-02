@@ -101,6 +101,27 @@ async function parseForm(def, form, id) {
 				}
 				break;
 			}
+			case "images": {
+				let list = [];
+				try {
+					if (typeof val === "string" && val.trim().startsWith("[")) list = JSON.parse(val.trim());
+					else if (val) list = [String(val).trim()];
+				} catch {
+					list = [];
+				}
+				if (!Array.isArray(list)) list = [];
+				const uploads = form.getAll(`${f.name}__upload`);
+				const hint = String(form.get("slug") || form.get("title") || form.get("name") || "product");
+				for (const up of uploads) if (up instanceof File && up.size > 0) try {
+					const url = await saveUpload(up, hint);
+					list.push(url);
+				} catch (e) {
+					errors[f.name] = e.message;
+				}
+				val = JSON.stringify(list);
+				if (def.table === "products") row.image = list[0] || "";
+				break;
+			}
 		}
 		if (f.required && (val === "" || val == null || val === "[]")) errors[f.name] = errors[f.name] ?? `${f.label} is required.`;
 		if (f.max && typeof val === "string" && val.length > f.max + 40) errors[f.name] = `Keep this under about ${f.max} characters.`;

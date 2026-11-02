@@ -126,8 +126,8 @@ if (f.type === 'image' || f.type === 'images') {
         {/* Current Photos Gallery */}
         <div class="current-gallery-wrap">
           <div class="gallery-header">
-            <strong>Current photos ({currentImages.length})</strong>
-            <span class="small muted">First photo is used as main product cover</span>
+            <strong>Current photos (<span data-current-count>{currentImages.length}</span>)</strong>
+            <span class="small muted">First photo is used as main product cover (drag to reorder)</span>
           </div>
           <div class="current-gallery" data-gallery>
             {currentImages.map((src, idx) => {
@@ -154,9 +154,20 @@ if (f.type === 'image' || f.type === 'images') {
               );
             })}
           </div>
-          {currentImages.length === 0 && (
-            <p class="empty-hint" data-empty-hint>No photos uploaded yet. Drag & drop or select photos below.</p>
-          )}
+          <p class="empty-hint" data-empty-hint style={currentImages.length > 0 ? 'display:none;' : 'display:block;'}>
+            No photos uploaded yet. Drag & drop or select photos below.
+          </p>
+        </div>
+
+        {/* Upload Progress Bar */}
+        <div class="upload-progress-wrap" data-upload-progress style="display:none;">
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill" data-progress-fill></div>
+          </div>
+          <div class="progress-status-row">
+            <span class="progress-status-text" data-progress-text>Uploading and converting photos...</span>
+            <span class="progress-percent" data-progress-percent>0%</span>
+          </div>
         </div>
 
         {/* Drag and Drop Zone */}
@@ -180,15 +191,6 @@ if (f.type === 'image' || f.type === 'images') {
               <span class="drop-sub-text">or <button type="button" class="browse-link" data-trigger-browse>browse from device</button> (select multiple files, JPG/PNG/WebP)</span>
             </div>
           </div>
-        </div>
-
-        {/* Live Pending Uploads List */}
-        <div class="pending-uploads-wrap" data-pending-wrap style="display:none;">
-          <div class="pending-header">
-            <strong>Ready to upload on save (<span data-pending-count>0</span> photos)</strong>
-            <button type="button" class="small muted clear-btn" data-clear-pending>Clear newly selected</button>
-          </div>
-          <div class="pending-grid" data-pending-grid></div>
         </div>
 
         {/* Optional Library Add */}
@@ -327,6 +329,46 @@ if (f.type === 'image' || f.type === 'images') {
     font-style: italic;
   }
 
+  /* Upload Progress */
+  .upload-progress-wrap {
+    background: rgba(2, 132, 199, 0.08);
+    border: 1px solid rgba(2, 132, 199, 0.25);
+    border-radius: 8px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .progress-bar-track {
+    width: 100%;
+    height: 6px;
+    background: var(--line);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .progress-bar-fill {
+    width: 0%;
+    height: 100%;
+    background: #0284c7;
+    border-radius: 999px;
+    transition: width 0.25s ease;
+  }
+  .progress-status-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .progress-status-text {
+    font-size: 12px;
+    font-weight: 600;
+    color: #0284c7;
+  }
+  .progress-percent {
+    font-size: 12px;
+    font-weight: 700;
+    color: #0284c7;
+  }
+
   /* Drop Zone */
   .drop-zone {
     position: relative;
@@ -387,53 +429,6 @@ if (f.type === 'image' || f.type === 'images') {
     pointer-events: auto;
   }
 
-  /* Pending uploads */
-  .pending-uploads-wrap {
-    background: rgba(56, 189, 248, 0.08);
-    border: 1px solid rgba(56, 189, 248, 0.25);
-    border-radius: 8px;
-    padding: 12px;
-  }
-  .pending-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-    font-size: 13px;
-  }
-  .clear-btn {
-    border: none;
-    background: none;
-    cursor: pointer;
-    text-decoration: underline;
-  }
-  .pending-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-    gap: 8px;
-  }
-  .pending-card {
-    position: relative;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    overflow: hidden;
-    font-size: 11px;
-  }
-  .pending-card img {
-    width: 100%;
-    aspect-ratio: 4 / 3;
-    object-fit: cover;
-    display: block;
-  }
-  .pending-info {
-    padding: 4px 6px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    color: var(--ink-2);
-  }
-
   /* Library picker */
   .lib-picker-row {
     display: flex;
@@ -482,7 +477,7 @@ if (f.type === 'image' || f.type === 'images') {
     });
   });
 
-  // Multi-image Drag & Drop and Gallery Reordering
+  // Multi-image Drag & Drop, Instant Upload, and Gallery Reordering
   document.querySelectorAll<HTMLElement>('[data-multi-img]').forEach((container) => {
     if (container.dataset.bound) return;
     container.dataset.bound = '1';
@@ -490,18 +485,17 @@ if (f.type === 'image' || f.type === 'images') {
     const thumbs: Record<string, string> = JSON.parse(container.dataset.thumbs || '{}');
     const hiddenJson = container.querySelector<HTMLInputElement>('.images-json-input')!;
     const gallery = container.querySelector<HTMLElement>('[data-gallery]')!;
+    const countSpan = container.querySelector<HTMLElement>('[data-current-count]');
     const emptyHint = container.querySelector<HTMLElement>('[data-empty-hint]');
     const dropZone = container.querySelector<HTMLElement>('[data-drop-zone]')!;
     const fileInput = container.querySelector<HTMLInputElement>('.multi-file-input')!;
     const triggerBrowse = container.querySelector<HTMLButtonElement>('[data-trigger-browse]');
-    const pendingWrap = container.querySelector<HTMLElement>('[data-pending-wrap]')!;
-    const pendingCount = container.querySelector<HTMLElement>('[data-pending-count]')!;
-    const pendingGrid = container.querySelector<HTMLElement>('[data-pending-grid]')!;
-    const clearPendingBtn = container.querySelector<HTMLButtonElement>('[data-clear-pending]');
+    const uploadProgress = container.querySelector<HTMLElement>('[data-upload-progress]');
+    const progressFill = container.querySelector<HTMLElement>('[data-progress-fill]');
+    const progressText = container.querySelector<HTMLElement>('[data-progress-text]');
+    const progressPercent = container.querySelector<HTMLElement>('[data-progress-percent]');
     const libSelect = container.querySelector<HTMLSelectElement>('.lib-select');
     const addLibBtn = container.querySelector<HTMLButtonElement>('[data-add-lib]');
-
-    let pendingFiles: File[] = [];
 
     const getStoredList = (): string[] => {
       try {
@@ -516,6 +510,8 @@ if (f.type === 'image' || f.type === 'images') {
       const items = Array.from(gallery.querySelectorAll<HTMLElement>('.gallery-item'));
       const list = items.map((el) => el.dataset.src || '').filter(Boolean);
       hiddenJson.value = JSON.stringify(list);
+
+      if (countSpan) countSpan.textContent = String(list.length);
 
       // Re-index and update badges
       items.forEach((item, idx) => {
@@ -608,7 +604,7 @@ if (f.type === 'image' || f.type === 'images') {
     // Add image item to gallery
     const addImageToGallery = (src: string) => {
       const current = getStoredList();
-      if (current.includes(src)) return; // Avoid duplicates
+      if (current.includes(src)) return; // Avoid duplicate
 
       const thumbUrl = src.startsWith('/uploads/') ? src : thumbs[src] || src;
       const idx = current.length;
@@ -659,71 +655,76 @@ if (f.type === 'image' || f.type === 'images') {
       });
     });
 
-    const updatePendingPreviews = (files: File[]) => {
-      pendingFiles = files;
-      if (!files.length) {
-        pendingWrap.style.display = 'none';
-        pendingGrid.innerHTML = '';
+    // Instant Upload Handler
+    const uploadFiles = async (files: File[]) => {
+      if (!files.length) return;
+      const validFiles = files.filter(
+        (f) => f.type.startsWith('image/') && f.size <= 25 * 1024 * 1024
+      );
+      if (!validFiles.length) {
+        alert('Please choose valid image files (JPG, PNG, WebP) under 25 MB.');
         return;
       }
 
-      pendingWrap.style.display = 'block';
-      if (pendingCount) pendingCount.textContent = String(files.length);
-      pendingGrid.innerHTML = '';
+      if (uploadProgress) uploadProgress.style.display = 'flex';
+      if (progressFill) progressFill.style.width = '25%';
+      if (progressText) progressText.textContent = `Uploading ${validFiles.length} photo(s)...`;
+      if (progressPercent) progressPercent.textContent = '25%';
 
-      files.forEach((file) => {
-        const card = document.createElement('div');
-        card.className = 'pending-card';
-        const img = document.createElement('img');
-        img.src = URL.createObjectURL(file);
-        img.alt = file.name;
-        img.onload = () => URL.revokeObjectURL(img.src);
+      try {
+        const fd = new FormData();
+        validFiles.forEach((f) => fd.append('files', f));
 
-        const info = document.createElement('div');
-        info.className = 'pending-info';
-        const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
-        info.textContent = `${file.name} (${sizeMb} MB)`;
-        info.title = file.name;
+        const nameInput = document.querySelector<HTMLInputElement>('input[name="name"], input[name="title"]');
+        const slugInput = document.querySelector<HTMLInputElement>('input[name="slug"]');
+        const hint = slugInput?.value || nameInput?.value || 'product';
+        fd.append('hint', hint);
 
-        card.appendChild(img);
-        card.appendChild(info);
-        pendingGrid.appendChild(card);
-      });
-    };
+        if (progressFill) progressFill.style.width = '65%';
+        if (progressPercent) progressPercent.textContent = '65%';
 
-    const handleFilesAdded = (newFileList: FileList | File[]) => {
-      const validFiles = Array.from(newFileList).filter(
-        (f) => f.type.startsWith('image/') && f.size <= 25 * 1024 * 1024
-      );
-      if (!validFiles.length) return;
+        const res = await fetch('/api/admin/upload', {
+          method: 'POST',
+          body: fd,
+        });
 
-      const dt = new DataTransfer();
-      // Combine existing pending with new files
-      const combined = [...pendingFiles, ...validFiles];
-      combined.forEach((f) => dt.files && dt.items.add(f));
-      fileInput.files = dt.files;
-      updatePendingPreviews(combined);
+        if (progressFill) progressFill.style.width = '90%';
+        if (progressPercent) progressPercent.textContent = '90%';
+
+        const data = await res.json();
+        if (res.ok && data.ok && Array.isArray(data.urls)) {
+          data.urls.forEach((url: string) => {
+            addImageToGallery(url);
+          });
+          if (progressFill) progressFill.style.width = '100%';
+          if (progressPercent) progressPercent.textContent = '100%';
+          if (progressText) progressText.textContent = `Uploaded ${data.urls.length} photo(s) successfully!`;
+          setTimeout(() => {
+            if (uploadProgress) uploadProgress.style.display = 'none';
+          }, 1600);
+        } else {
+          throw new Error(data.error || 'Server error uploading photos');
+        }
+      } catch (err: any) {
+        console.error('Instant upload failed:', err);
+        if (uploadProgress) uploadProgress.style.display = 'none';
+        alert('Upload issue: ' + (err?.message || 'Network error') + '. Please try again.');
+      } finally {
+        fileInput.value = '';
+      }
     };
 
     dropZone.addEventListener('drop', (e: DragEvent) => {
       if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
-        handleFilesAdded(e.dataTransfer.files);
+        uploadFiles(Array.from(e.dataTransfer.files));
       }
     });
 
     fileInput.addEventListener('change', () => {
       if (fileInput.files && fileInput.files.length > 0) {
-        handleFilesAdded(fileInput.files);
+        uploadFiles(Array.from(fileInput.files));
       }
     });
-
-    if (clearPendingBtn) {
-      clearPendingBtn.onclick = (e) => {
-        e.preventDefault();
-        fileInput.value = '';
-        updatePendingPreviews([]);
-      };
-    }
 
     // Add from photo library
     if (addLibBtn && libSelect) {

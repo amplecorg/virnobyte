@@ -1,7 +1,6 @@
 ---
 import Base from '@/layouts/Base.astro';
 import PageHero from '@/components/PageHero.astro';
-import Photo from '@/components/Photo.astro';
 import Icon from '@/components/Icon.astro';
 import CtaBand from '@/components/CtaBand.astro';
 import { products, type Product } from '@/lib/data';
@@ -19,8 +18,9 @@ const crumbs = [
   { name: 'Products', href: '/products' },
 ];
 
-// Helper to pre-resolve image URLs for client-side swapping
+// Helper to pre-resolve image URLs for clean client-side swapping
 function getPhotoUrls(images: string[]) {
+  if (!images || !images.length) return [];
   return images.map((imgKey) => {
     const res = resolveImage(imgKey);
     return res.kind === 'upload' ? res.src : res.meta.src;
@@ -54,8 +54,11 @@ function getPhotoUrls(images: string[]) {
               {items
                 .filter((p) => p.category === cat)
                 .map((p) => {
-                  const photoUrls = getPhotoUrls(p.images);
+                  const rawList = Array.isArray(p.images) && p.images.length ? p.images : (p.image ? [p.image] : []);
+                  const resolvedPhotos = getPhotoUrls(rawList);
+                  const photoUrls = resolvedPhotos.length ? resolvedPhotos : ['/virnobyte-circuit-board.webp'];
                   const hasMultiple = photoUrls.length > 1;
+
                   return (
                     <li class="prod" data-reveal>
                       <div
@@ -64,13 +67,13 @@ function getPhotoUrls(images: string[]) {
                         data-photos={JSON.stringify(photoUrls)}
                         data-name={p.name}
                       >
-                        <div class="main-img-box">
-                          <Photo
-                            image={p.images[0] || p.image}
+                        <div class="main-img-box" data-zoom-trigger title="Hover to inspect details • Click to expand full screen">
+                          <img
+                            src={photoUrls[0]}
                             alt={p.name}
-                            sizes="(min-width: 1200px) 25vw, (min-width: 700px) 45vw, 100vw"
-                            widths={[480, 768, 1080]}
                             class="main-img"
+                            loading="lazy"
+                            decoding="async"
                           />
                           {hasMultiple && (
                             <>
@@ -83,8 +86,18 @@ function getPhotoUrls(images: string[]) {
                               <button type="button" class="nav-btn next-btn" aria-label="Next photo">
                                 ›
                               </button>
+
+                              <div class="carousel-dots" aria-hidden="true">
+                                {photoUrls.map((_, i) => (
+                                  <span class:list={['carousel-dot', { active: i === 0 }]} data-dot-index={i}></span>
+                                ))}
+                              </div>
                             </>
                           )}
+                          <div class="zoom-pill">
+                            <Icon name="search" size={13} />
+                            <span>Inspect</span>
+                          </div>
                         </div>
 
                         {hasMultiple && (
@@ -105,8 +118,8 @@ function getPhotoUrls(images: string[]) {
 
                       <div class="pb">
                         <div class="tags">
-                          <span class="chip">{p.condition}</span>
-                          {!p.in_stock && <span class="chip">On order</span>}
+                          <span class="chip condition-chip">{p.condition}</span>
+                          {!p.in_stock && <span class="chip status-chip">On order</span>}
                         </div>
                         <h3>{p.name}</h3>
                         <p class="small muted">{p.summary}</p>
@@ -115,7 +128,7 @@ function getPhotoUrls(images: string[]) {
                           {p.price && p.mrp && p.mrp > p.price && <s class="muted small">{inr(p.mrp)}</s>}
                         </p>
                         <a
-                          class="btn btn--ghost btn--sm"
+                          class="btn btn--ghost btn--sm enquire-btn"
                           href={c.whatsappUrl(`Hi ${c.name}, I'm interested in: ${p.name}`)}
                           rel="noopener"
                           target="_blank"
@@ -133,6 +146,28 @@ function getPhotoUrls(images: string[]) {
     </div>
   </section>
   <CtaBand heading="Not sure what to buy?" text="Tell us what you use your computer for and your budget. We will recommend a setup and install it." />
+
+  {/* Full-screen E-commerce Lightbox Modal */}
+  <div id="product-lightbox" class="lightbox-modal" aria-hidden="true" role="dialog" aria-label="Photo preview">
+    <div class="lightbox-backdrop" id="lightbox-backdrop"></div>
+    <div class="lightbox-dialog">
+      <button type="button" class="lightbox-close-btn" id="lightbox-close" aria-label="Close photo view">✕</button>
+      <div class="lightbox-stage">
+        <button type="button" class="lightbox-nav-btn lightbox-prev" id="lightbox-prev" aria-label="Previous photo">‹</button>
+        <div class="lightbox-img-wrapper" id="lightbox-img-wrapper" title="Click to zoom in/out">
+          <img id="lightbox-img" class="lightbox-img" src="" alt="Enlarged view" />
+        </div>
+        <button type="button" class="lightbox-nav-btn lightbox-next" id="lightbox-next" aria-label="Next photo">›</button>
+      </div>
+      <div class="lightbox-bar">
+        <span id="lightbox-title" class="lightbox-title"></span>
+        <div class="lightbox-meta">
+          <span class="lightbox-hint">Click image to zoom</span>
+          <span id="lightbox-counter" class="lightbox-counter"></span>
+        </div>
+      </div>
+    </div>
+  </div>
 </Base>
 
 <style>
@@ -144,6 +179,10 @@ function getPhotoUrls(images: string[]) {
   }
   .cats a {
     text-decoration: none;
+    transition: all 0.2s ease;
+  }
+  .cats a:hover {
+    transform: translateY(-2px);
   }
   .cat + .cat {
     margin-top: var(--space-8);
@@ -160,6 +199,8 @@ function getPhotoUrls(images: string[]) {
     gap: var(--space-5);
     grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
   }
+
+  /* ── E-Commerce Product Card with Smooth Hover ─────────────── */
   .prod {
     background: var(--surface);
     border: 1px solid var(--line);
@@ -167,62 +208,104 @@ function getPhotoUrls(images: string[]) {
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease;
+    will-change: transform, box-shadow;
   }
   .prod:hover {
-    box-shadow: 0 10px 25px -10px rgba(0, 0, 0, 0.12);
+    transform: translateY(-6px);
+    border-color: rgba(2, 132, 199, 0.35);
+    box-shadow: 0 20px 38px -12px rgba(11, 23, 36, 0.14), 0 0 0 1px rgba(2, 132, 199, 0.15);
   }
 
-  /* Product Media & Gallery */
+  /* Product Media Container */
   .prod-media {
     position: relative;
     width: 100%;
-    background: #0b1524;
+    background: #080f1a;
+    overflow: hidden;
   }
   .main-img-box {
     position: relative;
     width: 100%;
     aspect-ratio: 4 / 3;
     overflow: hidden;
-    cursor: pointer;
+    cursor: zoom-in;
+    background: radial-gradient(circle at center, #111d2e 0%, #070d18 100%);
   }
-  .main-img-box :global(img) {
+
+  /* Interactive Main Image with Zoom on Hover */
+  .main-img {
     width: 100%;
     height: 100%;
     object-fit: cover;
     display: block;
-    transition: transform 0.25s ease;
+    transform-origin: center center;
+    transition: transform 0.2s cubic-bezier(0.2, 0, 0.2, 1), opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform, opacity;
   }
-  .main-img-box:hover :global(img) {
-    transform: scale(1.02);
+  .main-img.is-switching {
+    opacity: 0.3;
+    transform: scale(0.96) !important;
+  }
+
+  /* Interactive Inspect Badge */
+  .zoom-pill {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    background: rgba(11, 23, 36, 0.76);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    pointer-events: none;
+    z-index: 3;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+  }
+  .main-img-box:hover .zoom-pill {
+    opacity: 1;
+    transform: translateY(0);
   }
 
   .gallery-counter {
     position: absolute;
     top: 8px;
     right: 8px;
-    background: rgba(11, 23, 36, 0.75);
-    backdrop-filter: blur(4px);
+    background: rgba(11, 23, 36, 0.78);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
     color: #fff;
     font-size: 11px;
     font-weight: 700;
-    padding: 3px 8px;
+    padding: 3px 9px;
     border-radius: 999px;
     pointer-events: none;
-    z-index: 2;
+    z-index: 3;
+    border: 1px solid rgba(255, 255, 255, 0.12);
   }
 
+  /* Sleek E-Commerce Navigation Buttons */
   .nav-btn {
     position: absolute;
     top: 50%;
-    transform: translateY(-50%);
-    width: 32px;
-    height: 32px;
+    transform: translateY(-50%) scale(0.85);
+    width: 34px;
+    height: 34px;
     border-radius: 50%;
-    background: rgba(11, 23, 36, 0.7);
-    backdrop-filter: blur(4px);
+    background: rgba(11, 23, 36, 0.75);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
     color: #fff;
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.25);
     font-size: 20px;
     line-height: 1;
     display: flex;
@@ -230,15 +313,18 @@ function getPhotoUrls(images: string[]) {
     justify-content: center;
     cursor: pointer;
     opacity: 0;
-    transition: opacity 0.2s, background 0.15s;
-    z-index: 3;
+    transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.15s ease;
+    z-index: 4;
   }
   .prod:hover .nav-btn,
   .prod-media:focus-within .nav-btn {
     opacity: 1;
+    transform: translateY(-50%) scale(1);
   }
   .nav-btn:hover {
-    background: rgba(2, 132, 199, 0.9);
+    background: #0284c7;
+    transform: translateY(-50%) scale(1.12);
+    box-shadow: 0 4px 14px rgba(2, 132, 199, 0.5);
   }
   .prev-btn {
     left: 8px;
@@ -247,10 +333,41 @@ function getPhotoUrls(images: string[]) {
     right: 8px;
   }
 
-  /* Thumbnail strip */
+  /* E-Commerce Carousel Pagination Dots */
+  .carousel-dots {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 7px;
+    background: rgba(11, 23, 36, 0.65);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    border-radius: 999px;
+    pointer-events: none;
+    z-index: 3;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  .carousel-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.4);
+    transition: all 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .carousel-dot.active {
+    width: 16px;
+    background: #38bdf8;
+    box-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
+  }
+
+  /* Animated Thumbnail Strip */
   .thumb-strip {
     display: flex;
-    gap: 6px;
+    gap: 7px;
     padding: 8px 10px;
     background: var(--surface);
     border-bottom: 1px solid var(--line);
@@ -258,29 +375,38 @@ function getPhotoUrls(images: string[]) {
     scrollbar-width: thin;
   }
   .thumb-btn {
-    flex: 0 0 44px;
-    height: 34px;
+    flex: 0 0 46px;
+    height: 36px;
     padding: 0;
-    border-radius: 4px;
+    border-radius: 6px;
     border: 2px solid transparent;
     background: #0b1524;
     overflow: hidden;
     cursor: pointer;
-    opacity: 0.65;
-    transition: opacity 0.15s, border-color 0.15s;
+    opacity: 0.6;
+    transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease;
+    will-change: transform;
   }
-  .thumb-btn:hover,
+  .thumb-btn:hover {
+    opacity: 0.95;
+    transform: translateY(-2px) scale(1.06);
+    border-color: #38bdf8;
+  }
   .thumb-btn.active {
     opacity: 1;
     border-color: #0284c7;
+    transform: translateY(-2px) scale(1.08);
+    box-shadow: 0 4px 10px rgba(2, 132, 199, 0.35);
   }
   .thumb-btn img {
     width: 100%;
     height: 100%;
     object-fit: cover;
     display: block;
+    pointer-events: none;
   }
 
+  /* Content & Details */
   .pb {
     padding: var(--space-5);
     display: grid;
@@ -293,6 +419,9 @@ function getPhotoUrls(images: string[]) {
     display: flex;
     gap: 6px;
   }
+  .condition-chip {
+    font-weight: 700;
+  }
   .price {
     display: flex;
     align-items: baseline;
@@ -300,11 +429,267 @@ function getPhotoUrls(images: string[]) {
   }
   .price strong {
     font-size: 1.25rem;
+    color: var(--ink);
+  }
+
+  /* Smooth Button Hover */
+  .enquire-btn {
+    width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .prod:hover .enquire-btn {
+    background: #25d366;
+    color: #fff;
+    border-color: #25d366;
+    box-shadow: 0 4px 14px rgba(37, 211, 102, 0.3);
+  }
+
+  /* ── Fullscreen E-Commerce Lightbox Modal ──────────────────── */
+  @keyframes lightboxFadeIn {
+    from { opacity: 0; backdrop-filter: blur(0px); }
+    to { opacity: 1; backdrop-filter: blur(10px); }
+  }
+  @keyframes lightboxZoomIn {
+    from { transform: scale(0.92); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+
+  .lightbox-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+  .lightbox-modal.is-open {
+    display: flex;
+  }
+  .lightbox-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(5, 11, 20, 0.88);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  .lightbox-modal.is-open .lightbox-backdrop {
+    animation: lightboxFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  .lightbox-dialog {
+    position: relative;
+    max-width: 90vw;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 2;
+  }
+  .lightbox-modal.is-open .lightbox-dialog {
+    animation: lightboxZoomIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  .lightbox-close-btn {
+    position: absolute;
+    top: -46px;
+    right: 0;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.15);
+    border: none;
+    color: #fff;
+    font-size: 19px;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    transition: all 0.18s ease;
+  }
+  .lightbox-close-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: rotate(90deg);
+  }
+  .lightbox-stage {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    max-width: 88vw;
+    max-height: 78vh;
+  }
+  .lightbox-img-wrapper {
+    max-width: 88vw;
+    max-height: 78vh;
+    overflow: hidden;
+    border-radius: 8px;
+    cursor: zoom-in;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .lightbox-img-wrapper.is-zoomed {
+    cursor: zoom-out;
+  }
+  .lightbox-img {
+    max-width: 88vw;
+    max-height: 78vh;
+    object-fit: contain;
+    border-radius: 8px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7);
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .lightbox-img-wrapper.is-zoomed .lightbox-img {
+    transform: scale(2.2);
+  }
+  .lightbox-nav-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(11, 23, 36, 0.8);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    color: #fff;
+    font-size: 28px;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 5;
+  }
+  .lightbox-nav-btn:hover {
+    background: #0284c7;
+    transform: translateY(-50%) scale(1.1);
+    box-shadow: 0 6px 20px rgba(2, 132, 199, 0.5);
+  }
+  .lightbox-prev {
+    left: -24px;
+  }
+  .lightbox-next {
+    right: -24px;
+  }
+  .lightbox-bar {
+    margin-top: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .lightbox-meta {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  .lightbox-hint {
+    font-size: 12px;
+    color: #94a3b8;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+  .lightbox-counter {
+    color: #38bdf8;
+    font-size: 13px;
+    font-weight: 700;
   }
 </style>
 
 <script>
-  // Interactive Product Gallery switcher
+  // Full-Screen Lightbox Modal Controller
+  const lightbox = document.getElementById('product-lightbox');
+  const lightboxImg = document.getElementById('lightbox-img') as HTMLImageElement;
+  const lightboxImgWrapper = document.getElementById('lightbox-img-wrapper');
+  const lightboxTitle = document.getElementById('lightbox-title');
+  const lightboxCounter = document.getElementById('lightbox-counter');
+  const lightboxBackdrop = document.getElementById('lightbox-backdrop');
+  const lightboxClose = document.getElementById('lightbox-close');
+  const lightboxPrev = document.getElementById('lightbox-prev');
+  const lightboxNext = document.getElementById('lightbox-next');
+
+  let activePhotos: string[] = [];
+  let activeIndex = 0;
+  let activeProdName = '';
+
+  const openLightbox = (photos: string[], index: number, title: string) => {
+    if (!lightbox || !lightboxImg) return;
+    activePhotos = photos;
+    activeIndex = (index + photos.length) % photos.length;
+    activeProdName = title;
+
+    if (lightboxImgWrapper) lightboxImgWrapper.classList.remove('is-zoomed');
+    updateLightboxView();
+    lightbox.classList.add('is-open');
+    lightbox.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+  };
+
+  const closeLightbox = () => {
+    if (!lightbox) return;
+    lightbox.classList.remove('is-open');
+    lightbox.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+    if (lightboxImgWrapper) lightboxImgWrapper.classList.remove('is-zoomed');
+  };
+
+  const updateLightboxView = () => {
+    if (!lightboxImg || !activePhotos.length) return;
+    lightboxImg.src = activePhotos[activeIndex];
+    if (lightboxTitle) lightboxTitle.textContent = activeProdName;
+    if (lightboxCounter) lightboxCounter.textContent = `${activeIndex + 1} of ${activePhotos.length}`;
+
+    if (lightboxPrev) lightboxPrev.style.display = activePhotos.length > 1 ? 'grid' : 'none';
+    if (lightboxNext) lightboxNext.style.display = activePhotos.length > 1 ? 'grid' : 'none';
+  };
+
+  if (lightboxImgWrapper) {
+    lightboxImgWrapper.onclick = () => {
+      lightboxImgWrapper.classList.toggle('is-zoomed');
+    };
+  }
+
+  if (lightboxClose) lightboxClose.onclick = closeLightbox;
+  if (lightboxBackdrop) lightboxBackdrop.onclick = closeLightbox;
+
+  if (lightboxPrev) {
+    lightboxPrev.onclick = (e) => {
+      e.stopPropagation();
+      if (lightboxImgWrapper) lightboxImgWrapper.classList.remove('is-zoomed');
+      activeIndex = (activeIndex - 1 + activePhotos.length) % activePhotos.length;
+      updateLightboxView();
+    };
+  }
+  if (lightboxNext) {
+    lightboxNext.onclick = (e) => {
+      e.stopPropagation();
+      if (lightboxImgWrapper) lightboxImgWrapper.classList.remove('is-zoomed');
+      activeIndex = (activeIndex + 1) % activePhotos.length;
+      updateLightboxView();
+    };
+  }
+
+  window.addEventListener('keydown', (e) => {
+    if (!lightbox?.classList.contains('is-open')) return;
+    if (e.key === 'Escape') closeLightbox();
+    else if (e.key === 'ArrowLeft' && activePhotos.length > 1) {
+      if (lightboxImgWrapper) lightboxImgWrapper.classList.remove('is-zoomed');
+      activeIndex = (activeIndex - 1 + activePhotos.length) % activePhotos.length;
+      updateLightboxView();
+    } else if (e.key === 'ArrowRight' && activePhotos.length > 1) {
+      if (lightboxImgWrapper) lightboxImgWrapper.classList.remove('is-zoomed');
+      activeIndex = (activeIndex + 1) % activePhotos.length;
+      updateLightboxView();
+    }
+  });
+
+  // Modern E-Commerce Interactive Product Gallery Card Controller
   document.querySelectorAll<HTMLElement>('[data-prod-gallery]').forEach((wrap) => {
     let photos: string[] = [];
     try {
@@ -312,25 +697,80 @@ function getPhotoUrls(images: string[]) {
     } catch {
       photos = [];
     }
-    if (photos.length <= 1) return;
-
-    let currentIndex = 0;
-    const mainImg = wrap.querySelector<HTMLImageElement>('.main-img-box img')!;
+    const prodName = wrap.dataset.name || '';
+    const mainBox = wrap.querySelector<HTMLElement>('.main-img-box');
+    const mainImg = wrap.querySelector<HTMLImageElement>('.main-img')!;
     const counterNum = wrap.querySelector<HTMLElement>('.gallery-counter .active-num');
     const prevBtn = wrap.querySelector<HTMLButtonElement>('.prev-btn');
     const nextBtn = wrap.querySelector<HTMLButtonElement>('.next-btn');
     const thumbBtns = wrap.querySelectorAll<HTMLButtonElement>('.thumb-btn');
+    const dots = wrap.querySelectorAll<HTMLElement>('.carousel-dot');
 
+    let currentIndex = 0;
+    let isHovering = false;
+
+    // ── Interactive Hover Loupe / Cursor Magnifier Effect ──────
+    if (mainBox && mainImg) {
+      mainBox.addEventListener('mouseenter', () => {
+        isHovering = true;
+      });
+
+      mainBox.addEventListener('mousemove', (e) => {
+        if (!isHovering || mainImg.classList.contains('is-switching')) return;
+        const rect = mainBox.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / rect.width) * 100;
+        const y = ((e.clientY - rect.top) / rect.height) * 100;
+        mainImg.style.transformOrigin = `${x}% ${y}%`;
+        mainImg.style.transform = 'scale(1.85)';
+      });
+
+      mainBox.addEventListener('mouseleave', () => {
+        isHovering = false;
+        mainImg.style.transformOrigin = 'center center';
+        mainImg.style.transform = 'scale(1)';
+      });
+
+      mainBox.addEventListener('click', (e) => {
+        // Only open lightbox if not clicking nav buttons
+        if ((e.target as HTMLElement).closest('.nav-btn')) return;
+        openLightbox(photos, currentIndex, prodName);
+      });
+    }
+
+    // ── Smooth Crossfade & Switch Animation ──────────────────
     const updatePhoto = (index: number) => {
-      currentIndex = (index + photos.length) % photos.length;
+      if (!photos.length) return;
+      const targetIndex = (index + photos.length) % photos.length;
+      if (targetIndex === currentIndex && mainImg.src) return;
+
+      currentIndex = targetIndex;
+
+      // Animate crossfade
       if (mainImg) {
-        mainImg.src = photos[currentIndex];
+        mainImg.classList.add('is-switching');
+        setTimeout(() => {
+          mainImg.src = photos[currentIndex];
+          mainImg.onload = () => {
+            mainImg.classList.remove('is-switching');
+          };
+          setTimeout(() => {
+            mainImg.classList.remove('is-switching');
+          }, 140);
+        }, 110);
       }
+
       if (counterNum) {
         counterNum.textContent = String(currentIndex + 1);
       }
+
+      // Update thumbnails with smooth bounce
       thumbBtns.forEach((btn, idx) => {
         btn.classList.toggle('active', idx === currentIndex);
+      });
+
+      // Update carousel dots
+      dots.forEach((dot, idx) => {
+        dot.classList.toggle('active', idx === currentIndex);
       });
     };
 

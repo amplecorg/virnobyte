@@ -5,7 +5,7 @@ import { t as $$Icon } from "./Icon_CAVYTX4O.mjs";
 import { a as inr, r as formatDate } from "./format_B1bSNQa_.mjs";
 import { t as $$Admin } from "./Admin_AG2XxGYm.mjs";
 import { t as RESOURCES } from "./resources_DyrjpM0n.mjs";
-import { t as listRows } from "./forms_BtMqJsME.mjs";
+import { t as listRows } from "./forms_BLnL9JDQ.mjs";
 //#region src/pages/admin/r/[resource]/index.astro
 var _resource__exports = /* @__PURE__ */ __exportAll({
 	default: () => $$Index,

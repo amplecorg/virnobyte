@@ -358,7 +358,8 @@ INSERT INTO `products` (`id`, `slug`, `name`, `category`, `summary`, `price`, `m
 (5, 'cctv-camera-kits', 'CCTV Camera Kits', 'CCTV', 'HD and IP camera kits with DVR/NVR and storage sized for your premises.', NULL, NULL, 'New', 'virnobyte-cctv-installation-pune', 1, 1, 4, '["virnobyte-cctv-installation-pune","virnobyte-wifi-router-setup","virnobyte-circuit-board"]'),
 (6, 'routers-and-switches', 'Routers, Switches & Access Points', 'Networking', 'Networking equipment for homes and offices, configured and installed.', NULL, NULL, 'New', 'virnobyte-wifi-router-setup', 1, 1, 5, '["virnobyte-wifi-router-setup"]'),
 (7, 'ups-and-inverters', 'UPS & Inverters', 'Power backup', 'UPS units for computers and inverters with batteries for homes and shops.', NULL, NULL, 'New', 'virnobyte-circuit-board', 1, 1, 6, '["virnobyte-circuit-board"]'),
-(8, 'hard-disks-and-storage', 'Hard Disks & External Storage', 'Components', 'Internal and external drives for storage, backup and CCTV recording.', NULL, NULL, 'New', 'virnobyte-hard-disk-drive', 1, 1, 7, '["virnobyte-hard-disk-drive"]');
+(8, 'hard-disks-and-storage', 'Hard Disks & External Storage', 'Components', 'Internal and external drives for storage, backup and CCTV recording.', NULL, NULL, 'New', 'virnobyte-hard-disk-drive', 1, 1, 7, '["virnobyte-hard-disk-drive"]'),
+(9, 'lap001', 'Dell latitude I5/ 11th generation', 'Electronic', 'High-Performance laptop Suitable For Office Study And Daily Use', NULL, NULL, 'Refurbished', 'virnobyte-laptop-repair', 1, 1, 8, '["virnobyte-laptop-repair","virnobyte-circuit-board","virnobyte-hardware-solutions"]');
 
 -- --------------------------------------------------------
 -- Table structure for table `projects`
