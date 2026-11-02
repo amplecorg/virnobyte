@@ -141,6 +141,15 @@ const statusLabel = { pending: 'Awaiting activation', expired: 'Expired', cancel
   .vcard:hover .face::after {
     transform: translateX(60%);
   }
+  @media (hover: hover) and (prefers-reduced-motion: no-preference) {
+    .vcard:hover .face {
+      transform: translateY(-4px) rotateX(2deg);
+      box-shadow:
+        0 1px 0 rgb(255 255 255 / 0.35) inset,
+        0 28px 48px -18px rgb(11 23 36 / 0.75),
+        0 8px 16px -4px rgb(11 23 36 / 0.35);
+    }
+  }
   .traces {
     position: absolute;
     inset: 0;

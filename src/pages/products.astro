@@ -4,19 +4,28 @@ import PageHero from '@/components/PageHero.astro';
 import Photo from '@/components/Photo.astro';
 import Icon from '@/components/Icon.astro';
 import CtaBand from '@/components/CtaBand.astro';
-import { products } from '@/lib/data';
+import { products, type Product } from '@/lib/data';
 import { contactInfo } from '@/lib/settings';
 import { breadcrumbs } from '@/lib/schema';
 import { inr } from '@/lib/format';
+import { resolveImage } from '@/lib/images';
 
 const c = contactInfo();
-const items = products() as any[];
+const items = products() as Product[];
 const cats = [...new Set(items.map((p) => p.category as string))];
 const anchor = (t: string) => t.toLowerCase().replace(/[^a-z]+/g, '-');
 const crumbs = [
   { name: 'Home', href: '/' },
   { name: 'Products', href: '/products' },
 ];
+
+// Helper to pre-resolve image URLs for client-side swapping
+function getPhotoUrls(images: string[]) {
+  return images.map((imgKey) => {
+    const res = resolveImage(imgKey);
+    return res.kind === 'upload' ? res.src : res.meta.src;
+  });
+}
 ---
 
 <Base
@@ -44,26 +53,79 @@ const crumbs = [
             <ul class="grid-p">
               {items
                 .filter((p) => p.category === cat)
-                .map((p) => (
-                  <li class="prod" data-reveal>
-                    <Photo image={p.image} alt={p.name} sizes="(min-width: 1200px) 25vw, (min-width: 700px) 45vw, 100vw" widths={[480, 768, 1080]} />
-                    <div class="pb">
-                      <div class="tags">
-                        <span class="chip">{p.condition}</span>
-                        {!p.in_stock && <span class="chip">On order</span>}
+                .map((p) => {
+                  const photoUrls = getPhotoUrls(p.images);
+                  const hasMultiple = photoUrls.length > 1;
+                  return (
+                    <li class="prod" data-reveal>
+                      <div
+                        class="prod-media"
+                        data-prod-gallery
+                        data-photos={JSON.stringify(photoUrls)}
+                        data-name={p.name}
+                      >
+                        <div class="main-img-box">
+                          <Photo
+                            image={p.images[0] || p.image}
+                            alt={p.name}
+                            sizes="(min-width: 1200px) 25vw, (min-width: 700px) 45vw, 100vw"
+                            widths={[480, 768, 1080]}
+                            class="main-img"
+                          />
+                          {hasMultiple && (
+                            <>
+                              <span class="gallery-counter">
+                                <span class="active-num">1</span> / {photoUrls.length}
+                              </span>
+                              <button type="button" class="nav-btn prev-btn" aria-label="Previous photo">
+                                ‹
+                              </button>
+                              <button type="button" class="nav-btn next-btn" aria-label="Next photo">
+                                ›
+                              </button>
+                            </>
+                          )}
+                        </div>
+
+                        {hasMultiple && (
+                          <div class="thumb-strip" aria-label="Product photo thumbnails">
+                            {photoUrls.map((url, idx) => (
+                              <button
+                                type="button"
+                                class:list={['thumb-btn', { active: idx === 0 }]}
+                                data-index={idx}
+                                aria-label={`View photo ${idx + 1}`}
+                              >
+                                <img src={url} alt="" loading="lazy" />
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      <h3>{p.name}</h3>
-                      <p class="small muted">{p.summary}</p>
-                      <p class="price">
-                        {p.price ? <strong>{inr(p.price)}</strong> : <strong>Ask for price</strong>}
-                        {p.price && p.mrp > p.price && <s class="muted small">{inr(p.mrp)}</s>}
-                      </p>
-                      <a class="btn btn--ghost btn--sm" href={c.whatsappUrl(`Hi ${c.name}, I'm interested in: ${p.name}`)} rel="noopener" target="_blank">
-                        <Icon name="whatsapp" /> Enquire on WhatsApp
-                      </a>
-                    </div>
-                  </li>
-                ))}
+
+                      <div class="pb">
+                        <div class="tags">
+                          <span class="chip">{p.condition}</span>
+                          {!p.in_stock && <span class="chip">On order</span>}
+                        </div>
+                        <h3>{p.name}</h3>
+                        <p class="small muted">{p.summary}</p>
+                        <p class="price">
+                          {p.price ? <strong>{inr(p.price)}</strong> : <strong>Ask for price</strong>}
+                          {p.price && p.mrp && p.mrp > p.price && <s class="muted small">{inr(p.mrp)}</s>}
+                        </p>
+                        <a
+                          class="btn btn--ghost btn--sm"
+                          href={c.whatsappUrl(`Hi ${c.name}, I'm interested in: ${p.name}`)}
+                          rel="noopener"
+                          target="_blank"
+                        >
+                          <Icon name="whatsapp" /> Enquire on WhatsApp
+                        </a>
+                      </div>
+                    </li>
+                  );
+                })}
             </ul>
           </section>
         ))
@@ -103,20 +165,129 @@ const crumbs = [
     border: 1px solid var(--line);
     border-radius: var(--radius);
     overflow: hidden;
-    display: grid;
-    grid-template-rows: auto 1fr;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
   }
-  .prod :global(img) {
+  .prod:hover {
+    box-shadow: 0 10px 25px -10px rgba(0, 0, 0, 0.12);
+  }
+
+  /* Product Media & Gallery */
+  .prod-media {
+    position: relative;
+    width: 100%;
+    background: #0b1524;
+  }
+  .main-img-box {
+    position: relative;
     width: 100%;
     aspect-ratio: 4 / 3;
-    object-fit: cover;
+    overflow: hidden;
+    cursor: pointer;
   }
+  .main-img-box :global(img) {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.25s ease;
+  }
+  .main-img-box:hover :global(img) {
+    transform: scale(1.02);
+  }
+
+  .gallery-counter {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(11, 23, 36, 0.75);
+    backdrop-filter: blur(4px);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 999px;
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  .nav-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(11, 23, 36, 0.7);
+    backdrop-filter: blur(4px);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    font-size: 20px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s, background 0.15s;
+    z-index: 3;
+  }
+  .prod:hover .nav-btn,
+  .prod-media:focus-within .nav-btn {
+    opacity: 1;
+  }
+  .nav-btn:hover {
+    background: rgba(2, 132, 199, 0.9);
+  }
+  .prev-btn {
+    left: 8px;
+  }
+  .next-btn {
+    right: 8px;
+  }
+
+  /* Thumbnail strip */
+  .thumb-strip {
+    display: flex;
+    gap: 6px;
+    padding: 8px 10px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+  .thumb-btn {
+    flex: 0 0 44px;
+    height: 34px;
+    padding: 0;
+    border-radius: 4px;
+    border: 2px solid transparent;
+    background: #0b1524;
+    overflow: hidden;
+    cursor: pointer;
+    opacity: 0.65;
+    transition: opacity 0.15s, border-color 0.15s;
+  }
+  .thumb-btn:hover,
+  .thumb-btn.active {
+    opacity: 1;
+    border-color: #0284c7;
+  }
+  .thumb-btn img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
   .pb {
     padding: var(--space-5);
     display: grid;
     gap: var(--space-3);
     align-content: start;
     justify-items: start;
+    flex: 1;
   }
   .tags {
     display: flex;
@@ -131,3 +302,83 @@ const crumbs = [
     font-size: 1.25rem;
   }
 </style>
+
+<script>
+  // Interactive Product Gallery switcher
+  document.querySelectorAll<HTMLElement>('[data-prod-gallery]').forEach((wrap) => {
+    let photos: string[] = [];
+    try {
+      photos = JSON.parse(wrap.dataset.photos || '[]');
+    } catch {
+      photos = [];
+    }
+    if (photos.length <= 1) return;
+
+    let currentIndex = 0;
+    const mainImg = wrap.querySelector<HTMLImageElement>('.main-img-box img')!;
+    const counterNum = wrap.querySelector<HTMLElement>('.gallery-counter .active-num');
+    const prevBtn = wrap.querySelector<HTMLButtonElement>('.prev-btn');
+    const nextBtn = wrap.querySelector<HTMLButtonElement>('.next-btn');
+    const thumbBtns = wrap.querySelectorAll<HTMLButtonElement>('.thumb-btn');
+
+    const updatePhoto = (index: number) => {
+      currentIndex = (index + photos.length) % photos.length;
+      if (mainImg) {
+        mainImg.src = photos[currentIndex];
+      }
+      if (counterNum) {
+        counterNum.textContent = String(currentIndex + 1);
+      }
+      thumbBtns.forEach((btn, idx) => {
+        btn.classList.toggle('active', idx === currentIndex);
+      });
+    };
+
+    if (prevBtn) {
+      prevBtn.onclick = (e) => {
+        e.stopPropagation();
+        updatePhoto(currentIndex - 1);
+      };
+    }
+    if (nextBtn) {
+      nextBtn.onclick = (e) => {
+        e.stopPropagation();
+        updatePhoto(currentIndex + 1);
+      };
+    }
+
+    thumbBtns.forEach((btn) => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const idx = Number(btn.dataset.index) || 0;
+        updatePhoto(idx);
+      };
+      btn.onmouseenter = () => {
+        const idx = Number(btn.dataset.index) || 0;
+        updatePhoto(idx);
+      };
+    });
+
+    // Mobile touch swipe support
+    let touchStartX = 0;
+    wrap.addEventListener(
+      'touchstart',
+      (e) => {
+        touchStartX = e.changedTouches[0].screenX;
+      },
+      { passive: true }
+    );
+    wrap.addEventListener(
+      'touchend',
+      (e) => {
+        const touchEndX = e.changedTouches[0].screenX;
+        const diff = touchEndX - touchStartX;
+        if (Math.abs(diff) > 40) {
+          if (diff < 0) updatePhoto(currentIndex + 1);
+          else updatePhoto(currentIndex - 1);
+        }
+      },
+      { passive: true }
+    );
+  });
+</script>

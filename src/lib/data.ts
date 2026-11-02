@@ -170,7 +170,39 @@ export const post = (slug: string) => {
   return r ? hydratePost(r) : undefined;
 };
 
-export const products = () => all('SELECT * FROM products WHERE published = 1 ORDER BY sort, id');
+export interface Product {
+  id: number;
+  slug: string;
+  name: string;
+  category: string;
+  summary: string;
+  price: number | null;
+  mrp: number | null;
+  condition: string;
+  image: string;
+  images: string[];
+  in_stock: number;
+  published: number;
+  sort: number;
+}
+
+export const hydrateProduct = (r: any): Product => {
+  let images = json<string[]>(r.images, []);
+  if (!images.length && r.image) images = [r.image];
+  return {
+    ...r,
+    image: images[0] || r.image || '',
+    images,
+  };
+};
+
+export const products = () =>
+  all('SELECT * FROM products WHERE published = 1 ORDER BY sort, id').map(hydrateProduct);
+
+export const product = (slug: string) => {
+  const r = get('SELECT * FROM products WHERE slug = ? AND published = 1', slug);
+  return r ? hydrateProduct(r) : undefined;
+};
 
 export const PORTFOLIO_CATEGORIES = {
   'cctv-projects': { name: 'CCTV Projects', service: 'cctv-installation', blurb: 'Camera installations for homes, shops, offices and industrial sites.' },

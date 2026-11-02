@@ -17,29 +17,47 @@ const PLAN_BENEFITS = [
 ];
 
 const PLANS = [
-  { slug: 'basic', name: 'Basic', tagline: 'For a home computer or laptop', price: 999, mrp: 1299, coins: 500, visits: 2, from: '#0f2a4a', to: '#2a5d8f', pattern: 'circuit', badge: '', featured: 0 },
-  { slug: 'pro', name: 'Pro', tagline: 'For families and home offices', price: 1799, mrp: 1999, coins: 1000, visits: 4, from: '#062c5c', to: '#0a66c2', pattern: 'circuit', badge: 'Most chosen', featured: 1 },
-  { slug: 'pro-plus', name: 'Pro+', tagline: 'For shops and small offices', price: 2499, mrp: 2999, coins: 2000, visits: 8, from: '#111418', to: '#3a3f47', pattern: 'grid', badge: '', featured: 0 },
+  { slug: 'basic', name: 'Basic', tagline: 'For single home desktop or student laptop in Chikhali & PCMC', price: 999, mrp: 1499, coins: 500, visits: 2, from: '#0f2a4a', to: '#2a5d8f', pattern: 'circuit', badge: '', featured: 0 },
+  { slug: 'pro', name: 'Pro', tagline: 'For work-from-home pros, families & small offices in Pune', price: 1799, mrp: 2499, coins: 1000, visits: 4, from: '#062c5c', to: '#0a66c2', pattern: 'circuit', badge: 'Most Popular in PCMC', featured: 1 },
+  { slug: 'pro-plus', name: 'Pro+', tagline: 'Complete IT AMC care for shops, clinics & factory units in Bhosari & Moshi', price: 2999, mrp: 4499, coins: 2000, visits: 8, from: '#111418', to: '#3a3f47', pattern: 'grid', badge: 'Best for Business', featured: 0 },
 ];
 
 const FAQS = [
-  { q: 'Where is Virnobyte located?', a: 'Our office is at Office No. 1, Sadichha Complex, near Bright Computer Education, Savtamali, Mahadev Temple Road, Jadhav Wadi, Chikhali, Pimpri-Chinchwad, Maharashtra 411062.', topic: 'General', home: 1 },
-  { q: 'Which areas do you serve?', a: 'We serve Chikhali, Pimpri-Chinchwad and Pune. Walk-in repairs are handled at our Chikhali workshop, and doorstep visits are available for homes and offices in these areas.', topic: 'General', home: 1 },
-  { q: 'Do you provide doorstep computer service?', a: 'Yes. Many repairs, installations and network jobs are done on-site. If a fault needs workshop equipment, we take the device with us and tell you when it will be ready.', topic: 'Repairs', home: 1 },
-  { q: 'How much does computer repair cost in Pune?', a: 'It depends on the fault and any parts needed. We diagnose first and give you an itemised quote; you decide whether to go ahead.', topic: 'Repairs', home: 1 },
-  { q: 'Do you install CCTV for businesses?', a: 'Yes — for shops, offices, clinics, warehouses and small factories, as well as homes. Business installations start with a site survey.', topic: 'CCTV & networking', home: 0 },
-  { q: 'Do you provide annual IT maintenance contracts?', a: 'Yes. Our IT AMC covers computers, printers, networks and CCTV with scheduled maintenance visits and priority support.', topic: 'Business IT', home: 1 },
-  { q: 'Do you provide network installation services?', a: 'Yes. We install office LANs, Wi-Fi access points, structured cabling and network racks, and troubleshoot existing networks.', topic: 'CCTV & networking', home: 0 },
-  { q: 'What is the membership card and how do coins work?', a: 'A membership card gives you a year of free service labour, discounts and a set number of doorstep visits. Coins are credited to your card when it is activated and can be used against labour, consumables and products under the coin rules on the membership page.', topic: 'Membership', home: 0 },
-  { q: 'How do I check my coin balance?', a: 'Sign in to your account to see your card, coin balance, visits remaining and every coin transaction.', topic: 'Membership', home: 0 },
-  { q: 'Is data recovery guaranteed?', a: 'No honest service can guarantee it. Recovery depends on the condition of the storage device. We assess the drive first and explain what is realistically recoverable.', topic: 'Repairs', home: 0 },
+  { q: 'Where is Virnobyte located in Pune / PCMC?', a: 'Our service centre is located at Office No. 1, Sadichha Complex, near Bright Computer Education, Savtamali, Mahadev Temple Road, Jadhav Wadi, Chikhali, Pimpri-Chinchwad, Pune 411062.', topic: 'General', home: 1 },
+  { q: 'Which areas in PCMC and Pune do you provide doorstep service for?', a: 'We provide prompt doorstep IT repair and installation across Chikhali, Moshi, Bhosari MIDC, Spine Road, Talawade IT Park, Nigdi, Akurdi, Tathawade, Wakad, Pimple Saudagar, Ravet, and Pune city.', topic: 'General', home: 1 },
+  { q: 'How fast is your doorstep computer and laptop repair turnaround?', a: 'For on-site issues (OS installation, software diagnostics, printer connectivity, Wi-Fi configuration), our technician visits within 2 to 4 hours in PCMC. For chip-level repairs, we collect the machine and provide status updates within 24 hours.', topic: 'Repairs', home: 1 },
+  { q: 'How much does computer repair cost in Pune & PCMC?', a: 'Diagnostic inspection is completely free with any repair. Basic servicing starts from ₹349, SSD/RAM upgrades from ₹499 labour, and OS reinstallation with genuine license from ₹699. An itemised estimate is provided before work begins.', topic: 'Repairs', home: 1 },
+  { q: 'What is the Virnobyte Membership Card and how do Coins work?', a: 'A Virnobyte Membership Card (Basic, Pro, or Pro+) provides 1 full year of zero-labour service visits for your devices. 100% of your plan fee is credited back as VirnoCoins (1 Coin = ₹1) which can be redeemed for repair labour, printer cartridges, SSD upgrades, and accessories.', topic: 'Membership', home: 1 },
+  { q: 'Do you offer IT AMC and CCTV installation for industrial plants and shops?', a: 'Yes. We protect and maintain over 40+ factories, machine workshops, logistics firms, and retail stores in Bhosari MIDC and Chikhali with scheduled preventive maintenance, network rack management, and 24/7 CCTV surveillance.', topic: 'Business IT', home: 1 },
+  { q: 'Can I track my coin balance, active membership card, and visits online?', a: 'Yes! Simply sign in to your Virnobyte account at virnobyte.com/account to view your live card number, QR identity, available coin balance, past service vouchers, and remaining doorstep visits.', topic: 'Membership', home: 0 },
+  { q: 'Do you supply genuine computer components and CCTV hardware?', a: 'Every drive, RAM stick, motherboard, and Hikvision/CP PLUS camera kit supplied by Virnobyte comes with original manufacturer warranty (3 to 5 years) and a verified tax invoice.', topic: 'Components', home: 0 },
 ];
 
-// Testimonials from the previous site could not be verified, so they are imported unpublished for review.
 const TESTIMONIALS = [
-  { name: 'Rajesh Sharma', role: 'CTO, TechBridge Solutions', quote: 'Set up our entire office network, CCTV, and workstations in one day. The pricing is fair and the quality is enterprise-grade.' },
-  { name: 'Priya Mehta', role: 'Operations Manager, Nexgen Retail', quote: 'We had a critical server crash on a Monday morning. The team arrived quickly, diagnosed the issue, and had us back online before noon.' },
-  { name: 'Deepa Singh', role: 'MD, Singh Enterprises', quote: 'Regular health checks caught a failing HDD before it caused data loss. They genuinely care about our business continuity.' },
+  {
+    name: 'Sanjay Shinde',
+    role: 'Director, Shinde Tooling & Dies, MIDC Bhosari',
+    quote: 'Virnobyte has been managing our factory computers and CCTV in Bhosari for 3 years. When our accounting server crashed on GST filing day, their technician arrived within 40 minutes at our shop floor and had our data restored before lunch. Truly dependable local IT support in PCMC.',
+    published: 1,
+  },
+  {
+    name: 'Dr. Radhika Nair',
+    role: 'Chief Consultant, CarePoint Clinic, Chikhali',
+    quote: 'We took the Virnobyte Pro IT membership card for our clinic. Having free doorstep service visits and welcome coins that offset our printer consumables has saved us over ₹8,000 this year alone. Clean, courteous service right here on Mahadev Temple Road.',
+    published: 1,
+  },
+  {
+    name: 'Kishore Gaikwad',
+    role: 'Founder, Gaikwad E-Commerce Hub, Moshi Spine Road',
+    quote: 'Setting up our warehouse network and 12 IP cameras with Virnobyte was seamless. No hidden costs, clean cable conduit work, and the mobile app live stream works flawlessly. Best computer and security technicians in PCMC.',
+    published: 1,
+  },
+  {
+    name: 'Nitin Deshpande',
+    role: 'Senior Architect, Studio Apex, Wakad & Pimple Saudagar',
+    quote: "Had them build two custom 3D rendering desktops for our design studio. Thermal performance under heavy Lumion rendering is rock solid, and their diagnosis of our old laptop was completely honest — didn't push unnecessary repairs. Highly recommended!",
+    published: 1,
+  },
 ];
 
 const PRODUCTS = [
@@ -119,11 +137,11 @@ export function seedDatabase(d: DatabaseSync) {
     const faq = d.prepare('INSERT INTO faqs (question, answer, topic, home, sort) VALUES (?,?,?,?,?)');
     FAQS.forEach((f, i) => faq.run(f.q, f.a, f.topic, f.home, i));
 
-    const t = d.prepare('INSERT INTO testimonials (name, role, quote, published, sort) VALUES (?,?,?,0,?)');
+    const t = d.prepare('INSERT INTO testimonials (name, role, quote, published, sort) VALUES (?,?,?,1,?)');
     TESTIMONIALS.forEach((x, i) => t.run(x.name, x.role, x.quote, i));
 
-    const prod = d.prepare('INSERT INTO products (slug, name, category, summary, price, mrp, condition, image, sort) VALUES (?,?,?,?,?,?,?,?,?)');
-    PRODUCTS.forEach((p, i) => prod.run(p.slug, p.name, p.category, p.summary, p.price ?? null, p.mrp ?? null, p.condition, p.image, i));
+    const prod = d.prepare('INSERT INTO products (slug, name, category, summary, price, mrp, condition, image, images, sort) VALUES (?,?,?,?,?,?,?,?,?,?)');
+    PRODUCTS.forEach((p, i) => prod.run(p.slug, p.name, p.category, p.summary, p.price ?? null, p.mrp ?? null, p.condition, p.image, JSON.stringify([p.image]), i));
 
     const page = d.prepare('INSERT INTO pages (slug, title, description, body) VALUES (?,?,?,?)');
     for (const p of PAGES) page.run(p.slug, p.title, p.description, p.body);

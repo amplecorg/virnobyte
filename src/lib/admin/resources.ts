@@ -3,7 +3,7 @@ import { PORTFOLIO_CATEGORIES } from '../data';
 
 export type FieldType =
   | 'text' | 'slug' | 'textarea' | 'markdown' | 'number' | 'money' | 'bool'
-  | 'select' | 'image' | 'list' | 'faqs' | 'color' | 'date' | 'readonly' | 'kv';
+  | 'select' | 'image' | 'images' | 'list' | 'faqs' | 'color' | 'date' | 'readonly' | 'kv';
 
 export interface FieldDef {
   name: string;
@@ -179,7 +179,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { name: 'summary', label: 'Summary', type: 'textarea', rows: 3 },
       { name: 'price', label: 'Price (₹)', type: 'money', half: true, help: 'Leave empty to show "Ask for price".' },
       { name: 'mrp', label: 'Crossed-out price (₹)', type: 'money', half: true },
-      { name: 'image', label: 'Image', type: 'image' },
+      { name: 'images', label: 'Product photos', type: 'images', help: 'Upload or drag and drop multiple photos. The first photo is the main cover image.' },
       { name: 'in_stock', label: 'In stock', type: 'bool', half: true },
       { name: 'published', label: 'Published', type: 'bool', half: true },
       { name: 'sort', label: 'Display order', type: 'number', half: true },

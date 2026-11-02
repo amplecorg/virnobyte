@@ -41,6 +41,15 @@ export function toFormValue(f: FieldDef, v: any): string {
   if (f.type === 'list') return json<string[]>(v, []).join('\n');
   if (f.type === 'faqs') return faqsToText(v);
   if (f.type === 'kv') return kvToText(v);
+  if (f.type === 'images') {
+    if (Array.isArray(v)) return JSON.stringify(v);
+    if (typeof v === 'string') {
+      const s = v.trim();
+      if (s.startsWith('[')) return s;
+      return JSON.stringify(s ? [s] : []);
+    }
+    return '[]';
+  }
   return String(v);
 }
 

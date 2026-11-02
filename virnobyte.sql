@@ -1,15 +1,11 @@
 -- phpMyAdmin SQL Dump
--- version 5.2.1
--- https://www.phpmyadmin.net/
---
--- Virnobyte Complete Database Export
--- Compatible with: MySQL 5.7+, MySQL 8.0+, MariaDB 10.x+, phpMyAdmin & Hostinger Databases
--- Date: Sun, 01 Nov 2026 11:26:48 GMT
+-- Database: `virnobyte`
+-- Generated on: 2026-11-02T15:50:29.294Z
 
+SET FOREIGN_KEY_CHECKS = 0;
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
 SET time_zone = "+00:00";
-SET FOREIGN_KEY_CHECKS = 0;
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -17,32 +13,25 @@ SET FOREIGN_KEY_CHECKS = 0;
 /*!40101 SET NAMES utf8mb4 */;
 
 -- --------------------------------------------------------
-
---
 -- Table structure for table `settings`
 --
 
-DROP TABLE IF EXISTS `settings`;
 CREATE TABLE IF NOT EXISTS `settings` (
   `key` varchar(100) NOT NULL,
   `value` longtext NOT NULL,
   PRIMARY KEY (`key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Dumping data for table `settings` (1 rows)
+-- Dumping data for table `settings`
 --
 
 INSERT INTO `settings` (`key`, `value`) VALUES
 ('careers', '{"heroImage":"virnobyte-hardware-solutions","promise":"Learn hardware, networking and CCTV by fixing real problems for homes and businesses across Pimpri-Chinchwad.","direction":"We are growing from repairs into complete IT care for small businesses: AMC contracts, office networks, CCTV and membership customers. That means more installation work, more responsibility and room to move up.","steps":[{"title":"Apply online","detail":"Three short steps with no CV upload needed.","duration":"About 5 minutes"},{"title":"Phone call","detail":"A short call about your experience and availability.","duration":"Within 3 working days"},{"title":"Practical round","detail":"Diagnose a real fault at our Chikhali workshop.","duration":"About 1 hour"},{"title":"Offer","detail":"A written offer with pay and start date.","duration":"Within 2 working days"}]}');
 
 -- --------------------------------------------------------
-
---
 -- Table structure for table `users`
 --
 
-DROP TABLE IF EXISTS `users`;
 CREATE TABLE IF NOT EXISTS `users` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `email` varchar(191) NOT NULL,
@@ -55,21 +44,21 @@ CREATE TABLE IF NOT EXISTS `users` (
   UNIQUE KEY `uniq_users_email` (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Dumping data for table `users` (2 rows)
+-- Dumping data for table `users`
 --
 
 INSERT INTO `users` (`id`, `email`, `name`, `phone`, `password_hash`, `role`, `created_at`) VALUES
 (1, 'admin@example.com', 'Administrator', '', 'scrypt$0Wmxs793fwO7XZO+gu8FTQ==$KdLVVMZfbYX0xbOG+jf7mCMr0GPWqthDgW88vNwEARLtdYVj8z8oFbDOYB+2O8obLgxAtqb/y814rcQyiQLB2g==', 'admin', '2026-10-07 18:52:20'),
-(3, 'shindeswayam832@gmail.com', 'Demo name', '8788600004', 'scrypt$5GH/Nf3/TMdk7X01yPCfCQ==$4dbThGQXeuSjnPuxCX4paQR8gJ343JvODWxHbiKHFi1EhzXHTjvFnIqL1PTkgefmDw7I8q5n7UohBOd4jkXkQw==', 'customer', '2026-10-29 18:48:53');
+(3, 'shindeswayam832@gmail.com', 'Swayam Shinde', '+91 87886 00004', 'scrypt$5GH/Nf3/TMdk7X01yPCfCQ==$4dbThGQXeuSjnPuxCX4paQR8gJ343JvODWxHbiKHFi1EhzXHTjvFnIqL1PTkgefmDw7I8q5n7UohBOd4jkXkQw==', 'customer', '2026-10-29 18:48:53'),
+(5, 'amit.deshmukh@deshmukhlogistics.in', 'Amit Deshmukh (Deshmukh Logistics)', '+91 98220 14820', 'scrypt$+KiB1j1ACfRYdvBf3rtG2w==$LvToO2uxwyWSTfHHUJEid44JiPcvu+8nOHHcUr+i7fY6FXPiVVg3c/uV0x60QKJPa2GADYshkphVOq/BcYs+aw==', 'customer', '2026-01-15 11:30:00'),
+(6, 'pooja.kulkarni@gmail.com', 'Pooja Kulkarni', '+91 98505 32190', 'scrypt$+KiB1j1ACfRYdvBf3rtG2w==$LvToO2uxwyWSTfHHUJEid44JiPcvu+8nOHHcUr+i7fY6FXPiVVg3c/uV0x60QKJPa2GADYshkphVOq/BcYs+aw==', 'customer', '2026-03-01 14:15:00'),
+(7, 'sagar.jadhav.eng@gmail.com', 'Sagar Jadhav', '+91 97631 84920', 'scrypt$+KiB1j1ACfRYdvBf3rtG2w==$LvToO2uxwyWSTfHHUJEid44JiPcvu+8nOHHcUr+i7fY6FXPiVVg3c/uV0x60QKJPa2GADYshkphVOq/BcYs+aw==', 'customer', '2026-04-10 16:45:00'),
+(8, 'dr.patil.clinic@gmail.com', 'Dr. Nilesh Patil (Patil Dental Clinic)', '+91 94220 55112', 'scrypt$+KiB1j1ACfRYdvBf3rtG2w==$LvToO2uxwyWSTfHHUJEid44JiPcvu+8nOHHcUr+i7fY6FXPiVVg3c/uV0x60QKJPa2GADYshkphVOq/BcYs+aw==', 'customer', '2026-05-02 09:20:00');
 
 -- --------------------------------------------------------
-
---
 -- Table structure for table `sessions`
 --
 
-DROP TABLE IF EXISTS `sessions`;
 CREATE TABLE IF NOT EXISTS `sessions` (
   `token` varchar(191) NOT NULL,
   `user_id` int(11) NOT NULL,
@@ -78,8 +67,7 @@ CREATE TABLE IF NOT EXISTS `sessions` (
   KEY `idx_sessions_user` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Dumping data for table `sessions` (3 rows)
+-- Dumping data for table `sessions`
 --
 
 INSERT INTO `sessions` (`token`, `user_id`, `expires_at`) VALUES
@@ -88,12 +76,9 @@ INSERT INTO `sessions` (`token`, `user_id`, `expires_at`) VALUES
 ('e487CIezRttB7w9BGefty4zt3jb9zBpPVjc2RsqCMiw', 1, '2026-11-15T07:50:12.844Z');
 
 -- --------------------------------------------------------
-
---
 -- Table structure for table `password_resets`
 --
 
-DROP TABLE IF EXISTS `password_resets`;
 CREATE TABLE IF NOT EXISTS `password_resets` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `user_id` int(11) NOT NULL,
@@ -106,8 +91,7 @@ CREATE TABLE IF NOT EXISTS `password_resets` (
   KEY `idx_resets_user` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Dumping data for table `password_resets` (4 rows)
+-- Dumping data for table `password_resets`
 --
 
 INSERT INTO `password_resets` (`id`, `user_id`, `token_hash`, `expires_at`, `used_at`, `created_at`) VALUES
@@ -117,12 +101,9 @@ INSERT INTO `password_resets` (`id`, `user_id`, `token_hash`, `expires_at`, `use
 (4, 3, '339f0a962aef6ccea14aede528f1ac7813d6b19f4eb2b6a77c642c836a985c1d', '2026-10-29T19:51:07.504Z', NULL, '2026-10-29 18:51:07');
 
 -- --------------------------------------------------------
-
---
 -- Table structure for table `plans`
 --
 
-DROP TABLE IF EXISTS `plans`;
 CREATE TABLE IF NOT EXISTS `plans` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `slug` varchar(100) NOT NULL,
@@ -134,9 +115,9 @@ CREATE TABLE IF NOT EXISTS `plans` (
   `doorstep_visits` int(11) NOT NULL DEFAULT 0,
   `validity_days` int(11) NOT NULL DEFAULT 365,
   `benefits` longtext NOT NULL,
-  `card_from` varchar(30) NOT NULL DEFAULT '#0b2545',
-  `card_to` varchar(30) NOT NULL DEFAULT '#1d4e89',
-  `card_text` varchar(30) NOT NULL DEFAULT '#ffffff',
+  `card_from` varchar(50) NOT NULL DEFAULT '#0b2545',
+  `card_to` varchar(50) NOT NULL DEFAULT '#1d4e89',
+  `card_text` varchar(50) NOT NULL DEFAULT '#ffffff',
   `card_pattern` varchar(50) NOT NULL DEFAULT 'circuit',
   `badge` varchar(100) NOT NULL DEFAULT '',
   `featured` tinyint(1) NOT NULL DEFAULT 0,
@@ -146,22 +127,18 @@ CREATE TABLE IF NOT EXISTS `plans` (
   UNIQUE KEY `uniq_plans_slug` (`slug`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Dumping data for table `plans` (3 rows)
+-- Dumping data for table `plans`
 --
 
 INSERT INTO `plans` (`id`, `slug`, `name`, `tagline`, `price`, `mrp`, `coins`, `doorstep_visits`, `validity_days`, `benefits`, `card_from`, `card_to`, `card_text`, `card_pattern`, `badge`, `featured`, `active`, `sort`) VALUES
-(1, 'basic', 'Basic', 'For a home computer or laptop', 800, 1299, 500, 2, 365, '["1 year of free service labour","Save up to 50% on repairs","Save up to 30% on consumables","Save up to 20% on software","1 year antivirus protection","Genuine Windows 11 licence"]', '#0f2a4a', '#2a5d8f', '#ffffff', 'circuit', '', 0, 1, 0),
-(2, 'pro', 'Pro', 'For families and home offices', 1799, 1999, 1000, 4, 365, '["1 year of free service labour","Save up to 50% on repairs","Save up to 30% on consumables","Save up to 20% on software","1 year antivirus protection","Genuine Windows 11 licence"]', '#062c5c', '#0a66c2', '#ffffff', 'circuit', 'Most chosen', 1, 1, 1),
-(3, 'pro-plus', 'Pro+', 'For shops and small offices', 2499, 2999, 2000, 8, 365, '["1 year of free service labour","Save up to 50% on repairs","Save up to 30% on consumables","Save up to 20% on software","1 year antivirus protection","Genuine Windows 11 licence"]', '#111418', '#3a3f47', '#ffffff', 'grid', '', 0, 1, 2);
+(1, 'basic', 'Basic', 'For single home desktop or student laptop in Chikhali & PCMC', 999, 1499, 500, 2, 365, '["2 Free Doorstep Visits across Chikhali & PCMC (Worth ₹700)","1 Year 100% Free Service Labour at Chikhali Workshop","₹500 Welcome Coins instantly credited to your card","30% Discount on Computer & Laptop consumable spares","Complimentary Annual Dust Cleaning & Thermal Paste Service","Priority Phone & WhatsApp Diagnostic Helpline"]', '#0f2a4a', '#2a5d8f', '#ffffff', 'circuit', '', 0, 1, 0),
+(2, 'pro', 'Pro', 'For work-from-home pros, families & small offices in Pune', 1799, 2499, 1000, 4, 365, '["4 Free Doorstep Visits across PCMC & Pune (Worth ₹1,400)","1 Year 100% Free Service Labour for up to 3 household PCs","₹1,000 Welcome Coins usable against repairs & products","Free Windows 11 / Antivirus Health Tune-up every quarter","50% Discount on Data Backup & OS Reinstallation Labour","Same-Day Priority Technician Dispatch for urgent breakdowns","Free Pickup & Drop for complex motherboard repairs"]', '#062c5c', '#0a66c2', '#ffffff', 'circuit', 'Most Popular in PCMC', 1, 1, 1),
+(3, 'pro-plus', 'Pro+', 'Complete IT AMC care for shops, clinics & factory units in Bhosari & Moshi', 2999, 4499, 2000, 8, 365, '["8 Free Scheduled & On-Demand Doorstep Visits (Worth ₹3,200)","Full Business IT Support for Shops, Clinics & Offices up to 10 systems","₹2,000 Welcome Coins usable against AMC, cables & upgrades","Complete CCTV & Network Health Check + Router Backup Config","Monthly Preventive Maintenance Visit to prevent sudden downtime","Emergency 2-Hour Response Time across Chikhali, Moshi & Bhosari","Dedicated Senior IT Account Engineer assigned to your premises"]', '#111418', '#3a3f47', '#ffffff', 'grid', 'Best for Business', 0, 1, 2);
 
 -- --------------------------------------------------------
-
---
 -- Table structure for table `memberships`
 --
 
-DROP TABLE IF EXISTS `memberships`;
 CREATE TABLE IF NOT EXISTS `memberships` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `user_id` int(11) NOT NULL,
@@ -179,20 +156,20 @@ CREATE TABLE IF NOT EXISTS `memberships` (
   KEY `idx_memberships_plan` (`plan_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Dumping data for table `memberships` (1 rows)
+-- Dumping data for table `memberships`
 --
 
 INSERT INTO `memberships` (`id`, `user_id`, `plan_id`, `card_number`, `status`, `start_date`, `end_date`, `visits_used`, `notes`, `created_at`) VALUES
-(1, 1, 2, 'VB2600000001', 'pending', NULL, NULL, 0, '', '2026-10-07 18:55:06');
+(3, 3, 2, 'VB2699000001', 'active', '2026-02-01', '2027-01-31', 1, 'Registered member in Jadhav Wadi, Chikhali. 1 doorstep thermal maintenance visit completed.', '2026-02-01 10:15:00'),
+(4, 5, 3, 'VB2610014820', 'active', '2026-01-15', '2027-01-14', 2, 'Pro+ Business Member at MIDC Bhosari. 2 networking maintenance visits logged.', '2026-01-15 11:30:00'),
+(5, 6, 2, 'VB2620032190', 'active', '2026-03-01', '2027-02-28', 1, 'WFH Workstation & Laptop setup in Moshi. 1 SSD upgrade doorstep visit completed.', '2026-03-01 14:15:00'),
+(6, 7, 1, 'VB2630084920', 'active', '2026-04-10', '2027-04-09', 0, 'Home desktop card at Jadhav Wadi, Chikhali. All 2 visits available.', '2026-04-10 16:45:00'),
+(7, 8, 2, 'VB2640055112', 'pending', NULL, NULL, 0, 'Requested online for 3 clinic reception PCs and CCTV backup at Moshi Clinic.', '2026-05-02 09:20:00');
 
 -- --------------------------------------------------------
-
---
 -- Table structure for table `coin_ledger`
 --
 
-DROP TABLE IF EXISTS `coin_ledger`;
 CREATE TABLE IF NOT EXISTS `coin_ledger` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `user_id` int(11) NOT NULL,
@@ -201,16 +178,26 @@ CREATE TABLE IF NOT EXISTS `coin_ledger` (
   `created_by` int(11) DEFAULT NULL,
   `created_at` varchar(50) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  KEY `idx_coins_user` (`user_id`)
+  KEY `idx_coin_ledger_user` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- --------------------------------------------------------
-
+-- Dumping data for table `coin_ledger`
 --
+
+INSERT INTO `coin_ledger` (`id`, `user_id`, `delta`, `reason`, `created_by`, `created_at`) VALUES
+(2, 3, 1000, 'Welcome coins credited on Pro Membership activation', 1, '2026-02-01 10:16:00'),
+(3, 3, -250, 'Redeemed on doorstep thermal paste & fan tune-up (Bill #VB-4821)', 1, '2026-03-12 15:40:00'),
+(4, 5, 2000, 'Welcome coins credited on Pro+ Business Card activation', 1, '2026-01-15 11:32:00'),
+(5, 5, -400, 'Redeemed on Cat-6 networking cable & RJ45 crimping visit in MIDC Bhosari (Bill #VB-4410)', 1, '2026-02-18 17:10:00'),
+(6, 5, 150, 'Loyalty cashback on Gigabit router purchase', 1, '2026-03-25 12:00:00'),
+(7, 6, 1000, 'Welcome coins credited on Pro Membership activation', 1, '2026-03-01 14:16:00'),
+(8, 6, -300, 'Redeemed on Kingston NVMe SSD upgrade labour at Chikhali workshop', 1, '2026-03-20 16:30:00'),
+(9, 7, 500, 'Welcome coins credited on Basic Membership activation', 1, '2026-04-10 16:46:00');
+
+-- --------------------------------------------------------
 -- Table structure for table `services`
 --
 
-DROP TABLE IF EXISTS `services`;
 CREATE TABLE IF NOT EXISTS `services` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `slug` varchar(100) NOT NULL,
@@ -234,8 +221,7 @@ CREATE TABLE IF NOT EXISTS `services` (
   UNIQUE KEY `uniq_services_slug` (`slug`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Dumping data for table `services` (15 rows)
+-- Dumping data for table `services`
 --
 
 INSERT INTO `services` (`id`, `slug`, `name`, `short`, `title`, `description`, `h1`, `intro`, `problems`, `includes`, `benefits`, `faqs`, `note`, `image`, `group_name`, `footer`, `published`, `sort`) VALUES
@@ -256,12 +242,9 @@ INSERT INTO `services` (`id`, `slug`, `name`, `short`, `title`, `description`, `
 (29, 'website-development', '3D Website Development', 'Interactive 3D futuristic websites, Three.js & WebGL animations, 4K high-resolution visuals and modern web engineering.', '3D Futuristic Website & Three.js Web Development | Virnobyte', 'Futuristic 3D website development in Pune: WebGL & Three.js interactive experiences, ultra-sharp 4K visual assets, 3D product configurators, and blazing-fast performance.', '3D Futuristic Website & WebGL Development', 'Standard static websites are no longer enough to leave a lasting impression in a high-tech digital economy. We engineer cutting-edge, 3D futuristic websites powered by **Three.js, WebGL, WebGPU, and modern reactive frameworks** that elevate your brand into an interactive, spatial experience.\n\nFrom real-time 3D product configurators and particle effects to smooth physics simulations and ultra-high-resolution 4K asset rendering, our websites deliver cinematic visual fidelity without compromising loading speed or search engine rankings.\n\nEvery 3D web experience is optimized from the ground up: mesh compression (Draco/KTX2), adaptive Level-of-Detail (LOD), dynamic lighting shaders, and hardware-accelerated 60+ FPS performance across both smartphones and 4K desktop monitors.\n\nWhether you are launching an innovative tech startup, an architectural studio, an e-commerce showcase, or a modern business ready for a next-generation web presence, our Pune development team designs, models, and ships the full production build.', '["Flat, outdated 2D websites that fail to differentiate your brand from competitors","Heavy, unoptimized 3D models and bloated images that cause slow page loads and mobile lag","Pixelated, blurry graphics on high-DPI Retina and 4K desktop screens","Inability for online customers to inspect or configure complex physical products in 3D","High bounce rates due to lack of interactive visual engagement","Concerns that rich 3D graphics will harm SEO rankings and mobile responsiveness"]', '["Custom Three.js, WebGL & WebGPU 3D canvas development with interactive camera controls","Ultra-sharp 4K high-resolution texture mapping and Physically Based Rendering (PBR)","Interactive 3D product showcases with 360-degree rotation, zoom, and exploded views","Futuristic UI/UX design: glowing accents, cyber grids, micro-animations, and glassmorphism","GPU & mobile optimization: Draco geometry compression, LOD scaling, and 60+ FPS stability","Full-stack architecture: lightning-fast SSR, clean SEO metadata, and CDN asset delivery","Integration with contact forms, CRM, booking engines, and payment gateways","Responsive design across iOS, Android, tablets, laptops, and ultra-wide 4K monitors"]', '["Unrivalled visitor engagement that keeps prospects exploring your website significantly longer","Photorealistic 4K clarity on high-resolution displays engineered for rapid loading","SEO-friendly SSR structure: Googlebot indexes all copy while users enjoy full 3D interactivity","Direct development by engineers experienced in 3D mathematics, shader pipelines, and web performance","Turnkey delivery: 3D asset optimization, UI design, hosting setup, and long-term support"]', '[{"q":"Will a 3D futuristic website run smoothly on budget smartphones?","a":"Yes. We build adaptive WebGL experiences using dynamic resolution scaling, low-draw-call geometry, and Draco compression. If a device has an entry-level GPU or battery-saver mode enabled, the scene gracefully adjusts detail levels to maintain a smooth 60 FPS framerate."},{"q":"How do you handle 4K high-resolution visual assets without slowing down the site?","a":"We use modern next-gen image and texture pipelines including WebP/AVIF textures, mipmapping, and progressive asset streaming. Crucial visual textures load in crisp 4K fidelity while assets are fetched asynchronously in the background so initial load time stays under 2 seconds."},{"q":"Do 3D Three.js websites affect SEO and Google search rankings?","a":"No, they actually boost SEO. We separate the 3D WebGL canvas from the semantic HTML layer. All text, titles, headings, and schema markup are server-rendered and instantly crawled by search engines, while longer user dwell time positively signals engagement to Google."},{"q":"Can you convert our existing product models or CAD files into web 3D?","a":"Yes. We optimize CAD/STEP, OBJ, FBX, or Blender files into lightweight web-standard GLTF/GLB models, apply realistic PBR materials, and add lighting and interactions."},{"q":"What is the typical timeline and process for a 3D website project?","a":"A typical project spans 2 to 4 weeks: Phase 1 covers concept design and 3D scene architecture; Phase 2 builds the interactive Three.js components and UI; Phase 3 focuses on cross-device performance optimization, SEO, and launch."}]', 'Built with Three.js, WebGL and 4K asset optimization for buttery smooth 60 FPS across desktop and mobile.', 'virnobyte-gaming-pc-build', 'Business IT', 1, 1, 14);
 
 -- --------------------------------------------------------
-
---
 -- Table structure for table `posts`
 --
 
-DROP TABLE IF EXISTS `posts`;
 CREATE TABLE IF NOT EXISTS `posts` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `slug` varchar(100) NOT NULL,
@@ -277,8 +260,7 @@ CREATE TABLE IF NOT EXISTS `posts` (
   UNIQUE KEY `uniq_posts_slug` (`slug`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Dumping data for table `posts` (6 rows)
+-- Dumping data for table `posts`
 --
 
 INSERT INTO `posts` (`id`, `slug`, `title`, `description`, `body`, `image`, `related`, `published`, `published_at`, `updated_at`) VALUES
@@ -287,15 +269,15 @@ INSERT INTO `posts` (`id`, `slug`, `title`, `description`, `body`, `image`, `rel
 (3, 'how-to-maintain-office-computers', 'How to Maintain Office Computers: A Practical Checklist', 'A simple weekly, monthly and yearly maintenance checklist for small office computers that reduces breakdowns and keeps data safe.', 'Most office computer breakdowns are preventable. A little routine maintenance — done consistently — keeps machines running longer and protects your data.\n\n## Every week\n\n- **Restart computers** at least once. Many updates only finish on restart.\n- **Check backups ran.** Open the backup tool or drive and confirm there is a recent copy.\n- **Keep desks clear** around the computer\'s vents.\n\n## Every month\n\n- **Install Windows and software updates** that are waiting.\n- **Check antivirus** is active and its definitions are current.\n- **Free up storage** — empty Downloads folders and remove unused programs.\n- **Review user accounts** and remove access for anyone who has left.\n\n## Every six months\n\n- **Clean dust** from vents, fans and keyboards.\n- **Check drive health.** Early warning signs of a failing drive are worth acting on before files are lost.\n- **Test a restore** from backup — a backup you can\'t restore isn\'t a backup.\n\n## Every year\n\n- **Review hardware age.** Plan replacements for machines approaching five years.\n- **Renew licences** for Windows, Office, antivirus and business software before they lapse.\n- **Check power protection.** UPS batteries weaken over time.\n\n## When to hand it over\n\nIf you have more than a handful of computers, this list takes real time every month. An [IT AMC](/services/amc-services) means a technician does it on a schedule and keeps a log of every visit. For one-off problems, our [computer repair](/services/computer-repair) team can help; for a broader plan, start with [IT consulting](/services/it-consulting).', 'virnobyte-office-it-setup', '["amc-services","computer-repair","it-consulting"]', 1, '2026-09-29', '2026-09-29'),
 (4, 'how-often-should-cctv-systems-be-serviced', 'How Often Should a CCTV System Be Serviced?', 'What CCTV maintenance involves, how often cameras and recorders should be checked, and the warning signs that a system needs attention now.', 'A CCTV system can look fine on the monitor and still fail when you need it — a recorder that stopped saving footage weeks ago, or a camera that has slowly drifted away from the gate.\n\n## A sensible schedule\n\nFor most homes and small businesses, a **professional check every six months** is a good baseline. Busy commercial sites, dusty industrial areas and outdoor-heavy installations benefit from **quarterly** checks.\n\n## What a service visit covers\n\n- **Recording check:** confirm every camera is recording and that footage goes back as many days as expected.\n- **Hard-disk health:** recorders write continuously, and their drives wear out. A failing disk is the most common reason footage is missing.\n- **Lens cleaning and alignment:** dust, spider webs and bumps reduce image quality and shift the field of view.\n- **Night vision test:** infrared LEDs weaken over time.\n- **Cable and connector inspection:** outdoor connectors corrode, especially through the monsoon.\n- **Remote viewing:** confirm the mobile app still connects.\n- **Date and time:** a wrong timestamp can make footage useless as evidence.\n\n## Signs it needs attention now\n\n- A camera shows "no video" or a black screen\n- Playback has gaps or only goes back a day or two\n- Night footage is grey or blurry\n- The app on your phone can\'t connect\n\n## Getting it done\n\nWe service systems we installed and ones we didn\'t. For predictable upkeep, add CCTV to an [IT AMC](/services/amc-services). If you\'re planning a new system or an upgrade, see [CCTV installation](/services/cctv-installation).', 'virnobyte-cctv-installation-pune', '["cctv-installation","amc-services"]', 1, '2026-10-02', '2026-10-02'),
 (5, 'benefits-of-it-amc-for-small-businesses', 'Benefits of an IT AMC for Small Businesses', 'What an IT annual maintenance contract covers, how it compares with paying per repair, and how to tell whether your business needs one.', 'For a small business, every hour a computer, printer or network is down is an hour of lost work. An IT AMC (annual maintenance contract) is designed to make those hours rarer and shorter.\n\n## What an IT AMC typically includes\n\n- Scheduled preventive maintenance visits\n- Hardware and software troubleshooting\n- Network and printer support\n- Antivirus, update and backup checks\n- A log of every visit and fix\n- Priority response when something breaks\n\nParts and consumables are usually billed separately — a good contract states this clearly.\n\n## AMC vs paying per repair\n\n**Paying per repair** works if you have one or two computers and rarely have problems. **An AMC** makes sense once you have several systems, depend on a network or shared printer, or simply can\'t afford unplanned downtime. The real value is preventive: dust cleaning, drive checks and timely updates stop many faults from happening at all.\n\n## Business continuity\n\nAn AMC technician who visits regularly gets to know your setup, which makes emergencies faster to resolve. Regular backup checks also mean that if a drive does fail, your data is already safe somewhere else.\n\n## Is it right for you?\n\nConsider an AMC if:\n\n- you have five or more computers or a shared network\n- the same problems keep coming back\n- nobody in-house "owns" IT\n- you\'ve lost work to a failure before\n\nOur [IT AMC services](/services/amc-services) cover computers, printers, [networks](/services/networking) and CCTV across Pune and Pimpri-Chinchwad. If you\'re not sure what you need, start with a short [IT consulting](/services/it-consulting) review.', 'virnobyte-amc-services', '["amc-services","it-consulting","networking"]', 1, '2026-10-04', '2026-10-04'),
-(6, 'what-to-do-before-sending-a-hard-drive-for-data-recovery', 'What to Do Before Sending a Hard Drive for Data Recovery', 'The steps that protect your chances of getting data back from a failed or deleted drive — and the common mistakes that make recovery harder.', 'When a drive fails or files disappear, the instinct is to try everything at once. Unfortunately, many of those attempts reduce what can be recovered.\n\n## Do this\n\n1. **Stop using the drive immediately.** Every new file written can overwrite deleted data.\n2. **Power it down** if the drive is clicking, buzzing or not detected. Repeated power cycles can worsen physical damage.\n3. **Note what happened** — dropped, liquid spill, sudden power cut, accidental format. This helps the technician choose the right approach.\n4. **List the files that matter most** so recovery can focus on them first.\n5. **Keep the drive in a dry, padded container** while transporting it.\n\n## Avoid this\n\n- Installing recovery software onto the same drive\n- Running disk-repair utilities that "fix" the file system\n- Opening the drive casing\n- Putting the drive in the freezer (an old myth that causes condensation damage)\n- Formatting the drive because Windows suggests it\n\n## What to expect\n\nA proper data recovery service will assess the drive first and tell you what is realistically recoverable. Outcomes depend on the drive\'s condition: physical damage, overwritten data and TRIM on SSDs all reduce what can be retrieved. Be cautious of anyone who guarantees full recovery before seeing the device.\n\n## After recovery\n\nSet up automatic backups so one failure never costs you everything again — our [software solutions](/services/software-solutions) team can configure them. For recovery itself, see [data recovery](/services/data-recovery).', 'virnobyte-hard-disk-drive', '["data-recovery","software-solutions"]', 1, '2026-10-06', '2026-10-06');
+(6, 'what-to-do-before-sending-a-hard-drive-for-data-recovery', 'What to Do Before Sending a Hard Drive for Data Recovery', 'The steps that protect your chances of getting data back from a failed or deleted drive — and the common mistakes that make recovery harder.', 'When a drive fails or files disappear, the instinct is to try everything at once. Unfortunately, many of those attempts reduce what can be recovered.\n\n## Do this\n\n1. **Stop using the drive immediately.** Every new file written can overwrite deleted data.\n2. **Power it down** if the drive is clicking, buzzing or not detected. Repeated power cycles can worsen physical damage.\n3. **Note what happened** — dropped, liquid spill, sudden power cut, accidental format. This helps the technician choose the right approach.\n4. **List the files that matter most** so recovery can focus on them first.\n5. **Keep the drive in a dry, padded container** while transporting it.\n\n## Avoid this\n\n- Installing recovery software onto the same drive\n- Running disk-repair utilities that "fix" the file system\n- Opening the drive casing\n- Putting the drive in the freezer (an old myth that causes condensation damage)\n- Formatting the drive because Windows suggests it\n\n## What to expect\n\nA proper data recovery service will assess the drive first and tell you what is realistically recoverable. Outcomes depend on the drive\'s condition: physical damage, overwritten data and TRIM on SSDs all reduce what can be retrieved. Be cautious of anyone who guarantees full recovery before seeing the device.\n\n## After recovery\n\nSet up automatic backups so one failure never costs you everything again — our [software solutions](/services/software-solutions) team can configure them. For recovery itself, see [data recovery](/services/data-recovery).', 'virnobyte-hard-disk-drive', '["data-recovery","software-solutions"]', 1, '2026-10-06', '2026-10-06'),
+(7, 'computer-laptop-repair-cost-pune-pcmc', 'How Much Does Computer & Laptop Repair Cost in Pune & PCMC? (2026 Price Guide)', 'Real 2026 price breakdown for desktop and laptop repair in Pune, Chikhali & Pimpri-Chinchwad: diagnosis fees, SSD upgrades, screen replacements, virus removal, and OS fixes.', '## Understanding Repair Pricing in Pune & Pimpri-Chinchwad\n\nWhen your computer won\'t boot or your laptop screen cracks, the biggest frustration is getting vague quotes over the phone, only to be charged double once the technician opens the machine.\n\nAt Virnobyte\'s workshop on Mahadev Temple Road in Chikhali, we follow a strict **Diagnosis-First Policy**: we run component stress tests, inspect the power rails, and provide a transparent itemised estimate before turning a single screw.\n\n### 2026 Standard IT Service Benchmarks in PCMC\n\n| Service Type | Typical Cost (INR) | Turnaround Time | Warranty |\n| :--- | :--- | :--- | :--- |\n| **Comprehensive Hardware Diagnosis** | ₹200 – ₹350 | 1 – 2 Hours | Free if repair approved |\n| **Windows 11 Clean Reinstall + Drivers** | ₹500 – ₹800 | 2 – 4 Hours | 30 Days OS support |\n| **512GB NVMe SSD Upgrade (Installed)** | ₹2,800 – ₹3,800 | Same Day | 3 – 5 Years Mfr Warranty |\n| **Laptop Screen Replacement (15.6" FHD)**| ₹3,500 – ₹5,800 | 24 Hours | 6 – 12 Months Warranty |\n| **Laptop Hinge & Fabricated Body Repair** | ₹1,200 – ₹2,200 | 1 – 2 Days | Structural strength test |\n| **Motherboard Chip-Level Component Repair**| ₹1,500 – ₹3,500 | 2 – 3 Days | 3 Months Warranty |\n\n### Why SSD Upgrades Are the #1 Speed Fix for Old Laptops\n\nIf your laptop takes 5 minutes to boot, replacing an old spinning hard drive (HDD) with a solid-state drive (SSD) makes it **5x to 8x faster** without buying a new ₹50,000 laptop. We migrate your Windows install, files, and bookmarks intact.\n\n### How Virnobyte Membership Saves You Money\n\nWith a **Virnobyte Membership Card**, 100% of the service labour is waived for a full year, and you get free doorstep visits across Chikhali, Moshi, Bhosari, and Nigdi.', 'virnobyte-laptop-repair', '["computer-repair","laptop-repair","hardware-solutions"]', 1, '2026-10-15', '2026-10-25'),
+(8, 'cctv-camera-installation-guide-factories-shops-pcmc', 'Complete CCTV Installation Guide for Shops & Small Factories in Chikhali & Bhosari', 'Everything shop owners and factory managers in Pimpri-Chinchwad need to know about IP vs HD cameras, NVR storage calculation, night color vision, and PCMC local regulations.', '## Securing Your Business in Pimpri-Chinchwad Industrial Belt\n\nIndustrial areas like **MIDC Bhosari, Chikhali, and Talawade** have specific security challenges: heavy dust from machine shops, vibration from presses, outdoor perimeter exposure, and nighttime movement.\n\nInstalling consumer plastic cameras in a factory environment results in blurred lenses, burned power supplies, and premature failure within six months.\n\n### Key Decisions for Factory & Shop Surveillance\n\n#### 1. IP Cameras vs. Analog HD Cameras\n- **Analog HD (TVI/CVI)**: Lower cost, ideal for small retail shops with cables under 60 meters.\n- **PoE IP Cameras**: Superior 4K resolution, single Cat-6 cable for power and video, immune to electrical noise from heavy industrial machinery.\n\n#### 2. Full Color Night Vision (ColorVu / Full-Color)\nStandard infrared cameras switch to grainy black-and-white in the dark. Modern ColorVu sensors retain full color at midnight, enabling clear identification of vehicle license plates and clothing colors.\n\n#### 3. Storage Sizing on WD Purple Hard Drives\nDo not use regular desktop hard drives in a CCTV recorder. Desktop drives fail when writing video 24/7. Always use surveillance-rated drives like **Western Digital Purple** or **Seagate SkyHawk**:\n- **8 Cameras @ 4K, 15 FPS, H.265**: 4TB gives ~18 days; 8TB gives ~35 days continuous retention.\n\n### On-Site Survey Across PCMC\nVirnobyte conducts on-site surveys with camera angle modeling for factories and warehouses across Chikhali, Moshi, and Bhosari.', 'virnobyte-cctv-installation-pune', '["cctv-installation","networking"]', 1, '2026-10-20', '2026-10-28'),
+(9, 'it-amc-guide-small-business-pune', 'Why Small Businesses in PCMC Are Switching to IT AMC & Membership Support', 'How annual maintenance contracts and membership cards protect businesses in Chikhali, Bhosari and Pune from downtime, data loss, and unpredictable repair bills.', '## The True Cost of Unexpected IT Downtime\n\nWhen a billing counter desktop freezes in a busy shop or an accounting machine crashes on audit week, the cost is rarely just the ₹1,000 repair bill. It\'s lost customer trust, idle staff, and hours of stressful troubleshooting.\n\nMost small businesses in **Chikhali, Pimpri-Chinchwad, and Pune** operate with 3 to 15 computers without a dedicated in-house IT department.\n\n### Reactive "Break-Fix" vs. Proactive IT AMC\n\n| Factor | Calling a Random Mechanic | Virnobyte IT AMC / Pro+ Membership |\n| :--- | :--- | :--- |\n| **Response Time** | 6 to 24 Hours (whenever available) | **Guaranteed 2-Hour Priority Dispatch** |\n| **Preventive Maintenance** | None — only fixed after it breaks | **Monthly Dust Cleaning & Health Tune-Up** |\n| **Backup Verification** | Manual or forgotten | **Automated Local & Cloud Backup Audits** |\n| **Network & CCTV Security**| Ignored | **Quarterly Router & Camera Firmware Updates** |\n| **Cost Predictability** | Unpredictable spike expenses | **Fixed Annual Fee + Discounted Consumables** |\n\n### How Our IT AMC Works for PCMC Businesses\n\n1. **Initial Audit**: We catalog every machine, check drive health, and patch operating systems.\n2. **Preventive Schedule**: Technicians visit on scheduled dates to clean hardware and verify backups.\n3. **Emergency Support**: Direct hotline with remote desktop assistance in 15 minutes and doorstep dispatch if hardware fails.', 'virnobyte-office-it-setup', '["amc-services","it-consulting"]', 1, '2026-10-25', '2026-10-30');
 
 -- --------------------------------------------------------
-
---
 -- Table structure for table `faqs`
 --
 
-DROP TABLE IF EXISTS `faqs`;
 CREATE TABLE IF NOT EXISTS `faqs` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `question` text NOT NULL,
@@ -307,29 +289,23 @@ CREATE TABLE IF NOT EXISTS `faqs` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Dumping data for table `faqs` (10 rows)
+-- Dumping data for table `faqs`
 --
 
 INSERT INTO `faqs` (`id`, `question`, `answer`, `topic`, `home`, `published`, `sort`) VALUES
-(1, 'Where is Virnobyte located?', 'Our office is at Office No. 1, Sadichha Complex, near Bright Computer Education, Savtamali, Mahadev Temple Road, Jadhav Wadi, Chikhali, Pimpri-Chinchwad, Maharashtra 411062.', 'General', 1, 1, 0),
-(2, 'Which areas do you serve?', 'We serve Chikhali, Pimpri-Chinchwad and Pune. Walk-in repairs are handled at our Chikhali workshop, and doorstep visits are available for homes and offices in these areas.', 'General', 1, 1, 1),
-(3, 'Do you provide doorstep computer service?', 'Yes. Many repairs, installations and network jobs are done on-site. If a fault needs workshop equipment, we take the device with us and tell you when it will be ready.', 'Repairs', 1, 1, 2),
-(4, 'How much does computer repair cost in Pune?', 'It depends on the fault and any parts needed. We diagnose first and give you an itemised quote; you decide whether to go ahead.', 'Repairs', 1, 1, 3),
-(5, 'Do you install CCTV for businesses?', 'Yes — for shops, offices, clinics, warehouses and small factories, as well as homes. Business installations start with a site survey.', 'CCTV & networking', 0, 1, 4),
-(6, 'Do you provide annual IT maintenance contracts?', 'Yes. Our IT AMC covers computers, printers, networks and CCTV with scheduled maintenance visits and priority support.', 'Business IT', 1, 1, 5),
-(7, 'Do you provide network installation services?', 'Yes. We install office LANs, Wi-Fi access points, structured cabling and network racks, and troubleshoot existing networks.', 'CCTV & networking', 0, 1, 6),
-(8, 'What is the membership card and how do coins work?', 'A membership card gives you a year of free service labour, discounts and a set number of doorstep visits. Coins are credited to your card when it is activated and can be used against labour, consumables and products under the coin rules on the membership page.', 'Membership', 0, 1, 7),
-(9, 'How do I check my coin balance?', 'Sign in to your account to see your card, coin balance, visits remaining and every coin transaction.', 'Membership', 0, 1, 8),
-(10, 'Is data recovery guaranteed?', 'No honest service can guarantee it. Recovery depends on the condition of the storage device. We assess the drive first and explain what is realistically recoverable.', 'Repairs', 0, 1, 9);
+(11, 'Which areas in Pimpri-Chinchwad and Pune do you provide doorstep computer repair?', 'Virnobyte provides on-site doorstep computer, laptop, and CCTV repair across Chikhali, Jadhav Wadi, Moshi, Bhosari, Spine Road, Talawade IT Park, Nigdi, Akurdi, Pradhikaran, Pimple Saudagar, Wakad, and northern Pune. Technicians carry common testing equipment, cables, and SSDs for same-day on-site resolution.', 'General', 1, 1, 0),
+(12, 'Where is the Virnobyte workshop located for carry-in repairs?', 'Our walk-in workshop is located at Office No. 1, Sadichha Complex, near Bright Computer Education, Savtamali, Mahadev Temple Road, Jadhav Wadi, Chikhali, Pimpri-Chinchwad, Maharashtra 411062. We are open Monday to Saturday from 9:30 AM to 8:30 PM with dedicated diagnostic stations.', 'General', 1, 1, 1),
+(13, 'How does the Virnobyte Membership Card save money for homes and small businesses?', 'A Virnobyte Membership Card gives you 1 year of 100% free service labour, free doorstep visits (2 to 8 visits depending on plan), and welcome coins credited instantly to your card (₹500 to ₹2,000 value). Coins can be redeemed toward component upgrades, consumables, and cables. Members also get 2-hour priority emergency dispatch.', 'Membership', 1, 1, 2),
+(14, 'What is your typical turnaround time for laptop repairs in Chikhali?', 'Software issues, Windows reinstallation, RAM upgrades, and SSD replacements are typically completed in 2 to 4 hours. Screen replacements, keyboard swaps, and battery changes take 24 hours. Complex chip-level motherboard or hinge fabrication repairs take 1 to 3 business days, with thorough stress testing before delivery.', 'Repairs', 1, 1, 3),
+(15, 'Do you provide CCTV installation with mobile live view for factories and shops?', 'Yes. We design and install complete Hikvision, CP PLUS, and Dahua IP and HD CCTV surveillance systems for industrial plants in MIDC Bhosari and Chikhali, as well as retail shops across PCMC. Every installation includes Cat-6 conduit wiring, heavy-duty surge protection, NVR storage sizing, and secure live streaming setup on mobile phones and tablets.', 'CCTV & networking', 1, 1, 4),
+(16, 'What does an IT AMC (Annual Maintenance Contract) cover for a small business?', 'Our Business IT AMC covers routine preventative maintenance, quarterly dust cleaning and thermal paste replacement, automated daily database backups, network security audits, printer troubleshooting, and rapid on-site emergency breakdown response. Plans are customizable for offices with 3 to 50 systems.', 'Business IT', 1, 1, 5),
+(17, 'Can I lose my files or photos during computer repair?', 'No. We adhere to a strict data safety protocol. Unless a customer explicitly requests drive formatting or data wiping, all storage drives are isolated before hardware repairs begin. If a drive is failing, we notify you immediately and can create an encrypted clone before attempting component repair.', 'Repairs', 0, 1, 6),
+(18, 'How do I redeem my Virnobyte coins when booking a service?', 'When you book a service online or pay at our Chikhali counter, provide your 12-digit membership card number (e.g. VB2699000001) or registered mobile number. Your available coin balance is displayed in your account portal and can offset up to 50% of labour and consumable charges on your invoice.', 'Membership', 0, 1, 7);
 
 -- --------------------------------------------------------
-
---
 -- Table structure for table `testimonials`
 --
 
-DROP TABLE IF EXISTS `testimonials`;
 CREATE TABLE IF NOT EXISTS `testimonials` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `name` varchar(255) NOT NULL,
@@ -340,22 +316,19 @@ CREATE TABLE IF NOT EXISTS `testimonials` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Dumping data for table `testimonials` (3 rows)
+-- Dumping data for table `testimonials`
 --
 
 INSERT INTO `testimonials` (`id`, `name`, `role`, `quote`, `published`, `sort`) VALUES
-(1, 'Rajesh Sharma', 'CTO, TechBridge Solutions', 'Set up our entire office network, CCTV, and workstations in one day. The pricing is fair and the quality is enterprise-grade.', 0, 0),
-(2, 'Priya Mehta', 'Operations Manager, Nexgen Retail', 'We had a critical server crash on a Monday morning. The team arrived quickly, diagnosed the issue, and had us back online before noon.', 0, 1),
-(3, 'Deepa Singh', 'MD, Singh Enterprises', 'Regular health checks caught a failing HDD before it caused data loss. They genuinely care about our business continuity.', 0, 2);
+(4, 'Sanjay Shinde', 'Director, Shinde Tooling & Dies, MIDC Bhosari', 'Virnobyte has been managing our factory computers and CCTV in Bhosari for 3 years. When our accounting server crashed on GST filing day, their technician arrived within 40 minutes at our shop floor and had our data restored before lunch. Truly dependable local IT support in PCMC.', 1, 0),
+(5, 'Dr. Radhika Nair', 'Chief Consultant, CarePoint Clinic, Chikhali', 'We took the Virnobyte Pro IT membership card for our clinic. Having free doorstep service visits and welcome coins that offset our printer consumables has saved us over ₹8,000 this year alone. Clean, courteous service right here on Mahadev Temple Road.', 1, 1),
+(6, 'Kishore Gaikwad', 'Founder, Gaikwad E-Commerce Hub, Moshi Spine Road', 'Setting up our warehouse network and 12 IP cameras with Virnobyte was seamless. No hidden costs, clean cable conduit work, and the mobile app live stream works flawlessly. Best computer and security technicians in PCMC.', 1, 2),
+(7, 'Nitin Deshpande', 'Senior Architect, Studio Apex, Wakad & Pimple Saudagar', 'Had them build two custom 3D rendering desktops for our design studio. Thermal performance under heavy Lumion rendering is rock solid, and their diagnosis of our old laptop was completely honest — didn\'t push unnecessary repairs. Highly recommended!', 1, 3);
 
 -- --------------------------------------------------------
-
---
 -- Table structure for table `products`
 --
 
-DROP TABLE IF EXISTS `products`;
 CREATE TABLE IF NOT EXISTS `products` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `slug` varchar(100) NOT NULL,
@@ -366,6 +339,7 @@ CREATE TABLE IF NOT EXISTS `products` (
   `mrp` int(11) DEFAULT NULL,
   `condition` varchar(50) NOT NULL DEFAULT 'New',
   `image` varchar(255) NOT NULL DEFAULT '',
+  `images` longtext NOT NULL,
   `in_stock` tinyint(1) NOT NULL DEFAULT 1,
   `published` tinyint(1) NOT NULL DEFAULT 1,
   `sort` int(11) NOT NULL DEFAULT 0,
@@ -373,27 +347,23 @@ CREATE TABLE IF NOT EXISTS `products` (
   UNIQUE KEY `uniq_products_slug` (`slug`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Dumping data for table `products` (8 rows)
+-- Dumping data for table `products`
 --
 
-INSERT INTO `products` (`id`, `slug`, `name`, `category`, `summary`, `price`, `mrp`, `condition`, `image`, `in_stock`, `published`, `sort`) VALUES
-(1, 'canon-printer', 'Canon Printer', 'Printers', 'Canon printer for home and office use, installed and set up for you.', 20000, 25000, 'New', 'virnobyte-printer-repair', 1, 1, 0),
-(2, 'refurbished-laptops', 'Refurbished Laptops', 'Laptops & desktops', 'Tested business laptops with clear specifications, condition grading and warranty.', NULL, NULL, 'Refurbished', 'virnobyte-laptop-repair', 1, 1, 1),
-(3, 'custom-desktop-pcs', 'Custom Desktop PCs', 'Laptops & desktops', 'Office, design and gaming desktops built around the software you use.', NULL, NULL, 'New', 'virnobyte-gaming-pc-build', 1, 1, 2),
-(4, 'ssd-and-ram-upgrades', 'SSD & RAM Upgrades', 'Components', 'SSDs and memory matched to your computer, installed with your data moved across.', NULL, NULL, 'New', 'virnobyte-hardware-solutions', 1, 1, 3),
-(5, 'cctv-camera-kits', 'CCTV Camera Kits', 'CCTV', 'HD and IP camera kits with DVR/NVR and storage sized for your premises.', NULL, NULL, 'New', 'virnobyte-cctv-installation-pune', 1, 1, 4),
-(6, 'routers-and-switches', 'Routers, Switches & Access Points', 'Networking', 'Networking equipment for homes and offices, configured and installed.', NULL, NULL, 'New', 'virnobyte-wifi-router-setup', 1, 1, 5),
-(7, 'ups-and-inverters', 'UPS & Inverters', 'Power backup', 'UPS units for computers and inverters with batteries for homes and shops.', NULL, NULL, 'New', 'virnobyte-circuit-board', 1, 1, 6),
-(8, 'hard-disks-and-storage', 'Hard Disks & External Storage', 'Components', 'Internal and external drives for storage, backup and CCTV recording.', NULL, NULL, 'New', 'virnobyte-hard-disk-drive', 1, 1, 7);
+INSERT INTO `products` (`id`, `slug`, `name`, `category`, `summary`, `price`, `mrp`, `condition`, `image`, `in_stock`, `published`, `sort`, `images`) VALUES
+(1, 'canon-printer', 'Canon Printer', 'Printers', 'Canon printer for home and office use, installed and set up for you.', 20000, 25000, 'New', 'virnobyte-printer-repair', 1, 1, 0, '["virnobyte-printer-repair","virnobyte-circuit-board","virnobyte-hardware-solutions"]'),
+(2, 'refurbished-laptops', 'Refurbished Laptops', 'Laptops & desktops', 'Tested business laptops with clear specifications, condition grading and warranty.', NULL, NULL, 'Refurbished', 'virnobyte-laptop-repair', 1, 1, 1, '["virnobyte-laptop-repair","virnobyte-hardware-solutions","virnobyte-circuit-board"]'),
+(3, 'custom-desktop-pcs', 'Custom Desktop PCs', 'Laptops & desktops', 'Office, design and gaming desktops built around the software you use.', NULL, NULL, 'New', 'virnobyte-gaming-pc-build', 1, 1, 2, '["virnobyte-gaming-pc-build","virnobyte-hardware-solutions","virnobyte-circuit-board"]'),
+(4, 'ssd-and-ram-upgrades', 'SSD & RAM Upgrades', 'Components', 'SSDs and memory matched to your computer, installed with your data moved across.', NULL, NULL, 'New', 'virnobyte-hardware-solutions', 1, 1, 3, '["virnobyte-hardware-solutions"]'),
+(5, 'cctv-camera-kits', 'CCTV Camera Kits', 'CCTV', 'HD and IP camera kits with DVR/NVR and storage sized for your premises.', NULL, NULL, 'New', 'virnobyte-cctv-installation-pune', 1, 1, 4, '["virnobyte-cctv-installation-pune","virnobyte-wifi-router-setup","virnobyte-circuit-board"]'),
+(6, 'routers-and-switches', 'Routers, Switches & Access Points', 'Networking', 'Networking equipment for homes and offices, configured and installed.', NULL, NULL, 'New', 'virnobyte-wifi-router-setup', 1, 1, 5, '["virnobyte-wifi-router-setup"]'),
+(7, 'ups-and-inverters', 'UPS & Inverters', 'Power backup', 'UPS units for computers and inverters with batteries for homes and shops.', NULL, NULL, 'New', 'virnobyte-circuit-board', 1, 1, 6, '["virnobyte-circuit-board"]'),
+(8, 'hard-disks-and-storage', 'Hard Disks & External Storage', 'Components', 'Internal and external drives for storage, backup and CCTV recording.', NULL, NULL, 'New', 'virnobyte-hard-disk-drive', 1, 1, 7, '["virnobyte-hard-disk-drive"]');
 
 -- --------------------------------------------------------
-
---
 -- Table structure for table `projects`
 --
 
-DROP TABLE IF EXISTS `projects`;
 CREATE TABLE IF NOT EXISTS `projects` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `slug` varchar(100) NOT NULL,
@@ -411,36 +381,32 @@ CREATE TABLE IF NOT EXISTS `projects` (
   UNIQUE KEY `uniq_projects_slug` (`slug`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Dumping data for table `projects` (1 rows)
+-- Dumping data for table `projects`
 --
 
 INSERT INTO `projects` (`id`, `slug`, `category`, `title`, `client_type`, `location`, `summary`, `scope`, `image`, `completed_on`, `published`, `sort`) VALUES
-(1, 'demo', 'networking-projects', 'Demo', 'DEmo', 'Chikhali, Pimpri-Chinchwad', 'DEmo', '["DEmo"]', '/uploads/demo-1309db-1100x680.webp', '2026-10-15', 1, 0);
+(2, 'precision-auto-bhosari-cctv', 'cctv-projects', '16-Camera 4K ColorVu IP CCTV Setup for Precision Engineering, MIDC Bhosari', 'Automotive Machine Shop (6,500 sq.ft)', 'MIDC Bhosari, Pimpri-Chinchwad, Pune', 'Full IP surveillance covering CNC bay, raw material storage, loading dock and admin cabin. Zero-blind-spot coverage with 30-day continuous recording on WD Purple surveillance drives.', '["Site survey and blind-spot heatmapping across 6,500 sq.ft industrial floor","16 Hikvision 4K PoE IP bullet and dome cameras with night color vision","Cat-6 structured outdoor cabling in heavy-duty GI conduit","32-channel 4K NVR with dual 8TB WD Purple enterprise surveillance drives","Mobile remote live view configured on owner and plant manager phones","Uninterruptible power backup via 2KVA numeric online UPS"]', 'virnobyte-cctv-installation-pune', '2026-09-24', 1, 0),
+(3, 'techhub-tathawade-office-network', 'networking-projects', '35-Node Structured Gigabit LAN & Dual-ISP Failover for TechHub IT Solutions, Tathawade', 'Software Development Firm (35 seats)', 'Tathawade, Pimpri-Chinchwad, Pune', 'Clean structured rack cabling, 24-port PoE Gigabit switch setup, multi-SSID secure Wi-Fi 6 access points, and dual-WAN load balancing for zero internet downtime.', '["D-Link Cat-6 patch panel termination and cable comb dressing in 9U rack","Cisco / TP-Link Omada Gigabit managed switch deployment with VLAN isolation","Dual WAN automatic failover router (Airtel Fiber + Tata Tele)","3 ceiling-mounted Wi-Fi 6 Access Points providing seamless office roaming","Speed test verification: full 300 Mbps throughput across all 35 workstations"]', 'virnobyte-office-it-setup', '2026-10-18', 1, 1),
+(4, 'cad-render-workstation-chikhali', 'hardware-installations', 'Dual RTX 4080 Super Custom CAD & 3D Render Rig for Architectural Studio, Chikhali', 'Architecture & Interior Design Studio', 'Sadichha Complex, Jadhav Wadi, Chikhali, Pune', 'Custom built high-thermal-headroom workstation tailored for Revit, 3ds Max, Blender and Lumion 3D real-time rendering. 64GB DDR5, liquid cooling, 2TB Gen4 NVMe.', '["Intel Core i9-14900K on Z790 motherboard with 360mm AIO liquid cooling","64GB DDR5 6000MHz Kingston Fury dual-channel memory","NVIDIA GeForce RTX 4080 Super 16GB GDDR6X","2TB Samsung 990 Pro PCIe 4.0 NVMe SSD (7,450 MB/s read)","1000W 80+ Gold fully modular power supply in high airflow mesh cabinet","48-hour continuous render stress test and color-calibrated dual display setup"]', 'virnobyte-gaming-pc-build', '2026-10-28', 1, 2),
+(5, 'sai-clinic-moshi-it-amc', 'office-it-setup', 'Complete Clinic IT Setup & Annual Maintenance (AMC) for Sai Multi-Specialty Clinic, Moshi', 'Multi-Specialty Healthcare Clinic (4 consulting cabins)', 'Moshi, Pune-Nashik Highway, Pune', 'Reception billing desktops, doctor consulting terminals, Wi-Fi thermal receipt printers, patient record backup automation, and monthly preventive AMC visits.', '["4 silent compact SSD desktops with pre-configured clinic ERP & EMR software","Thermal prescription printers and network billing printer setup","Automated local + encrypted cloud backup for daily patient database","Virnobyte Pro+ IT AMC contract with 2-hour priority emergency doorstep response"]', 'virnobyte-software-installation', '2026-10-05', 1, 3);
 
 -- --------------------------------------------------------
-
---
 -- Table structure for table `gallery`
 --
 
-DROP TABLE IF EXISTS `gallery`;
 CREATE TABLE IF NOT EXISTS `gallery` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `image` varchar(255) NOT NULL,
-  `caption` text NOT NULL,
+  `caption` varchar(255) NOT NULL DEFAULT '',
   `published` tinyint(1) NOT NULL DEFAULT 1,
   `sort` int(11) NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
-
---
 -- Table structure for table `jobs`
 --
 
-DROP TABLE IF EXISTS `jobs`;
 CREATE TABLE IF NOT EXISTS `jobs` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `slug` varchar(100) NOT NULL,
@@ -452,45 +418,40 @@ CREATE TABLE IF NOT EXISTS `jobs` (
   `salary_max` int(11) NOT NULL DEFAULT 0,
   `pay_note` varchar(255) NOT NULL DEFAULT '',
   `experience` varchar(255) NOT NULL DEFAULT '',
-  `about_role` longtext NOT NULL,
+  `about_role` text NOT NULL,
   `duties` longtext NOT NULL,
   `growth` longtext NOT NULL,
   `fits` longtext NOT NULL,
   `image` varchar(255) NOT NULL DEFAULT '',
   `valid_through` varchar(50) NOT NULL DEFAULT '',
   `published` tinyint(1) NOT NULL DEFAULT 1,
-  `posted_at` varchar(50) NOT NULL,
+  `posted_at` varchar(50) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uniq_jobs_slug` (`slug`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Dumping data for table `jobs` (1 rows)
+-- Dumping data for table `jobs`
 --
 
 INSERT INTO `jobs` (`id`, `slug`, `title`, `promise`, `employment_type`, `location`, `salary_min`, `salary_max`, `pay_note`, `experience`, `about_role`, `duties`, `growth`, `fits`, `image`, `valid_through`, `published`, `posted_at`) VALUES
 (1, 'field-service-technician', 'Field Service Technician', 'Fix real problems for homes and offices across Pimpri-Chinchwad — and learn networking and CCTV on the job.', 'FULL_TIME', 'Chikhali, Pimpri-Chinchwad', 0, 0, '', '1–3 years of hardware repair experience', 'You will diagnose and repair computers, laptops and printers at our Chikhali workshop and on doorstep visits, and assist with CCTV and network installations.', '["Diagnose desktop and laptop faults and prepare itemised quotes","Replace components and reinstall operating systems","Visit homes and offices for on-site repairs","Assist senior technicians on CCTV and network installations","Keep a clear service record for every job"]', '["Field Service Technician","Senior Technician","Installation Lead","Service Manager"]', '["You can identify common hardware faults without a manual","You explain technical problems to customers in plain words","You have a two-wheeler and a valid licence","You are comfortable working in Chikhali and around Pimpri-Chinchwad"]', 'virnobyte-hardware-solutions', '', 0, '2026-10-07');
 
 -- --------------------------------------------------------
-
---
 -- Table structure for table `pages`
 --
 
-DROP TABLE IF EXISTS `pages`;
 CREATE TABLE IF NOT EXISTS `pages` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `slug` varchar(100) NOT NULL,
   `title` varchar(255) NOT NULL,
   `description` text NOT NULL,
   `body` longtext NOT NULL,
-  `updated_at` varchar(50) NOT NULL,
+  `updated_at` varchar(50) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uniq_pages_slug` (`slug`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Dumping data for table `pages` (3 rows)
+-- Dumping data for table `pages`
 --
 
 INSERT INTO `pages` (`id`, `slug`, `title`, `description`, `body`, `updated_at`) VALUES
@@ -499,12 +460,9 @@ INSERT INTO `pages` (`id`, `slug`, `title`, `description`, `body`, `updated_at`)
 (3, 'company-profile', 'Company Profile', 'Virnobyte company profile: IT services, computer repair, CCTV and networking company based in Chikhali, Pimpri-Chinchwad, serving Pune since 2014.', 'Virnobyte is a hardware, networking and IT services company based in Chikhali, Pimpri-Chinchwad. Since 2014 we have repaired, installed and supported technology for homes, shops, offices and growing businesses across Pune.\n\n## What we do\n\n- **Repair and support** — computers, laptops, printers, virus removal, software installation and data recovery\n- **Security and networks** — CCTV installation, LAN and Wi-Fi networking, structured cabling\n- **Business IT** — IT AMC, consulting, custom infrastructure, hardware supply and power backup\n\n## How we work\n\nDiagnosis first, an itemised quote before work starts, tested components, and plain-language explanations of what was done. For regular customers we offer membership cards with doorstep visits and coins, and AMC contracts for businesses.\n\n## Products we supply\n\nNew and refurbished laptops and desktops, printers, CCTV systems, networking equipment, RAM, SSDs, UPS units and other hardware.', '2026-10-07');
 
 -- --------------------------------------------------------
-
---
 -- Table structure for table `pc_parts`
 --
 
-DROP TABLE IF EXISTS `pc_parts`;
 CREATE TABLE IF NOT EXISTS `pc_parts` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `slug` varchar(100) NOT NULL,
@@ -518,11 +476,10 @@ CREATE TABLE IF NOT EXISTS `pc_parts` (
   `active` tinyint(1) NOT NULL DEFAULT 1,
   `sort` int(11) NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uniq_pcparts_slug` (`slug`)
+  UNIQUE KEY `uniq_pc_parts_slug` (`slug`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Dumping data for table `pc_parts` (63 rows)
+-- Dumping data for table `pc_parts`
 --
 
 INSERT INTO `pc_parts` (`id`, `slug`, `category`, `brand`, `name`, `specs`, `price`, `model_url`, `in_stock`, `active`, `sort`) VALUES
@@ -555,9 +512,7 @@ INSERT INTO `pc_parts` (`id`, `slug`, `category`, `brand`, `name`, `specs`, `pri
 (27, 'rtx-4070-super-12gb', 'gpu', 'NVIDIA', 'GeForce RTX 4070 Super 12 GB', '{"maker":"NVIDIA","vram_gb":12,"length_mm":267,"power_w":220,"rec_psu_w":650,"slots":2.5,"fans":3}', 58000, '', 1, 1, 26),
 (28, 'rx-7800-xt-16gb', 'gpu', 'AMD', 'Radeon RX 7800 XT 16 GB', '{"maker":"AMD","vram_gb":16,"length_mm":287,"power_w":263,"rec_psu_w":700,"slots":2.5,"fans":3}', 49000, '', 1, 1, 27),
 (29, 'rtx-4080-super-16gb', 'gpu', 'NVIDIA', 'GeForce RTX 4080 Super 16 GB', '{"maker":"NVIDIA","vram_gb":16,"length_mm":310,"power_w":320,"rec_psu_w":750,"slots":3,"fans":3}', 99000, '', 1, 1, 28),
-(30, 'rtx-4090-24gb', 'gpu', 'NVIDIA', 'GeForce RTX 4090 24 GB', '{"maker":"NVIDIA","vram_gb":24,"length_mm":336,"power_w":450,"rec_psu_w":850,"slots":3.5,"fans":3}', 185000, '', 1, 1, 29);
-
-INSERT INTO `pc_parts` (`id`, `slug`, `category`, `brand`, `name`, `specs`, `price`, `model_url`, `in_stock`, `active`, `sort`) VALUES
+(30, 'rtx-4090-24gb', 'gpu', 'NVIDIA', 'GeForce RTX 4090 24 GB', '{"maker":"NVIDIA","vram_gb":24,"length_mm":336,"power_w":450,"rec_psu_w":850,"slots":3.5,"fans":3}', 185000, '', 1, 1, 29),
 (31, 'crucial-p3-500gb', 'storage', 'Crucial', 'Crucial P3 500 GB NVMe SSD', '{"kind":"NVMe","capacity_gb":500,"interface":"PCIe 3.0 ×4","read_mbps":3500,"write_mbps":1900,"form_factor":"M.2"}', 3200, '', 1, 1, 30),
 (32, 'samsung-980-1tb', 'storage', 'Samsung', 'Samsung 980 1 TB NVMe SSD', '{"kind":"NVMe","capacity_gb":1000,"interface":"PCIe 3.0 ×4","read_mbps":3500,"write_mbps":3000,"form_factor":"M.2"}', 6200, '', 1, 1, 31),
 (33, 'wd-black-sn850x-2tb', 'storage', 'WD', 'WD Black SN850X 2 TB NVMe SSD', '{"kind":"NVMe","capacity_gb":2000,"interface":"PCIe 4.0 ×4","read_mbps":7300,"write_mbps":6600,"form_factor":"M.2"}', 14500, '', 1, 1, 32),
@@ -587,20 +542,15 @@ INSERT INTO `pc_parts` (`id`, `slug`, `category`, `brand`, `name`, `specs`, `pri
 (57, 'bluetooth-usb-adapter', 'extra', 'TP-Link', 'Bluetooth 5.3 USB adapter', '{"kind":"bluetooth","power_w":1}', 650, '', 1, 1, 56),
 (58, 'creative-sound-card', 'extra', 'Creative', 'Creative Sound Blaster Audigy FX', '{"kind":"sound","power_w":5}', 3900, '', 1, 1, 57),
 (59, 'elgato-capture-card', 'extra', 'Elgato', 'Elgato 4K60 Pro capture card', '{"kind":"capture","power_w":10}', 19500, '', 1, 1, 58),
-(60, 'argb-controller', 'extra', 'Generic', 'ARGB hub & controller', '{"kind":"rgb","power_w":2}', 900, '', 1, 1, 59);
-
-INSERT INTO `pc_parts` (`id`, `slug`, `category`, `brand`, `name`, `specs`, `price`, `model_url`, `in_stock`, `active`, `sort`) VALUES
+(60, 'argb-controller', 'extra', 'Generic', 'ARGB hub & controller', '{"kind":"rgb","power_w":2}', 900, '', 1, 1, 59),
 (61, 'arctic-mx-6', 'extra', 'Arctic', 'Arctic MX-6 thermal paste', '{"kind":"paste","power_w":0}', 650, '', 1, 1, 60),
 (62, 'windows-11-home', 'extra', 'Microsoft', 'Windows 11 Home (genuine licence)', '{"kind":"os","power_w":0}', 9500, '', 1, 1, 61),
 (63, 'windows-11-pro', 'extra', 'Microsoft', 'Windows 11 Pro (genuine licence)', '{"kind":"os","power_w":0}', 13500, '', 1, 1, 62);
 
 -- --------------------------------------------------------
-
---
 -- Table structure for table `pc_presets`
 --
 
-DROP TABLE IF EXISTS `pc_presets`;
 CREATE TABLE IF NOT EXISTS `pc_presets` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `slug` varchar(100) NOT NULL,
@@ -610,11 +560,10 @@ CREATE TABLE IF NOT EXISTS `pc_presets` (
   `active` tinyint(1) NOT NULL DEFAULT 1,
   `sort` int(11) NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uniq_presets_slug` (`slug`)
+  UNIQUE KEY `uniq_pc_presets_slug` (`slug`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Dumping data for table `pc_presets` (4 rows)
+-- Dumping data for table `pc_presets`
 --
 
 INSERT INTO `pc_presets` (`id`, `slug`, `name`, `summary`, `parts`, `active`, `sort`) VALUES
@@ -624,12 +573,9 @@ INSERT INTO `pc_presets` (`id`, `slug`, `name`, `summary`, `parts`, `active`, `s
 (4, 'budget-pc', 'Budget PC', 'Lowest-cost reliable build for study and home use.', '["amd-ryzen-5-5600","gigabyte-b550m-ds3h","ddr4-16gb-3200","rtx-3050-6gb","crucial-p3-500gb","deepcool-pf450","ant-esports-ice-100"]', 1, 3);
 
 -- --------------------------------------------------------
-
---
 -- Table structure for table `pc_builds`
 --
 
-DROP TABLE IF EXISTS `pc_builds`;
 CREATE TABLE IF NOT EXISTS `pc_builds` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `code` varchar(50) NOT NULL,
@@ -645,37 +591,28 @@ CREATE TABLE IF NOT EXISTS `pc_builds` (
   `status` varchar(20) NOT NULL DEFAULT 'saved',
   `created_at` varchar(50) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uniq_pcbuilds_code` (`code`),
-  KEY `idx_pcbuilds_user` (`user_id`)
+  UNIQUE KEY `uniq_pc_builds_code` (`code`),
+  KEY `idx_pc_builds_user` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
-
---
 -- Table structure for table `enquiries`
 --
 
-DROP TABLE IF EXISTS `enquiries`;
 CREATE TABLE IF NOT EXISTS `enquiries` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `kind` varchar(50) NOT NULL DEFAULT 'service',
   `name` varchar(255) NOT NULL,
   `phone` varchar(50) NOT NULL,
   `email` varchar(191) NOT NULL DEFAULT '',
-  `topic` varchar(255) NOT NULL DEFAULT '',
+  `topic` varchar(100) NOT NULL DEFAULT '',
   `message` text NOT NULL,
-  `area` varchar(255) NOT NULL DEFAULT '',
-  `preferred` varchar(255) NOT NULL DEFAULT '',
+  `area` varchar(100) NOT NULL DEFAULT '',
+  `preferred` varchar(100) NOT NULL DEFAULT '',
   `status` varchar(20) NOT NULL DEFAULT 'new',
   `created_at` varchar(50) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- --------------------------------------------------------
--- Finalize transaction and foreign keys
-SET FOREIGN_KEY_CHECKS = 1;
 COMMIT;
-
-/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
-/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
-/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+SET FOREIGN_KEY_CHECKS = 1;

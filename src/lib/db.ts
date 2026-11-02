@@ -261,6 +261,7 @@ CREATE TABLE IF NOT EXISTS products (
   mrp INTEGER,
   condition TEXT NOT NULL DEFAULT 'New',
   image TEXT NOT NULL DEFAULT '',
+  images TEXT NOT NULL DEFAULT '[]',
   in_stock INTEGER NOT NULL DEFAULT 1,
   published INTEGER NOT NULL DEFAULT 1,
   sort INTEGER NOT NULL DEFAULT 0
@@ -420,6 +421,18 @@ export function db(): any {
     } catch {}
 
     d.exec(SCHEMA);
+
+    // Auto-migration: ensure products table has images column
+    try {
+      const cols = d.prepare('PRAGMA table_info(products)').all() as { name: string }[];
+      if (cols.length > 0 && !cols.some((c: any) => c.name === 'images')) {
+        d.exec("ALTER TABLE products ADD COLUMN images TEXT NOT NULL DEFAULT '[]'");
+        d.exec("UPDATE products SET images = json_array(image) WHERE image != '' AND (images = '' OR images = '[]')");
+      }
+    } catch (migErr) {
+      console.warn('[Virnobyte DB] Migration error for products.images:', migErr);
+    }
+
     seedDatabase(d);
     instance = d;
     return d;

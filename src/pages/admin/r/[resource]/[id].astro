@@ -23,7 +23,7 @@ const DEFAULTS: Record<string, any> = {
   published: 1, active: 1, in_stock: 1, sort: 0, validity_days: 365, card_from: '#0f2a4a', card_to: '#2a5d8f', card_text: '#ffffff',
   card_pattern: 'circuit', employment_type: 'FULL_TIME', location: 'Chikhali, Pimpri-Chinchwad', condition: 'New', topic: 'General',
   group_name: 'Repair & support', published_at: new Date().toISOString().slice(0, 10), posted_at: new Date().toISOString().slice(0, 10),
-  benefits: '[]', category: def.key === 'projects' ? 'cctv-projects' : '',
+  benefits: '[]', images: '[]', category: def.key === 'projects' ? 'cctv-projects' : '',
 };
 if (isNew) row = Object.fromEntries(def.fields.map((f) => [f.name, DEFAULTS[f.name] ?? '']));
 
@@ -47,7 +47,7 @@ if (Astro.request.method === 'POST') {
     for (const f of def.fields) {
       const raw = form.get(f.name);
       values[f.name] = f.type === 'bool' ? (raw === 'on' ? '1' : '0') : typeof raw === 'string' ? raw : toFormValue(f, parsed.row[f.name]);
-      if (f.type === 'image' && parsed.row[f.name]) values[f.name] = parsed.row[f.name];
+      if ((f.type === 'image' || f.type === 'images') && parsed.row[f.name]) values[f.name] = parsed.row[f.name];
     }
   }
 }
