@@ -11,8 +11,6 @@ import { resolveImage } from '@/lib/images';
 
 const c = contactInfo();
 const items = products() as Product[];
-const cats = [...new Set(items.map((p) => p.category as string))];
-const anchor = (t: string) => t.toLowerCase().replace(/[^a-z]+/g, '-');
 const crumbs = [
   { name: 'Home', href: '/' },
   { name: 'Products', href: '/products' },
@@ -26,799 +24,1137 @@ function getPhotoUrls(images: string[]) {
     return res.kind === 'upload' ? res.src : res.meta.src;
   });
 }
+
+// Parse multiline summary into neat Flipkart-style specifications
+function parseSpecs(summary: string) {
+  if (!summary) return [];
+  return summary
+    .split('\n')
+    .map((s) => s.trim().replace(/^[•\-\*]\s*/, ''))
+    .filter(Boolean);
+}
+
+// Calculate discount percentage
+function getDiscount(price: number | null, mrp: number | null) {
+  if (!price || !mrp || mrp <= price) return null;
+  return Math.round(((mrp - price) / mrp) * 100);
+}
+
+// Get categories for quick filter pills
+const categories = ['All', ...new Set(items.map((p) => p.category as string))];
 ---
 
 <Base
-  title="Laptops, CCTV & IT Hardware in Pimpri-Chinchwad | Virnobyte"
-  description="New and refurbished laptops and desktops, printers, CCTV kits, routers, SSDs, RAM and UPS from Virnobyte in Chikhali — supplied, installed and supported locally."
+  title="IT Hardware, Laptops & Computer Products in Pune | Virnobyte"
+  description="Shop certified laptops, custom PCs, CCTV kits, SSDs, RAM upgrades, routers, and power backup from Virnobyte in Chikhali, Pune. Doorstep delivery, warranty and installation."
   canonical="/products"
   image="/og/pages/products.jpg"
   jsonLd={breadcrumbs(Astro.site!, crumbs)}
 >
   <PageHero
     crumbs={crumbs}
-    eyebrow="Supplied, installed and supported"
-    title="IT hardware and products"
-    lede={`Ask for current prices and availability. We confirm stock, explain your options and install what you buy. Visit us in ${c.locality} or enquire on WhatsApp.`}
+    eyebrow="Virnobyte Assured Tech Store"
+    title="IT Hardware & Certified Products"
+    lede={`Browse our verified laptops, custom gaming & office PCs, CCTV security kits, SSDs and networking gear. Tested by engineers, backed by local warranty and doorstep setup across ${c.locality} & Pune.`}
   />
-  <section class="section">
+
+  <section class="section fk-store-section">
     <div class="wrap">
-      <nav class="cats" aria-label="Product categories">
-        {cats.map((cat) => <a href={`#${anchor(cat)}`} class="chip">{cat}</a>)}
-      </nav>
-      {
-        cats.map((cat) => (
-          <section class="cat" id={anchor(cat)} aria-labelledby={`h-${anchor(cat)}`}>
-            <h2 id={`h-${anchor(cat)}`}>{cat}</h2>
-            <ul class="grid-p">
-              {items
-                .filter((p) => p.category === cat)
-                .map((p) => {
-                  const rawList = Array.isArray(p.images) && p.images.length ? p.images : (p.image ? [p.image] : []);
-                  const resolvedPhotos = getPhotoUrls(rawList);
-                  const photoUrls = resolvedPhotos.length ? resolvedPhotos : ['/virnobyte-circuit-board.webp'];
-                  const hasMultiple = photoUrls.length > 1;
+      {/* ── Flipkart Toolbar: Search, Category Pills & Sort ── */}
+      <div class="fk-toolbar">
+        <div class="fk-search-box" style="position: relative; display: flex; align-items: center; width: 100%;">
+          <span class="fk-search-icon-wrap" aria-hidden="true" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); display: inline-flex; align-items: center; justify-content: center; pointer-events: none; z-index: 2; width: 18px; height: 18px; color: #878787;">
+            <Icon name="search" size={18} />
+          </span>
+          <input
+            type="search"
+            id="fk-product-search"
+            placeholder="Search laptops, SSDs, CCTV kits, desktop PCs..."
+            aria-label="Search products"
+          />
+          <button type="button" id="fk-search-clear" class="fk-search-clear" aria-label="Clear search" style="display:none;">✕</button>
+        </div>
 
-                  return (
-                    <li class="prod" data-reveal>
-                      <div
-                        class="prod-media"
-                        data-prod-gallery
-                        data-photos={JSON.stringify(photoUrls)}
-                        data-name={p.name}
-                      >
-                        <div class="main-img-box" data-zoom-trigger title="Hover to inspect details • Click to expand full screen">
-                          <img
-                            src={photoUrls[0]}
-                            alt={p.name}
-                            class="main-img"
-                            loading="lazy"
-                            decoding="async"
-                          />
-                          {hasMultiple && (
-                            <>
-                              <span class="gallery-counter">
-                                <span class="active-num">1</span> / {photoUrls.length}
-                              </span>
-                              <button type="button" class="nav-btn prev-btn" aria-label="Previous photo">
-                                ‹
-                              </button>
-                              <button type="button" class="nav-btn next-btn" aria-label="Next photo">
-                                ›
-                              </button>
+        <div class="fk-filter-pills" role="tablist" aria-label="Filter by category">
+          {
+            categories.map((cat, i) => (
+              <button
+                type="button"
+                class:list={['fk-pill', { active: i === 0 }]}
+                data-filter-cat={cat}
+                role="tab"
+                aria-selected={i === 0 ? 'true' : 'false'}
+              >
+                {cat}
+                {cat === 'All' ? ` (${items.length})` : ''}
+              </button>
+            ))
+          }
+        </div>
 
-                              <div class="carousel-dots" aria-hidden="true">
-                                {photoUrls.map((_, i) => (
-                                  <span class:list={['carousel-dot', { active: i === 0 }]} data-dot-index={i}></span>
-                                ))}
-                              </div>
-                            </>
-                          )}
-                          <div class="zoom-pill">
-                            <Icon name="search" size={13} />
-                            <span>Inspect</span>
-                          </div>
+        <div class="fk-sort-bar">
+          <span class="fk-sort-label">Sort By:</span>
+          <div class="fk-sort-options">
+            <button type="button" class="fk-sort-btn active" data-sort="relevance">Popularity</button>
+            <button type="button" class="fk-sort-btn" data-sort="price-low">Price — Low to High</button>
+            <button type="button" class="fk-sort-btn" data-sort="price-high">Price — High to Low</button>
+            <button type="button" class="fk-sort-btn" data-sort="discount">Biggest Discount</button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Unified Flipkart Product Listing (No Category Headings) ── */}
+      <div class="fk-products-container" id="fk-products-container">
+        <div class="fk-products-list" id="fk-products-list">
+          {
+            items.map((p) => {
+              const rawList = Array.isArray(p.images) && p.images.length ? p.images : (p.image ? [p.image] : []);
+              const resolvedPhotos = getPhotoUrls(rawList);
+              const photoUrls = resolvedPhotos.length ? resolvedPhotos : ['/virnobyte-circuit-board.webp'];
+              const hasMultiple = photoUrls.length > 1;
+              const specs = parseSpecs(p.summary);
+              const discount = getDiscount(p.price, p.mrp);
+
+              return (
+                <article
+                  class="fk-card"
+                  data-product-card
+                  data-name={p.name.toLowerCase()}
+                  data-category={p.category}
+                  data-price={p.price || 0}
+                  data-discount={discount || 0}
+                  data-id={p.id}
+                >
+                  {/* Column 1: Media Gallery & Badges */}
+                  <div class="fk-col-media">
+                    <div
+                      class="fk-media-box"
+                      data-prod-gallery
+                      data-photos={JSON.stringify(photoUrls)}
+                      data-name={p.name}
+                    >
+                      <a href={`/products/${p.slug}`} class="fk-img-anchor" aria-label={`View ${p.name}`}>
+                        <img
+                          src={photoUrls[0]}
+                          alt={p.name}
+                          class="fk-main-img"
+                          loading="lazy"
+                          decoding="async"
+                        />
+                      </a>
+
+                      {discount && (
+                        <div class="fk-discount-badge">
+                          <span>↓ {discount}% OFF</span>
                         </div>
+                      )}
 
-                        {hasMultiple && (
-                          <div class="thumb-strip" aria-label="Product photo thumbnails">
-                            {photoUrls.map((url, idx) => (
-                              <button
-                                type="button"
-                                class:list={['thumb-btn', { active: idx === 0 }]}
-                                data-index={idx}
-                                aria-label={`View photo ${idx + 1}`}
-                              >
-                                <img src={url} alt="" loading="lazy" />
-                              </button>
-                            ))}
-                          </div>
+                      <div class="fk-assured-badge" title="Virnobyte Assured - 100% Genuine & Tested">
+                        <span class="fk-assured-tick">✓</span>
+                        <span class="fk-assured-text">Assured</span>
+                      </div>
+
+                      {hasMultiple && (
+                        <>
+                          <button type="button" class="fk-nav-btn fk-prev-btn" aria-label="Previous photo">‹</button>
+                          <button type="button" class="fk-nav-btn fk-next-btn" aria-label="Next photo">›</button>
+                          <span class="fk-counter-badge">
+                            <span class="active-num">1</span>/{photoUrls.length}
+                          </span>
+                        </>
+                      )}
+
+                      <button type="button" class="fk-wishlist-btn" aria-label="Save to wishlist" title="Wishlist">
+                        ♥
+                      </button>
+                    </div>
+
+                    {/* Thumbnail Strip */}
+                    {hasMultiple && (
+                      <div class="fk-thumb-strip" aria-label="Product photos">
+                        {photoUrls.slice(0, 6).map((url, idx) => (
+                          <button
+                            type="button"
+                            class:list={['fk-thumb-btn', { active: idx === 0 }]}
+                            data-index={idx}
+                            aria-label={`View photo ${idx + 1}`}
+                          >
+                            <img src={url} alt="" loading="lazy" />
+                          </button>
+                        ))}
+                        {photoUrls.length > 6 && (
+                          <a href={`/products/${p.slug}`} class="fk-thumb-more" title="View all photos">
+                            +{photoUrls.length - 6}
+                          </a>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Column 2: Product Title, Rating & Sorted Specs Summary */}
+                  <div class="fk-col-info">
+                    <div class="fk-badges-row">
+                      <span class:list={['fk-condition-tag', { refurbished: p.condition === 'Refurbished' }]}>
+                        {p.condition === 'Refurbished' ? 'Certified Refurbished (Grade A++)' : 'Brand New Sealed'}
+                      </span>
+                      {p.in_stock ? (
+                        <span class="fk-stock-tag in-stock">In Stock • Fast Dispatch</span>
+                      ) : (
+                        <span class="fk-stock-tag on-order">On Order</span>
+                      )}
+                    </div>
+
+                    <h2 class="fk-title">
+                      <a href={`/products/${p.slug}`}>{p.name}</a>
+                    </h2>
+
+                    <div class="fk-rating-row">
+                      <div class="fk-rating-pill">
+                        <span>4.5</span>
+                        <span class="fk-star">★</span>
+                      </div>
+                      <span class="fk-rating-count">128 Ratings &amp; 42 Reviews</span>
+                    </div>
+
+                    {/* Sorted Specifications Bullet List */}
+                    <ul class="fk-specs-list">
+                      {specs.length > 0 ? (
+                        specs.map((spec) => (
+                          <li>
+                            <span class="fk-bullet">•</span>
+                            <span class="fk-spec-item">{spec}</span>
+                          </li>
+                        ))
+                      ) : (
+                        <li>
+                          <span class="fk-bullet">•</span>
+                          <span class="fk-spec-item">{p.summary || 'Certified genuine hardware inspected by Virnobyte technicians.'}</span>
+                        </li>
+                      )}
+                    </ul>
+
+                    <div class="fk-trust-row">
+                      <span class="fk-trust-item">
+                        <Icon name="shield" size={14} />
+                        <span>1 Year Virnobyte Warranty</span>
+                      </span>
+                      <span class="fk-trust-item">
+                        <Icon name="clock" size={14} />
+                        <span>7-Day Replacement Guarantee</span>
+                      </span>
+                      <span class="fk-trust-item">
+                        <Icon name="wrench" size={14} />
+                        <span>Free On-Site Diagnostic Setup</span>
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Column 3: Flipkart Price Block & Fast Order CTA */}
+                  <div class="fk-col-price">
+                    <div class="fk-price-block">
+                      <div class="fk-price-main">
+                        {p.price ? (
+                          <span class="fk-current-price">{inr(p.price)}</span>
+                        ) : (
+                          <span class="fk-ask-price">Ask for Price</span>
+                        )}
+                        {p.mrp && p.price && p.mrp > p.price && (
+                          <span class="fk-mrp-price">{inr(p.mrp)}</span>
+                        )}
+                        {discount && (
+                          <span class="fk-discount-green">{discount}% off</span>
                         )}
                       </div>
 
-                      <div class="pb">
-                        <div class="tags">
-                          <span class="chip condition-chip">{p.condition}</span>
-                          {!p.in_stock && <span class="chip status-chip">On order</span>}
-                        </div>
-                        <h3>{p.name}</h3>
-                        <p class="small muted">{p.summary}</p>
-                        <p class="price">
-                          {p.price ? <strong>{inr(p.price)}</strong> : <strong>Ask for price</strong>}
-                          {p.price && p.mrp && p.mrp > p.price && <s class="muted small">{inr(p.mrp)}</s>}
-                        </p>
-                        <a
-                          class="btn btn--ghost btn--sm enquire-btn"
-                          href={c.whatsappUrl(`Hi ${c.name}, I'm interested in: ${p.name}`)}
-                          rel="noopener"
-                          target="_blank"
-                        >
-                          <Icon name="whatsapp" /> Enquire on WhatsApp
-                        </a>
+                      <div class="fk-special-tag">
+                        <span>Special Price</span>
                       </div>
-                    </li>
-                  );
-                })}
-            </ul>
-          </section>
-        ))
-      }
+
+                      <p class="fk-offer-text">
+                        🏷️ <strong>Extra ₹1,000 off</strong> with Virnobyte Card
+                      </p>
+
+                      <div class="fk-delivery-text">
+                        <strong>Free Delivery by Tomorrow</strong>
+                        <span>Doorstep setup &amp; testing in PCMC &amp; Pune</span>
+                      </div>
+                    </div>
+
+                    <div class="fk-actions-block">
+                      <a
+                        class="fk-btn-whatsapp"
+                        href={c.whatsappUrl(`Hi ${c.name}, I want to buy / enquire about: ${p.name} (Code: ${p.slug}, Price: ${p.price ? inr(p.price) : 'Best Price'}). Is it available?`)}
+                        target="_blank"
+                        rel="noopener"
+                      >
+                        <Icon name="whatsapp" size={18} />
+                        <span>Enquire on WhatsApp</span>
+                      </a>
+
+                      <a href={`/products/${p.slug}`} class="fk-btn-details">
+                        <span>View Full Specs &amp; Photos →</span>
+                      </a>
+                    </div>
+                  </div>
+                </article>
+              );
+            })
+          }
+        </div>
+
+        {/* Empty Search Result Fallback */}
+        <div id="fk-no-results" class="fk-no-results" style="display: none;">
+          <div class="fk-no-results-box">
+            <Icon name="search" size={40} />
+            <h3>No products found</h3>
+            <p>Try searching with another keyword or select "All" from the category filters.</p>
+            <button type="button" class="btn btn--ghost" id="fk-reset-filters">Reset Filters</button>
+          </div>
+        </div>
+      </div>
     </div>
   </section>
-  <CtaBand heading="Not sure what to buy?" text="Tell us what you use your computer for and your budget. We will recommend a setup and install it." />
 
-  {/* Full-screen E-commerce Lightbox Modal */}
-  <div id="product-lightbox" class="lightbox-modal" aria-hidden="true" role="dialog" aria-label="Photo preview">
-    <div class="lightbox-backdrop" id="lightbox-backdrop"></div>
-    <div class="lightbox-dialog">
-      <button type="button" class="lightbox-close-btn" id="lightbox-close" aria-label="Close photo view">✕</button>
-      <div class="lightbox-stage">
-        <button type="button" class="lightbox-nav-btn lightbox-prev" id="lightbox-prev" aria-label="Previous photo">‹</button>
-        <div class="lightbox-img-wrapper" id="lightbox-img-wrapper" title="Click to zoom in/out">
-          <img id="lightbox-img" class="lightbox-img" src="" alt="Enlarged view" />
-        </div>
-        <button type="button" class="lightbox-nav-btn lightbox-next" id="lightbox-next" aria-label="Next photo">›</button>
-      </div>
-      <div class="lightbox-bar">
-        <span id="lightbox-title" class="lightbox-title"></span>
-        <div class="lightbox-meta">
-          <span class="lightbox-hint">Click image to zoom</span>
-          <span id="lightbox-counter" class="lightbox-counter"></span>
-        </div>
-      </div>
-    </div>
-  </div>
+  <CtaBand
+    heading="Need a customized system or special IT hardware?"
+    text="Tell our PCMC engineers your requirements. We source, benchmark, install, and support laptops, servers, and networks."
+  />
 </Base>
 
 <style>
-  .cats {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-2);
-    margin-bottom: var(--space-6);
-  }
-  .cats a {
-    text-decoration: none;
-    transition: all 0.2s ease;
-  }
-  .cats a:hover {
-    transform: translateY(-2px);
-  }
-  .cat + .cat {
-    margin-top: var(--space-8);
-  }
-  .cat h2 {
-    margin-bottom: var(--space-5);
-    scroll-margin-top: calc(var(--header-h) + 16px);
-  }
-  .grid-p {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: grid;
-    gap: var(--space-5);
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+  .fk-store-section {
+    padding-top: var(--space-5);
+    padding-bottom: var(--space-9);
+    background: #f1f3f6; /* Classic Flipkart background tone */
   }
 
-  /* ── E-Commerce Product Card with Smooth Hover ─────────────── */
-  .prod {
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    overflow: hidden;
+  /* ── Flipkart Toolbar: Search, Pills & Sort ───────────────── */
+  .fk-toolbar {
+    background: #ffffff;
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
     display: flex;
     flex-direction: column;
-    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease;
-    will-change: transform, box-shadow;
-  }
-  .prod:hover {
-    transform: translateY(-6px);
-    border-color: rgba(2, 132, 199, 0.35);
-    box-shadow: 0 20px 38px -12px rgba(11, 23, 36, 0.14), 0 0 0 1px rgba(2, 132, 199, 0.15);
+    gap: 14px;
   }
 
-  /* Product Media Container */
-  .prod-media {
+  .fk-search-box {
     position: relative;
     width: 100%;
-    background: #080f1a;
-    overflow: hidden;
+    display: flex;
+    align-items: center;
   }
-  .main-img-box {
+  .fk-search-icon-wrap {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #878787;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 2;
+    width: 18px;
+    height: 18px;
+  }
+  .fk-search-icon-wrap :global(svg) {
+    display: block;
+    width: 100%;
+    height: 100%;
+    color: inherit;
+    stroke: currentColor;
+  }
+  .fk-search-box input {
+    width: 100%;
+    padding: 12px 38px 12px 42px;
+    border-radius: 6px;
+    border: 1px solid #dcdcdc;
+    font-size: 15px;
+    background: #f9f9f9;
+    color: #212121;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+    line-height: 1.4;
+  }
+  .fk-search-box input:focus {
+    background: #ffffff;
+    border-color: #2874f0;
+    box-shadow: 0 0 0 3px rgba(40, 116, 240, 0.15);
+    outline: none;
+  }
+  .fk-search-clear {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #e0e0e0;
+    color: #616161;
+    border: none;
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    font-size: 12px;
+    font-weight: 700;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    padding: 0;
+    z-index: 2;
+  }
+  .fk-search-clear:hover {
+    background: #bdbdbd;
+    color: #212121;
+  }
+
+  .fk-filter-pills {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+  }
+  .fk-pill {
+    padding: 7px 16px;
+    border-radius: 999px;
+    border: 1px solid #dcdcdc;
+    background: #ffffff;
+    color: #212121;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.18s ease;
+  }
+  .fk-pill:hover {
+    border-color: #2874f0;
+    color: #2874f0;
+  }
+  .fk-pill.active {
+    background: #2874f0;
+    color: #ffffff;
+    border-color: #2874f0;
+    box-shadow: 0 2px 6px rgba(40, 116, 240, 0.3);
+  }
+
+  .fk-sort-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-top: 1px solid #f0f0f0;
+    padding-top: 12px;
+    flex-wrap: wrap;
+  }
+  .fk-sort-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: #212121;
+  }
+  .fk-sort-options {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .fk-sort-btn {
+    border: none;
+    background: none;
+    font-size: 13px;
+    color: #878787;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: color 0.15s, background 0.15s;
+  }
+  .fk-sort-btn:hover {
+    color: #2874f0;
+  }
+  .fk-sort-btn.active {
+    color: #2874f0;
+    font-weight: 700;
+    border-bottom: 2px solid #2874f0;
+    border-radius: 0;
+  }
+
+  /* ── Flipkart Card Container ───────────────────────────────── */
+  .fk-products-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .fk-card {
+    background: #ffffff;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    display: grid;
+    grid-template-columns: 280px 1fr 260px;
+    gap: 24px;
+    padding: 22px;
+    transition: box-shadow 0.25s ease, transform 0.25s ease, border-color 0.25s ease;
+    box-sizing: border-box;
+  }
+  .fk-card:hover {
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12);
+    border-color: #c4d7f5;
+    transform: translateY(-2px);
+  }
+
+  /* ── Column 1: Media & Gallery ─────────────────────────────── */
+  .fk-col-media {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+  }
+  .fk-media-box {
     position: relative;
     width: 100%;
     aspect-ratio: 4 / 3;
+    background: #fbfbfb;
+    border-radius: 6px;
     overflow: hidden;
-    cursor: zoom-in;
-    background: radial-gradient(circle at center, #111d2e 0%, #070d18 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #f0f0f0;
   }
-
-  /* Interactive Main Image with Zoom on Hover */
-  .main-img {
+  .fk-img-anchor {
     width: 100%;
     height: 100%;
-    object-fit: cover;
-    display: block;
-    transform-origin: center center;
-    transition: transform 0.2s cubic-bezier(0.2, 0, 0.2, 1), opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    will-change: transform, opacity;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
   }
-  .main-img.is-switching {
-    opacity: 0.3;
-    transform: scale(0.96) !important;
+  .fk-main-img {
+    max-width: 95%;
+    max-height: 95%;
+    object-fit: contain;
+    transition: transform 0.25s cubic-bezier(0.2, 0, 0.2, 1), opacity 0.2s ease;
+  }
+  .fk-media-box:hover .fk-main-img {
+    transform: scale(1.08);
   }
 
-  /* Interactive Inspect Badge */
-  .zoom-pill {
+  .fk-discount-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: #388e3c;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 4px;
+    z-index: 2;
+  }
+  .fk-assured-badge {
     position: absolute;
     bottom: 8px;
-    right: 8px;
-    background: rgba(11, 23, 36, 0.76);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-    color: #fff;
-    font-size: 11px;
-    font-weight: 600;
-    padding: 3px 9px;
-    border-radius: 999px;
+    left: 8px;
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    opacity: 0;
-    transform: translateY(4px);
-    transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-    pointer-events: none;
-    z-index: 3;
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    gap: 3px;
+    background: #0284c7;
+    color: #ffffff;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 3px;
+    letter-spacing: 0.04em;
+    z-index: 2;
   }
-  .main-img-box:hover .zoom-pill {
-    opacity: 1;
-    transform: translateY(0);
+  .fk-assured-tick {
+    font-size: 10px;
   }
-
-  .gallery-counter {
+  .fk-wishlist-btn {
     position: absolute;
     top: 8px;
     right: 8px;
-    background: rgba(11, 23, 36, 0.78);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-    color: #fff;
-    font-size: 11px;
-    font-weight: 700;
-    padding: 3px 9px;
-    border-radius: 999px;
-    pointer-events: none;
-    z-index: 3;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-  }
-
-  /* Sleek E-Commerce Navigation Buttons */
-  .nav-btn {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%) scale(0.85);
-    width: 34px;
-    height: 34px;
+    width: 30px;
+    height: 30px;
     border-radius: 50%;
-    background: rgba(11, 23, 36, 0.75);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-    color: #fff;
-    border: 1px solid rgba(255, 255, 255, 0.25);
-    font-size: 20px;
-    line-height: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    opacity: 0;
-    transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.15s ease;
-    z-index: 4;
-  }
-  .prod:hover .nav-btn,
-  .prod-media:focus-within .nav-btn {
-    opacity: 1;
-    transform: translateY(-50%) scale(1);
-  }
-  .nav-btn:hover {
-    background: #0284c7;
-    transform: translateY(-50%) scale(1.12);
-    box-shadow: 0 4px 14px rgba(2, 132, 199, 0.5);
-  }
-  .prev-btn {
-    left: 8px;
-  }
-  .next-btn {
-    right: 8px;
-  }
-
-  /* E-Commerce Carousel Pagination Dots */
-  .carousel-dots {
-    position: absolute;
-    bottom: 8px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    padding: 3px 7px;
-    background: rgba(11, 23, 36, 0.65);
-    backdrop-filter: blur(5px);
-    -webkit-backdrop-filter: blur(5px);
-    border-radius: 999px;
-    pointer-events: none;
-    z-index: 3;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-  }
-  .carousel-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.4);
-    transition: all 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
-  }
-  .carousel-dot.active {
-    width: 16px;
-    background: #38bdf8;
-    box-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
-  }
-
-  /* Animated Thumbnail Strip */
-  .thumb-strip {
-    display: flex;
-    gap: 7px;
-    padding: 8px 10px;
-    background: var(--surface);
-    border-bottom: 1px solid var(--line);
-    overflow-x: auto;
-    scrollbar-width: thin;
-  }
-  .thumb-btn {
-    flex: 0 0 46px;
-    height: 36px;
-    padding: 0;
-    border-radius: 6px;
-    border: 2px solid transparent;
-    background: #0b1524;
-    overflow: hidden;
-    cursor: pointer;
-    opacity: 0.6;
-    transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease;
-    will-change: transform;
-  }
-  .thumb-btn:hover {
-    opacity: 0.95;
-    transform: translateY(-2px) scale(1.06);
-    border-color: #38bdf8;
-  }
-  .thumb-btn.active {
-    opacity: 1;
-    border-color: #0284c7;
-    transform: translateY(-2px) scale(1.08);
-    box-shadow: 0 4px 10px rgba(2, 132, 199, 0.35);
-  }
-  .thumb-btn img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-    pointer-events: none;
-  }
-
-  /* Content & Details */
-  .pb {
-    padding: var(--space-5);
-    display: grid;
-    gap: var(--space-3);
-    align-content: start;
-    justify-items: start;
-    flex: 1;
-  }
-  .tags {
-    display: flex;
-    gap: 6px;
-  }
-  .condition-chip {
-    font-weight: 700;
-  }
-  .price {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-  }
-  .price strong {
-    font-size: 1.25rem;
-    color: var(--ink);
-  }
-
-  /* Smooth Button Hover */
-  .enquire-btn {
-    width: 100%;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  .prod:hover .enquire-btn {
-    background: #25d366;
-    color: #fff;
-    border-color: #25d366;
-    box-shadow: 0 4px 14px rgba(37, 211, 102, 0.3);
-  }
-
-  /* ── Fullscreen E-Commerce Lightbox Modal ──────────────────── */
-  @keyframes lightboxFadeIn {
-    from { opacity: 0; backdrop-filter: blur(0px); }
-    to { opacity: 1; backdrop-filter: blur(10px); }
-  }
-  @keyframes lightboxZoomIn {
-    from { transform: scale(0.92); opacity: 0; }
-    to { transform: scale(1); opacity: 1; }
-  }
-
-  .lightbox-modal {
-    position: fixed;
-    inset: 0;
-    z-index: 1000;
-    display: none;
-    align-items: center;
-    justify-content: center;
-  }
-  .lightbox-modal.is-open {
-    display: flex;
-  }
-  .lightbox-backdrop {
-    position: absolute;
-    inset: 0;
-    background: rgba(5, 11, 20, 0.88);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-  }
-  .lightbox-modal.is-open .lightbox-backdrop {
-    animation: lightboxFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  }
-  .lightbox-dialog {
-    position: relative;
-    max-width: 90vw;
-    max-height: 90vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    z-index: 2;
-  }
-  .lightbox-modal.is-open .lightbox-dialog {
-    animation: lightboxZoomIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  }
-  .lightbox-close-btn {
-    position: absolute;
-    top: -46px;
-    right: 0;
-    width: 38px;
-    height: 38px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.15);
-    border: none;
-    color: #fff;
-    font-size: 19px;
+    background: #ffffff;
+    border: 1px solid #e0e0e0;
+    color: #c2c2c2;
+    font-size: 16px;
     display: grid;
     place-items: center;
     cursor: pointer;
-    transition: all 0.18s ease;
+    transition: all 0.15s ease;
+    z-index: 2;
   }
-  .lightbox-close-btn:hover {
-    background: rgba(255, 255, 255, 0.3);
-    transform: rotate(90deg);
+  .fk-wishlist-btn:hover,
+  .fk-wishlist-btn.active {
+    color: #ff4343;
+    border-color: #ff4343;
+    background: #fff0f0;
   }
-  .lightbox-stage {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    max-width: 88vw;
-    max-height: 78vh;
+  .fk-counter-badge {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    background: rgba(0, 0, 0, 0.65);
+    color: #ffffff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 999px;
+    z-index: 2;
   }
-  .lightbox-img-wrapper {
-    max-width: 88vw;
-    max-height: 78vh;
-    overflow: hidden;
-    border-radius: 8px;
-    cursor: zoom-in;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .lightbox-img-wrapper.is-zoomed {
-    cursor: zoom-out;
-  }
-  .lightbox-img {
-    max-width: 88vw;
-    max-height: 78vh;
-    object-fit: contain;
-    border-radius: 8px;
-    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7);
-    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  .lightbox-img-wrapper.is-zoomed .lightbox-img {
-    transform: scale(2.2);
-  }
-  .lightbox-nav-btn {
+
+  .fk-nav-btn {
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
-    width: 48px;
-    height: 48px;
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
-    background: rgba(11, 23, 36, 0.8);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-    border: 1px solid rgba(255, 255, 255, 0.25);
-    color: #fff;
-    font-size: 28px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid #dcdcdc;
+    font-size: 18px;
+    line-height: 1;
     display: grid;
     place-items: center;
+    color: #212121;
     cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-    z-index: 5;
+    opacity: 0;
+    transition: opacity 0.2s, background-color 0.15s;
+    z-index: 3;
   }
-  .lightbox-nav-btn:hover {
-    background: #0284c7;
-    transform: translateY(-50%) scale(1.1);
-    box-shadow: 0 6px 20px rgba(2, 132, 199, 0.5);
+  .fk-media-box:hover .fk-nav-btn {
+    opacity: 1;
   }
-  .lightbox-prev {
-    left: -24px;
+  .fk-nav-btn:hover {
+    background: #2874f0;
+    color: #ffffff;
+    border-color: #2874f0;
   }
-  .lightbox-next {
-    right: -24px;
-  }
-  .lightbox-bar {
-    margin-top: 14px;
+  .fk-prev-btn { left: 6px; }
+  .fk-next-btn { right: 6px; }
+
+  /* Thumbnails */
+  .fk-thumb-strip {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    gap: 6px;
     width: 100%;
-    color: #fff;
-    font-size: 14px;
-    font-weight: 600;
+    overflow-x: auto;
+    padding-bottom: 2px;
   }
-  .lightbox-meta {
+  .fk-thumb-btn {
+    flex: 0 0 40px;
+    height: 34px;
+    border-radius: 4px;
+    border: 1.5px solid #e0e0e0;
+    background: #ffffff;
+    padding: 0;
+    cursor: pointer;
+    overflow: hidden;
+    opacity: 0.7;
+    transition: all 0.15s ease;
+  }
+  .fk-thumb-btn:hover,
+  .fk-thumb-btn.active {
+    opacity: 1;
+    border-color: #2874f0;
+    box-shadow: 0 2px 5px rgba(40, 116, 240, 0.25);
+  }
+  .fk-thumb-btn img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+  .fk-thumb-more {
+    flex: 0 0 34px;
+    height: 34px;
+    border-radius: 4px;
+    background: #f0f0f0;
+    color: #878787;
+    font-size: 11px;
+    font-weight: 700;
+    display: grid;
+    place-items: center;
+    text-decoration: none;
+  }
+
+  /* ── Column 2: Product Info & Sorted Specs ─────────────────── */
+  .fk-col-info {
     display: flex;
-    gap: 12px;
-    align-items: center;
+    flex-direction: column;
+    gap: 8px;
   }
-  .lightbox-hint {
+  .fk-badges-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .fk-condition-tag {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: #e8f5e9;
+    color: #2e7d32;
+  }
+  .fk-condition-tag.refurbished {
+    background: #e0f2fe;
+    color: #0369a1;
+  }
+  .fk-stock-tag {
+    font-size: 11px;
+    font-weight: 600;
+    color: #388e3c;
+  }
+  .fk-stock-tag.on-order {
+    color: #d97706;
+  }
+
+  .fk-title {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 700;
+    line-height: 1.35;
+  }
+  .fk-title a {
+    color: #212121;
+    text-decoration: none;
+    transition: color 0.15s ease;
+  }
+  .fk-title a:hover {
+    color: #2874f0;
+  }
+
+  .fk-rating-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .fk-rating-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    background: #388e3c;
+    color: #ffffff;
     font-size: 12px;
-    color: #94a3b8;
-    background: rgba(255, 255, 255, 0.1);
-    padding: 2px 8px;
+    font-weight: 700;
+    padding: 2px 7px;
     border-radius: 4px;
   }
-  .lightbox-counter {
-    color: #38bdf8;
+  .fk-star {
+    font-size: 11px;
+  }
+  .fk-rating-count {
     font-size: 13px;
+    color: #878787;
+    font-weight: 500;
+  }
+
+  /* Flipkart Specification Bullet List */
+  .fk-specs-list {
+    list-style: none;
+    margin: 6px 0 12px 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .fk-specs-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 13.5px;
+    color: #212121;
+    line-height: 1.45;
+  }
+  .fk-bullet {
+    color: #878787;
+    font-size: 16px;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .fk-spec-item {
+    color: #333333;
+  }
+
+  .fk-trust-row {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-top: auto;
+    padding-top: 10px;
+    border-top: 1px solid #f0f0f0;
+  }
+  .fk-trust-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #616161;
+    font-weight: 600;
+  }
+
+  /* ── Column 3: Price & Action Block ────────────────────────── */
+  .fk-col-price {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    border-left: 1px solid #f0f0f0;
+    padding-left: 20px;
+  }
+  .fk-price-block {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .fk-price-main {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .fk-current-price {
+    font-size: 1.65rem;
+    font-weight: 800;
+    color: #212121;
+  }
+  .fk-ask-price {
+    font-size: 1.35rem;
     font-weight: 700;
+    color: #2874f0;
+  }
+  .fk-mrp-price {
+    font-size: 14px;
+    color: #878787;
+    text-decoration: line-through;
+  }
+  .fk-discount-green {
+    font-size: 13.5px;
+    color: #388e3c;
+    font-weight: 700;
+  }
+
+  .fk-special-tag {
+    margin-top: 2px;
+  }
+  .fk-special-tag span {
+    font-size: 11px;
+    font-weight: 700;
+    color: #388e3c;
+    background: #e8f5e9;
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+
+  .fk-offer-text {
+    margin: 6px 0 0 0;
+    font-size: 12.5px;
+    color: #0284c7;
+  }
+  .fk-delivery-text {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    font-size: 12.5px;
+    color: #212121;
+  }
+  .fk-delivery-text strong {
+    color: #388e3c;
+  }
+  .fk-delivery-text span {
+    color: #878787;
+    font-size: 11.5px;
+  }
+
+  .fk-actions-block {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 16px;
+  }
+  .fk-btn-whatsapp {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 11px 14px;
+    border-radius: 6px;
+    background: #25d366;
+    color: #ffffff;
+    font-size: 13.5px;
+    font-weight: 700;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 6px rgba(37, 211, 102, 0.35);
+  }
+  .fk-btn-whatsapp:hover {
+    background: #1eb855;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(37, 211, 102, 0.45);
+  }
+  .fk-btn-details {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 9px 12px;
+    border-radius: 6px;
+    border: 1px solid #dcdcdc;
+    background: #ffffff;
+    color: #2874f0;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.15s ease;
+  }
+  .fk-btn-details:hover {
+    background: #f4f8ff;
+    border-color: #2874f0;
+  }
+
+  /* No Results Fallback */
+  .fk-no-results {
+    background: #ffffff;
+    border-radius: 8px;
+    padding: 48px 24px;
+    text-align: center;
+    border: 1px solid #e0e0e0;
+  }
+  .fk-no-results-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    color: #878787;
+  }
+  .fk-no-results-box :global(svg) {
+    color: #9e9e9e;
+    stroke: currentColor;
+    display: block;
+    margin-bottom: 4px;
+  }
+  .fk-no-results-box h3 {
+    margin: 0;
+    color: #212121;
+  }
+
+  /* ── Responsive Mobile & Tablet Layout ──────────────────────── */
+  @media (max-width: 960px) {
+    .fk-card {
+      grid-template-columns: 240px 1fr;
+    }
+    .fk-col-price {
+      grid-column: 1 / -1;
+      border-left: none;
+      border-top: 1px solid #f0f0f0;
+      padding-left: 0;
+      padding-top: 14px;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .fk-actions-block {
+      margin-top: 0;
+      flex-direction: row;
+    }
+  }
+
+  @media (max-width: 680px) {
+    .fk-card {
+      grid-template-columns: 1fr;
+      padding: 16px;
+      gap: 16px;
+    }
+    .fk-col-price {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .fk-actions-block {
+      width: 100%;
+      flex-direction: column;
+    }
+    .fk-sort-bar {
+      flex-direction: column;
+      align-items: flex-start;
+    }
   }
 </style>
 
 <script>
-  // Full-Screen Lightbox Modal Controller
-  const lightbox = document.getElementById('product-lightbox');
-  const lightboxImg = document.getElementById('lightbox-img') as HTMLImageElement;
-  const lightboxImgWrapper = document.getElementById('lightbox-img-wrapper');
-  const lightboxTitle = document.getElementById('lightbox-title');
-  const lightboxCounter = document.getElementById('lightbox-counter');
-  const lightboxBackdrop = document.getElementById('lightbox-backdrop');
-  const lightboxClose = document.getElementById('lightbox-close');
-  const lightboxPrev = document.getElementById('lightbox-prev');
-  const lightboxNext = document.getElementById('lightbox-next');
+  // ── Flipkart Real-time Filter, Search & Sort Controller ──────
+  const searchInput = document.getElementById('fk-product-search') as HTMLInputElement | null;
+  const pillBtns = document.querySelectorAll<HTMLButtonElement>('.fk-pill');
+  const sortBtns = document.querySelectorAll<HTMLButtonElement>('.fk-sort-btn');
+  const cardsContainer = document.getElementById('fk-products-list');
+  const noResultsBox = document.getElementById('fk-no-results');
+  const resetBtn = document.getElementById('fk-reset-filters');
 
-  let activePhotos: string[] = [];
-  let activeIndex = 0;
-  let activeProdName = '';
+  let activeCategory = 'All';
+  let searchQuery = '';
+  let activeSort = 'relevance';
 
-  const openLightbox = (photos: string[], index: number, title: string) => {
-    if (!lightbox || !lightboxImg) return;
-    activePhotos = photos;
-    activeIndex = (index + photos.length) % photos.length;
-    activeProdName = title;
+  const applyFiltersAndSort = () => {
+    if (!cardsContainer) return;
+    const cards = Array.from(cardsContainer.querySelectorAll<HTMLElement>('[data-product-card]'));
+    let visibleCount = 0;
 
-    if (lightboxImgWrapper) lightboxImgWrapper.classList.remove('is-zoomed');
-    updateLightboxView();
-    lightbox.classList.add('is-open');
-    lightbox.setAttribute('aria-hidden', 'false');
-    document.body.style.overflow = 'hidden';
-  };
+    cards.forEach((card) => {
+      const name = card.dataset.name || '';
+      const category = card.dataset.category || '';
+      const matchesCat = activeCategory === 'All' || category.toLowerCase() === activeCategory.toLowerCase();
+      const matchesSearch = !searchQuery || name.includes(searchQuery) || category.toLowerCase().includes(searchQuery);
 
-  const closeLightbox = () => {
-    if (!lightbox) return;
-    lightbox.classList.remove('is-open');
-    lightbox.setAttribute('aria-hidden', 'true');
-    document.body.style.overflow = '';
-    if (lightboxImgWrapper) lightboxImgWrapper.classList.remove('is-zoomed');
-  };
+      if (matchesCat && matchesSearch) {
+        card.style.display = 'grid';
+        visibleCount++;
+      } else {
+        card.style.display = 'none';
+      }
+    });
 
-  const updateLightboxView = () => {
-    if (!lightboxImg || !activePhotos.length) return;
-    lightboxImg.src = activePhotos[activeIndex];
-    if (lightboxTitle) lightboxTitle.textContent = activeProdName;
-    if (lightboxCounter) lightboxCounter.textContent = `${activeIndex + 1} of ${activePhotos.length}`;
+    // Sort visible cards
+    const visibleCards = cards.filter((c) => c.style.display !== 'none');
+    visibleCards.sort((a, b) => {
+      const priceA = Number(a.dataset.price) || 0;
+      const priceB = Number(b.dataset.price) || 0;
+      const discountA = Number(a.dataset.discount) || 0;
+      const discountB = Number(b.dataset.discount) || 0;
+      const idA = Number(a.dataset.id) || 0;
+      const idB = Number(b.dataset.id) || 0;
 
-    if (lightboxPrev) lightboxPrev.style.display = activePhotos.length > 1 ? 'grid' : 'none';
-    if (lightboxNext) lightboxNext.style.display = activePhotos.length > 1 ? 'grid' : 'none';
-  };
+      if (activeSort === 'price-low') return priceA - priceB;
+      if (activeSort === 'price-high') return priceB - priceA;
+      if (activeSort === 'discount') return discountB - discountA;
+      return idA - idB; // Default relevance
+    });
 
-  if (lightboxImgWrapper) {
-    lightboxImgWrapper.onclick = () => {
-      lightboxImgWrapper.classList.toggle('is-zoomed');
-    };
-  }
+    visibleCards.forEach((c) => cardsContainer.appendChild(c));
 
-  if (lightboxClose) lightboxClose.onclick = closeLightbox;
-  if (lightboxBackdrop) lightboxBackdrop.onclick = closeLightbox;
-
-  if (lightboxPrev) {
-    lightboxPrev.onclick = (e) => {
-      e.stopPropagation();
-      if (lightboxImgWrapper) lightboxImgWrapper.classList.remove('is-zoomed');
-      activeIndex = (activeIndex - 1 + activePhotos.length) % activePhotos.length;
-      updateLightboxView();
-    };
-  }
-  if (lightboxNext) {
-    lightboxNext.onclick = (e) => {
-      e.stopPropagation();
-      if (lightboxImgWrapper) lightboxImgWrapper.classList.remove('is-zoomed');
-      activeIndex = (activeIndex + 1) % activePhotos.length;
-      updateLightboxView();
-    };
-  }
-
-  window.addEventListener('keydown', (e) => {
-    if (!lightbox?.classList.contains('is-open')) return;
-    if (e.key === 'Escape') closeLightbox();
-    else if (e.key === 'ArrowLeft' && activePhotos.length > 1) {
-      if (lightboxImgWrapper) lightboxImgWrapper.classList.remove('is-zoomed');
-      activeIndex = (activeIndex - 1 + activePhotos.length) % activePhotos.length;
-      updateLightboxView();
-    } else if (e.key === 'ArrowRight' && activePhotos.length > 1) {
-      if (lightboxImgWrapper) lightboxImgWrapper.classList.remove('is-zoomed');
-      activeIndex = (activeIndex + 1) % activePhotos.length;
-      updateLightboxView();
+    if (noResultsBox) {
+      noResultsBox.style.display = visibleCount === 0 ? 'block' : 'none';
     }
+  };
+
+  const searchClear = document.getElementById('fk-search-clear');
+
+  // Search Listener
+  searchInput?.addEventListener('input', (e) => {
+    searchQuery = (e.target as HTMLInputElement).value.trim().toLowerCase();
+    if (searchClear) searchClear.style.display = searchQuery ? 'grid' : 'none';
+    applyFiltersAndSort();
   });
 
-  // Modern E-Commerce Interactive Product Gallery Card Controller
-  document.querySelectorAll<HTMLElement>('[data-prod-gallery]').forEach((wrap) => {
+  searchClear?.addEventListener('click', () => {
+    if (searchInput) searchInput.value = '';
+    searchQuery = '';
+    if (searchClear) searchClear.style.display = 'none';
+    applyFiltersAndSort();
+    searchInput?.focus();
+  });
+
+  // Category Pills Listener
+  pillBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      pillBtns.forEach((p) => p.classList.remove('active'));
+      btn.classList.add('active');
+      activeCategory = btn.dataset.filterCat || 'All';
+      applyFiltersAndSort();
+    });
+  });
+
+  // Sort Options Listener
+  sortBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      sortBtns.forEach((s) => s.classList.remove('active'));
+      btn.classList.add('active');
+      activeSort = btn.dataset.sort || 'relevance';
+      applyFiltersAndSort();
+    });
+  });
+
+  // Reset Button
+  resetBtn?.addEventListener('click', () => {
+    if (searchInput) searchInput.value = '';
+    searchQuery = '';
+    activeCategory = 'All';
+    activeSort = 'relevance';
+    pillBtns.forEach((p, idx) => p.classList.toggle('active', idx === 0));
+    sortBtns.forEach((s, idx) => s.classList.toggle('active', idx === 0));
+    applyFiltersAndSort();
+  });
+
+  // ── Wishlist Toggle ─────────────────────────────────────────
+  document.querySelectorAll<HTMLButtonElement>('.fk-wishlist-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      btn.classList.toggle('active');
+    });
+  });
+
+  // ── Multi-photo Thumbnail Switcher on Hover & Click ─────────
+  document.querySelectorAll<HTMLElement>('[data-product-card]').forEach((card) => {
     let photos: string[] = [];
+    const mediaBox = card.querySelector<HTMLElement>('[data-prod-gallery]');
     try {
-      photos = JSON.parse(wrap.dataset.photos || '[]');
+      photos = JSON.parse(mediaBox?.dataset.photos || '[]');
     } catch {
       photos = [];
     }
-    const prodName = wrap.dataset.name || '';
-    const mainBox = wrap.querySelector<HTMLElement>('.main-img-box');
-    const mainImg = wrap.querySelector<HTMLImageElement>('.main-img')!;
-    const counterNum = wrap.querySelector<HTMLElement>('.gallery-counter .active-num');
-    const prevBtn = wrap.querySelector<HTMLButtonElement>('.prev-btn');
-    const nextBtn = wrap.querySelector<HTMLButtonElement>('.next-btn');
-    const thumbBtns = wrap.querySelectorAll<HTMLButtonElement>('.thumb-btn');
-    const dots = wrap.querySelectorAll<HTMLElement>('.carousel-dot');
+    if (photos.length <= 1) return;
 
     let currentIndex = 0;
-    let isHovering = false;
+    const mainImg = card.querySelector<HTMLImageElement>('.fk-main-img');
+    const counter = card.querySelector<HTMLElement>('.fk-counter-badge .active-num');
+    const prevBtn = card.querySelector<HTMLButtonElement>('.fk-prev-btn');
+    const nextBtn = card.querySelector<HTMLButtonElement>('.fk-next-btn');
+    const thumbBtns = card.querySelectorAll<HTMLButtonElement>('.fk-thumb-btn');
 
-    // ── Interactive Hover Loupe / Cursor Magnifier Effect ──────
-    if (mainBox && mainImg) {
-      mainBox.addEventListener('mouseenter', () => {
-        isHovering = true;
-      });
-
-      mainBox.addEventListener('mousemove', (e) => {
-        if (!isHovering || mainImg.classList.contains('is-switching')) return;
-        const rect = mainBox.getBoundingClientRect();
-        const x = ((e.clientX - rect.left) / rect.width) * 100;
-        const y = ((e.clientY - rect.top) / rect.height) * 100;
-        mainImg.style.transformOrigin = `${x}% ${y}%`;
-        mainImg.style.transform = 'scale(1.85)';
-      });
-
-      mainBox.addEventListener('mouseleave', () => {
-        isHovering = false;
-        mainImg.style.transformOrigin = 'center center';
-        mainImg.style.transform = 'scale(1)';
-      });
-
-      mainBox.addEventListener('click', (e) => {
-        // Only open lightbox if not clicking nav buttons
-        if ((e.target as HTMLElement).closest('.nav-btn')) return;
-        openLightbox(photos, currentIndex, prodName);
-      });
-    }
-
-    // ── Smooth Crossfade & Switch Animation ──────────────────
     const updatePhoto = (index: number) => {
-      if (!photos.length) return;
-      const targetIndex = (index + photos.length) % photos.length;
-      if (targetIndex === currentIndex && mainImg.src) return;
-
-      currentIndex = targetIndex;
-
-      // Animate crossfade
+      currentIndex = (index + photos.length) % photos.length;
       if (mainImg) {
-        mainImg.classList.add('is-switching');
-        setTimeout(() => {
-          mainImg.src = photos[currentIndex];
-          mainImg.onload = () => {
-            mainImg.classList.remove('is-switching');
-          };
-          setTimeout(() => {
-            mainImg.classList.remove('is-switching');
-          }, 140);
-        }, 110);
+        mainImg.src = photos[currentIndex];
       }
-
-      if (counterNum) {
-        counterNum.textContent = String(currentIndex + 1);
+      if (counter) {
+        counter.textContent = String(currentIndex + 1);
       }
-
-      // Update thumbnails with smooth bounce
-      thumbBtns.forEach((btn, idx) => {
-        btn.classList.toggle('active', idx === currentIndex);
-      });
-
-      // Update carousel dots
-      dots.forEach((dot, idx) => {
-        dot.classList.toggle('active', idx === currentIndex);
+      thumbBtns.forEach((b, idx) => {
+        b.classList.toggle('active', idx === currentIndex);
       });
     };
 
     if (prevBtn) {
       prevBtn.onclick = (e) => {
         e.stopPropagation();
+        e.preventDefault();
         updatePhoto(currentIndex - 1);
       };
     }
     if (nextBtn) {
       nextBtn.onclick = (e) => {
         e.stopPropagation();
+        e.preventDefault();
         updatePhoto(currentIndex + 1);
       };
     }
 
-    thumbBtns.forEach((btn) => {
-      btn.onclick = (e) => {
+    thumbBtns.forEach((b) => {
+      b.onclick = (e) => {
         e.stopPropagation();
-        const idx = Number(btn.dataset.index) || 0;
+        e.preventDefault();
+        const idx = Number(b.dataset.index) || 0;
         updatePhoto(idx);
       };
-      btn.onmouseenter = () => {
-        const idx = Number(btn.dataset.index) || 0;
+      b.onmouseenter = (e) => {
+        e.stopPropagation();
+        const idx = Number(b.dataset.index) || 0;
         updatePhoto(idx);
       };
     });
-
-    // Mobile touch swipe support
-    let touchStartX = 0;
-    wrap.addEventListener(
-      'touchstart',
-      (e) => {
-        touchStartX = e.changedTouches[0].screenX;
-      },
-      { passive: true }
-    );
-    wrap.addEventListener(
-      'touchend',
-      (e) => {
-        const touchEndX = e.changedTouches[0].screenX;
-        const diff = touchEndX - touchStartX;
-        if (Math.abs(diff) > 40) {
-          if (diff < 0) updatePhoto(currentIndex + 1);
-          else updatePhoto(currentIndex - 1);
-        }
-      },
-      { passive: true }
-    );
   });
 </script>

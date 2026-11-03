@@ -170,7 +170,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { name: 'in_stock', label: 'In stock', type: 'bool' },
       { name: 'published', label: 'Published', type: 'bool' },
     ],
-    publicUrl: () => '/products',
+    publicUrl: (r) => `/products/${r.slug}`,
     fields: [
       { name: 'name', label: 'Name', type: 'text', required: true, half: true },
       { name: 'slug', label: 'Product code / ID', type: 'slug', required: true, half: true },
