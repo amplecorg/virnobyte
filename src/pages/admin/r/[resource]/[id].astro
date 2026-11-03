@@ -24,6 +24,12 @@ const DEFAULTS: Record<string, any> = {
   card_pattern: 'circuit', employment_type: 'FULL_TIME', location: 'Chikhali, Pimpri-Chinchwad', condition: 'New', topic: 'General',
   group_name: 'Repair & support', published_at: new Date().toISOString().slice(0, 10), posted_at: new Date().toISOString().slice(0, 10),
   benefits: '[]', images: '[]', category: def.key === 'projects' ? 'cctv-projects' : '',
+  rating: '4.5', rating_count: '128 Ratings & 42 Reviews', badge: 'Assured',
+  offer_tag: 'Extra ₹1,000 off with Virnobyte Card',
+  warranty: '1 Year Virnobyte Warranty', replacement_policy: '7-Day Replacement Guarantee',
+  diagnostic_setup: 'Free On-Site Diagnostic Setup', delivery_text: 'Free Delivery by Tomorrow',
+  delivery_sub: 'Doorstep setup & testing in PCMC & Pune',
+  wow_deal: 'Exchange Old Laptop / PC & save up to ₹15,000',
 };
 if (isNew) row = Object.fromEntries(def.fields.map((f) => [f.name, DEFAULTS[f.name] ?? '']));
 

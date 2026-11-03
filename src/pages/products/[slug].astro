@@ -98,7 +98,7 @@ const crumbs = [
 
               <div class="fk-trust-shield-pill">
                 <span class="fk-shield-icon">🛡️</span>
-                <span>Trust Shield • Verified</span>
+                <span>{p.badge ? `Virnobyte • ${p.badge}` : 'Trust Shield • Verified'}</span>
               </div>
 
               {hasMultiple && (
@@ -161,12 +161,12 @@ const crumbs = [
           {/* Ratings & Reviews Pill */}
           <div class="fk-detail-rating-row">
             <div class="fk-rating-pill-green">
-              <span>4.5</span>
+              <span>{p.rating || '4.5'}</span>
               <span class="fk-star-icon">★</span>
             </div>
-            <span class="fk-rating-text">128 Ratings &amp; 42 Customer Reviews</span>
+            <span class="fk-rating-text">{p.rating_count || '128 Ratings & 42 Customer Reviews'}</span>
             <span class="fk-sep-dot">•</span>
-            <span class="fk-assured-tag">✓ Virnobyte Assured</span>
+            <span class="fk-assured-tag">✓ Virnobyte {p.badge || 'Assured'}</span>
           </div>
 
           {/* Flipkart Price Box */}
@@ -183,12 +183,16 @@ const crumbs = [
               )}
             </div>
 
-            <div class="fk-discount-callout">
-              <span>🏷️ ₹1,000 extra off with Virnobyte Card</span>
-            </div>
-            <div class="fk-fee-note">
-              <span>+ Free Onsite Diagnostic &amp; Windows Setup Included</span>
-            </div>
+            {p.offer_tag && (
+              <div class="fk-discount-callout">
+                <span>🏷️ {p.offer_tag}</span>
+              </div>
+            )}
+            {p.diagnostic_setup && (
+              <div class="fk-fee-note">
+                <span>+ {p.diagnostic_setup} Included</span>
+              </div>
+            )}
           </div>
 
           {/* Flipkart WOW! DEAL & Offers Card */}
@@ -196,7 +200,7 @@ const crumbs = [
             <div class="fk-offer-heading">
               <span class="fk-wow-tag">WOW! DEAL</span>
               <span class="fk-wow-text">
-                Exchange Old Laptop / PC &amp; save up to <strong>₹15,000</strong>
+                {p.wow_deal || 'Exchange Old Laptop / PC & save up to ₹15,000'}
               </span>
             </div>
 
@@ -223,33 +227,39 @@ const crumbs = [
               <span>Deliver to: <strong>Pune &amp; PCMC (411019, 411062, 411033...)</strong></span>
             </div>
             <p class="fk-delivery-promise">
-              🚚 <strong>Free Doorstep Delivery by Tomorrow</strong> — Delivered, unboxed, and demonstrated by our certified technician.
+              🚚 <strong>{p.delivery_text || 'Free Doorstep Delivery by Tomorrow'}</strong> — {p.delivery_sub || 'Delivered, unboxed, and demonstrated by our certified technician.'}
             </p>
           </div>
 
           {/* Services & Guarantees */}
           <div class="fk-services-strip">
-            <div class="fk-service-cell">
-              <Icon name="shield" size={20} class="fk-serv-icon" />
-              <div class="fk-serv-text">
-                <strong>1 Year Warranty</strong>
-                <span>Comprehensive repair &amp; parts</span>
+            {p.warranty && (
+              <div class="fk-service-cell">
+                <Icon name="shield" size={20} class="fk-serv-icon" />
+                <div class="fk-serv-text">
+                  <strong>Warranty</strong>
+                  <span>{p.warranty}</span>
+                </div>
               </div>
-            </div>
-            <div class="fk-service-cell">
-              <Icon name="clock" size={20} class="fk-serv-icon" />
-              <div class="fk-serv-text">
-                <strong>7 Days Replacement</strong>
-                <span>Hassle-free exchange guarantee</span>
+            )}
+            {p.replacement_policy && (
+              <div class="fk-service-cell">
+                <Icon name="clock" size={20} class="fk-serv-icon" />
+                <div class="fk-serv-text">
+                  <strong>Replacement</strong>
+                  <span>{p.replacement_policy}</span>
+                </div>
               </div>
-            </div>
-            <div class="fk-service-cell">
-              <Icon name="wrench" size={20} class="fk-serv-icon" />
-              <div class="fk-serv-text">
-                <strong>Doorstep Setup</strong>
-                <span>OS, software &amp; drivers ready</span>
+            )}
+            {p.diagnostic_setup && (
+              <div class="fk-service-cell">
+                <Icon name="wrench" size={20} class="fk-serv-icon" />
+                <div class="fk-serv-text">
+                  <strong>Diagnostic / Setup</strong>
+                  <span>{p.diagnostic_setup}</span>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* ── Sorted Product Specifications (Flipkart Highlights) ── */}

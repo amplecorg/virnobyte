@@ -149,10 +149,12 @@ const categories = ['All', ...new Set(items.map((p) => p.category as string))];
                         </div>
                       )}
 
-                      <div class="fk-assured-badge" title="Virnobyte Assured - 100% Genuine & Tested">
-                        <span class="fk-assured-tick">✓</span>
-                        <span class="fk-assured-text">Assured</span>
-                      </div>
+                      {p.badge && (
+                        <div class="fk-assured-badge" title={`Virnobyte ${p.badge} - 100% Genuine & Tested`}>
+                          <span class="fk-assured-tick">✓</span>
+                          <span class="fk-assured-text">{p.badge}</span>
+                        </div>
+                      )}
 
                       {hasMultiple && (
                         <>
@@ -210,10 +212,10 @@ const categories = ['All', ...new Set(items.map((p) => p.category as string))];
 
                     <div class="fk-rating-row">
                       <div class="fk-rating-pill">
-                        <span>4.5</span>
+                        <span>{p.rating || '4.5'}</span>
                         <span class="fk-star">★</span>
                       </div>
-                      <span class="fk-rating-count">128 Ratings &amp; 42 Reviews</span>
+                      <span class="fk-rating-count">{p.rating_count || '128 Ratings & 42 Reviews'}</span>
                     </div>
 
                     {/* Sorted Specifications Bullet List */}
@@ -234,18 +236,24 @@ const categories = ['All', ...new Set(items.map((p) => p.category as string))];
                     </ul>
 
                     <div class="fk-trust-row">
-                      <span class="fk-trust-item">
-                        <Icon name="shield" size={14} />
-                        <span>1 Year Virnobyte Warranty</span>
-                      </span>
-                      <span class="fk-trust-item">
-                        <Icon name="clock" size={14} />
-                        <span>7-Day Replacement Guarantee</span>
-                      </span>
-                      <span class="fk-trust-item">
-                        <Icon name="wrench" size={14} />
-                        <span>Free On-Site Diagnostic Setup</span>
-                      </span>
+                      {p.warranty && (
+                        <span class="fk-trust-item">
+                          <Icon name="shield" size={14} />
+                          <span>{p.warranty}</span>
+                        </span>
+                      )}
+                      {p.replacement_policy && (
+                        <span class="fk-trust-item">
+                          <Icon name="clock" size={14} />
+                          <span>{p.replacement_policy}</span>
+                        </span>
+                      )}
+                      {p.diagnostic_setup && (
+                        <span class="fk-trust-item">
+                          <Icon name="wrench" size={14} />
+                          <span>{p.diagnostic_setup}</span>
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -270,13 +278,15 @@ const categories = ['All', ...new Set(items.map((p) => p.category as string))];
                         <span>Special Price</span>
                       </div>
 
-                      <p class="fk-offer-text">
-                        🏷️ <strong>Extra ₹1,000 off</strong> with Virnobyte Card
-                      </p>
+                      {p.offer_tag && (
+                        <p class="fk-offer-text">
+                          🏷️ <strong>{p.offer_tag}</strong>
+                        </p>
+                      )}
 
                       <div class="fk-delivery-text">
-                        <strong>Free Delivery by Tomorrow</strong>
-                        <span>Doorstep setup &amp; testing in PCMC &amp; Pune</span>
+                        <strong>{p.delivery_text || 'Free Delivery by Tomorrow'}</strong>
+                        <span>{p.delivery_sub || 'Doorstep setup & testing in PCMC & Pune'}</span>
                       </div>
                     </div>
 

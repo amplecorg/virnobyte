@@ -181,6 +181,16 @@ export interface Product {
   condition: string;
   image: string;
   images: string[];
+  rating: string;
+  rating_count: string;
+  badge: string;
+  offer_tag: string;
+  warranty: string;
+  replacement_policy: string;
+  diagnostic_setup: string;
+  delivery_text: string;
+  delivery_sub: string;
+  wow_deal: string;
   in_stock: number;
   published: number;
   sort: number;
@@ -193,6 +203,16 @@ export const hydrateProduct = (r: any): Product => {
     ...r,
     image: images[0] || r.image || '',
     images,
+    rating: r.rating || '4.5',
+    rating_count: r.rating_count || '128 Ratings & 42 Reviews',
+    badge: r.badge || 'Assured',
+    offer_tag: r.offer_tag || 'Extra ₹1,000 off with Virnobyte Card',
+    warranty: r.warranty || '1 Year Virnobyte Warranty',
+    replacement_policy: r.replacement_policy || '7-Day Replacement Guarantee',
+    diagnostic_setup: r.diagnostic_setup || 'Free On-Site Diagnostic Setup',
+    delivery_text: r.delivery_text || 'Free Delivery by Tomorrow',
+    delivery_sub: r.delivery_sub || 'Doorstep setup & testing in PCMC & Pune',
+    wow_deal: r.wow_deal || 'Exchange Old Laptop / PC & save up to ₹15,000',
   };
 };
 
