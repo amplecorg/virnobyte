@@ -1,0 +1,7 @@
+---
+const prod = Astro.url.searchParams.get('product') || Astro.url.searchParams.get('slug');
+if (prod) {
+  return Astro.redirect(`/checkout/${encodeURIComponent(prod)}`, 302);
+}
+return Astro.redirect('/products', 302);
+---

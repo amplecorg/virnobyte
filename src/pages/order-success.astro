@@ -1,0 +1,330 @@
+---
+import Base from '@/layouts/Base.astro';
+import Icon from '@/components/Icon.astro';
+import { get } from '@/lib/db';
+import { contactInfo } from '@/lib/settings';
+import { inr } from '@/lib/format';
+
+const orderId = Astro.url.searchParams.get('order_id');
+if (!orderId) {
+  return Astro.redirect('/products', 302);
+}
+
+const order = get<any>('SELECT * FROM orders WHERE order_id = ?', orderId);
+if (!order) {
+  return Astro.redirect('/products', 302);
+}
+
+const c = contactInfo();
+const isPaid = order.payment_status === 'PAID';
+const isCod = order.payment_method === 'cod';
+
+const whatsappTrackUrl = c.whatsappUrl(
+  `Hi ${c.name}, I placed an order on the website! Order ID: ${order.order_id} (${order.product_name}, Amount: ${inr(order.total_amount)}). Please confirm dispatch and technician visit.`
+);
+---
+
+<Base
+  title={`Order Confirmed: ${order.order_id} | Virnobyte`}
+  description="Your order has been placed successfully with Virnobyte."
+>
+  <div class="fk-success-page">
+    <div class="wrap wrap--narrow">
+      <div class="fk-success-card">
+        {/* Animated Checkmark Circle */}
+        <div class="fk-success-icon-wrap">
+          <div class="fk-checkmark-circle">
+            <span class="fk-checkmark">✓</span>
+          </div>
+        </div>
+
+        <h1 class="fk-success-heading">Order Placed Successfully!</h1>
+        <p class="fk-success-sub">
+          Thank you for choosing <strong>Virnobyte Assured</strong>. Your order is confirmed and our technician is preparing your system for delivery.
+        </p>
+
+        {/* Order Details Summary Box */}
+        <div class="fk-order-summary-box">
+          <div class="fk-sum-row">
+            <span class="fk-sum-label">Order Reference ID:</span>
+            <span class="fk-sum-value fk-code">{order.order_id}</span>
+          </div>
+
+          <div class="fk-sum-row">
+            <span class="fk-sum-label">Item Ordered:</span>
+            <span class="fk-sum-value"><strong>{order.product_name}</strong> (Qty: {order.quantity})</span>
+          </div>
+
+          <div class="fk-sum-row">
+            <span class="fk-sum-label">Total Amount:</span>
+            <span class="fk-sum-value fk-price-val">{inr(order.total_amount)}</span>
+          </div>
+
+          <div class="fk-sum-row">
+            <span class="fk-sum-label">Payment Mode:</span>
+            <span class="fk-sum-value">
+              {isPaid ? (
+                <span class="fk-status-pill paid">✓ Paid via Cashfree</span>
+              ) : isCod ? (
+                <span class="fk-status-pill cod">🕒 Cash on Delivery (Pay at Doorstep)</span>
+              ) : (
+                <span class="fk-status-pill pending">⏳ Payment Pending</span>
+              )}
+            </span>
+          </div>
+
+          <div class="fk-sum-row">
+            <span class="fk-sum-label">Estimated Delivery:</span>
+            <span class="fk-sum-value fk-green-val">🚚 Tomorrow by 6:00 PM (Doorstep Setup &amp; Testing)</span>
+          </div>
+
+          <div class="fk-sum-row">
+            <span class="fk-sum-label">Delivering To:</span>
+            <span class="fk-sum-value fk-address-val">
+              {order.customer_name} ({order.customer_phone})<br />
+              {order.address_line1}, {order.address_line2 ? order.address_line2 + ', ' : ''}{order.city} - {order.pincode} ({order.state})
+            </span>
+          </div>
+        </div>
+
+        {/* Next Steps Card */}
+        <div class="fk-next-steps">
+          <h3>What happens next?</h3>
+          <ol>
+            <li><strong>35-Point Diagnostic:</strong> Our technician runs hardware burn-in benchmarks, checks all ports, and prepares genuine OS &amp; software.</li>
+            <li><strong>Doorstep Arrival:</strong> We dispatch your order in safe anti-static packaging directly to your doorstep.</li>
+            <li><strong>On-Site Setup:</strong> Our engineer unboxes, powers on, and tests your hardware in front of you.</li>
+          </ol>
+        </div>
+
+        {/* Action Buttons */}
+        <div class="fk-success-actions">
+          <a href={whatsappTrackUrl} target="_blank" rel="noopener" class="fk-btn-track-wa">
+            <Icon name="whatsapp" size={20} />
+            <span>Track Order on WhatsApp</span>
+          </a>
+
+          <a href="/products" class="fk-btn-continue">
+            <span>Continue Shopping</span>
+            <span>➔</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</Base>
+
+<style>
+  .fk-success-page {
+    background: #f1f3f6;
+    min-height: 85vh;
+    padding: 40px 0 80px;
+  }
+  .wrap--narrow {
+    max-width: 680px;
+  }
+  .fk-success-card {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 40px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    text-align: center;
+    border: 1px solid #e0e0e0;
+  }
+  .fk-success-icon-wrap {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+  }
+  .fk-checkmark-circle {
+    width: 72px;
+    height: 72px;
+    background: #e8f5e9;
+    border: 3px solid #2e7d32;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    animation: scaleIn 0.35s ease-out;
+  }
+  @keyframes scaleIn {
+    0% { transform: scale(0.6); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .fk-checkmark {
+    color: #2e7d32;
+    font-size: 38px;
+    font-weight: 800;
+    line-height: 1;
+  }
+  .fk-success-heading {
+    font-size: 1.85rem;
+    font-weight: 800;
+    color: #212121;
+    margin: 0 0 10px;
+  }
+  .fk-success-sub {
+    font-size: 15px;
+    color: #616161;
+    margin: 0 0 28px;
+    line-height: 1.5;
+  }
+
+  /* Summary Box */
+  .fk-order-summary-box {
+    background: #fafafa;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: left;
+    margin-bottom: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .fk-sum-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    gap: 14px;
+    border-bottom: 1px dashed #e8e8e8;
+    padding-bottom: 8px;
+  }
+  .fk-sum-row:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+  .fk-sum-label {
+    color: #757575;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .fk-sum-value {
+    color: #212121;
+    text-align: right;
+  }
+  .fk-code {
+    font-family: monospace;
+    font-weight: 800;
+    color: #2874f0;
+  }
+  .fk-price-val {
+    font-weight: 800;
+    font-size: 1.15rem;
+    color: #212121;
+  }
+  .fk-green-val {
+    color: #2e7d32;
+    font-weight: 700;
+  }
+  .fk-address-val {
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .fk-status-pill {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 700;
+    display: inline-block;
+  }
+  .fk-status-pill.paid {
+    background: #e8f5e9;
+    color: #2e7d32;
+  }
+  .fk-status-pill.cod {
+    background: #fff8e1;
+    color: #f57f17;
+  }
+  .fk-status-pill.pending {
+    background: #e3f2fd;
+    color: #1976d2;
+  }
+
+  /* Next steps */
+  .fk-next-steps {
+    background: #fdfdfd;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 18px 24px;
+    text-align: left;
+    margin-bottom: 28px;
+  }
+  .fk-next-steps h3 {
+    font-size: 14px;
+    font-weight: 800;
+    color: #212121;
+    margin: 0 0 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .fk-next-steps ol {
+    margin: 0;
+    padding-left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 13.5px;
+    color: #616161;
+    line-height: 1.45;
+  }
+
+  /* Actions */
+  .fk-success-actions {
+    display: flex;
+    gap: 14px;
+    justify-content: center;
+  }
+  .fk-btn-track-wa {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #25d366;
+    color: #ffffff;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 14.5px;
+    padding: 12px 22px;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3);
+    transition: all 0.2s ease;
+  }
+  .fk-btn-track-wa:hover {
+    background: #1eb855;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(37, 211, 102, 0.4);
+  }
+  .fk-btn-continue {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #ffffff;
+    color: #2874f0;
+    border: 1px solid #2874f0;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 14px;
+    padding: 12px 22px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+  }
+  .fk-btn-continue:hover {
+    background: #f4f8ff;
+  }
+
+  @media (max-width: 600px) {
+    .fk-success-card {
+      padding: 24px 18px;
+    }
+    .fk-sum-row {
+      flex-direction: column;
+      gap: 4px;
+    }
+    .fk-sum-value {
+      text-align: left;
+    }
+    .fk-success-actions {
+      flex-direction: column;
+    }
+  }
+</style>

@@ -78,6 +78,17 @@ export const DEFAULT_SETTINGS = {
     bingVerification: '',
   },
   announcement: { text: '', href: '' },
+  payments: {
+    enabled: true,
+    gateway: 'cashfree',
+    cashfreeEnv: 'TEST',
+    cashfreeAppId: '',
+    cashfreeSecretKey: '',
+    enableCod: true,
+    enableOnline: true,
+    deliveryFee: 0,
+    minFreeDelivery: 500,
+  },
 };
 
 export type Settings = typeof DEFAULT_SETTINGS;

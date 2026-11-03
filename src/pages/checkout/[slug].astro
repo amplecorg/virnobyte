@@ -1,0 +1,877 @@
+---
+import Base from '@/layouts/Base.astro';
+import Icon from '@/components/Icon.astro';
+import { product, type Product } from '@/lib/data';
+import { contactInfo, getSettings } from '@/lib/settings';
+import { inr } from '@/lib/format';
+import { resolveImage } from '@/lib/images';
+import { getCashfreeConfig } from '@/lib/cashfree';
+
+const { slug } = Astro.params;
+const p = product(slug as string) as Product | undefined;
+
+if (!p) {
+  return Astro.redirect('/products', 302);
+}
+
+const c = contactInfo();
+const settings = getSettings();
+const cfConfig = getCashfreeConfig();
+
+// Helper to resolve images
+function getPhotoUrls(images: string[]) {
+  if (!images || !images.length) return [];
+  return images.map((imgKey) => {
+    const res = resolveImage(imgKey);
+    return res.kind === 'upload' ? res.src : res.meta.src;
+  });
+}
+
+const rawList = Array.isArray(p.images) && p.images.length ? p.images : (p.image ? [p.image] : []);
+const resolvedPhotos = getPhotoUrls(rawList);
+const coverPhoto = resolvedPhotos[0] || '/virnobyte-circuit-board.webp';
+
+const price = p.price || 0;
+const mrp = p.mrp || price;
+const discount = mrp > price ? mrp - price : 0;
+const discountPercent = mrp > price ? Math.round((discount / mrp) * 100) : 0;
+
+// Parse specs
+const specs = (p.summary || '')
+  .split('\n')
+  .map((s) => s.trim().replace(/^[•\-\*]\s*/, ''))
+  .filter(Boolean)
+  .slice(0, 4);
+---
+
+<Base
+  title={`Checkout: ${p.name} | Virnobyte Secure Order`}
+  description={`Order ${p.name} online with secure Cashfree payment gateway, UPI, or Cash on Delivery. Free doorstep delivery in Pune & PCMC.`}
+  canonical={`/checkout/${p.slug}`}
+>
+  <div class="fk-checkout-page">
+    <div class="wrap">
+      {/* ── Checkout Secure Header ───────────────────────────── */}
+      <div class="fk-checkout-header">
+        <a href="/" class="fk-checkout-logo">
+          <img src="/virnobyte-logo.png" alt="Virnobyte" width="28" height="22" />
+          <span>Virnobyte <span class="fk-logo-sub">Assured</span></span>
+        </a>
+
+        <div class="fk-secure-badge">
+          <span class="fk-ssl-icon">🔒</span>
+          <span>100% Safe &amp; Secure Checkout</span>
+        </div>
+      </div>
+
+      {/* ── Main Two-Column Flipkart Checkout Layout ─────────── */}
+      <div class="fk-checkout-grid">
+        {/* Left Column: Flipkart Order Steps Accordion */}
+        <div class="fk-checkout-main">
+          {/* STEP 1: Order Item Summary */}
+          <div class="fk-step-card">
+            <div class="fk-step-head active">
+              <span class="fk-step-num">1</span>
+              <span class="fk-step-title">ORDER SUMMARY</span>
+              <span class="fk-step-badge">1 ITEM</span>
+            </div>
+
+            <div class="fk-step-body">
+              <div class="fk-order-item">
+                <div class="fk-item-thumb">
+                  <img src={coverPhoto} alt={p.name} loading="lazy" />
+                </div>
+
+                <div class="fk-item-details">
+                  <h2 class="fk-item-title">{p.name}</h2>
+                  <div class="fk-item-meta">
+                    <span class="fk-item-category">Category: {p.category}</span>
+                    <span class="fk-item-assured">✓ Virnobyte {p.badge || 'Assured'}</span>
+                  </div>
+
+                  {specs.length > 0 && (
+                    <ul class="fk-item-specs">
+                      {specs.map((s) => <li>• {s}</li>)}
+                    </ul>
+                  )}
+
+                  <div class="fk-item-price-row">
+                    {discountPercent > 0 && (
+                      <span class="fk-item-mrp">{inr(mrp)}</span>
+                    )}
+                    <span class="fk-item-price">{price ? inr(price) : 'Best Price'}</span>
+                    {discountPercent > 0 && (
+                      <span class="fk-item-discount">{discountPercent}% Off</span>
+                    )}
+                  </div>
+
+                  <div class="fk-delivery-promise-chip">
+                    <span>🚚 <strong>{p.delivery_text || 'Free Delivery by Tomorrow'}</strong> — Doorstep setup in PCMC &amp; Pune</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Form wrapper */}
+          <form id="fk-checkout-form" class="fk-form">
+            <input type="hidden" name="slug" value={p.slug} />
+            <input type="hidden" name="quantity" id="fk-qty-input" value="1" />
+
+            {/* STEP 2: Delivery Address */}
+            <div class="fk-step-card">
+              <div class="fk-step-head active">
+                <span class="fk-step-num">2</span>
+                <span class="fk-step-title">DELIVERY ADDRESS</span>
+              </div>
+
+              <div class="fk-step-body">
+                <div class="fk-form-grid">
+                  <div class="fk-field">
+                    <label for="cust-name">Full Name <span class="req">*</span></label>
+                    <input type="text" id="cust-name" name="customerName" placeholder="e.g. Rahul Sharma" required />
+                  </div>
+
+                  <div class="fk-field">
+                    <label for="cust-phone">10-Digit Mobile Number <span class="req">*</span></label>
+                    <input type="tel" id="cust-phone" name="customerPhone" placeholder="10-digit mobile number" pattern="[0-9]{10}" maxlength="10" required />
+                  </div>
+
+                  <div class="fk-field">
+                    <label for="cust-pincode">Pincode <span class="req">*</span></label>
+                    <input type="text" id="cust-pincode" name="pincode" placeholder="e.g. 411062, 411019" maxlength="6" required />
+                  </div>
+
+                  <div class="fk-field">
+                    <label for="cust-email">Email Address (for invoice receipt)</label>
+                    <input type="email" id="cust-email" name="customerEmail" placeholder="e.g. rahul@example.com" />
+                  </div>
+
+                  <div class="fk-field fk-full">
+                    <label for="cust-address1">Flat, House no., Building, Apartment <span class="req">*</span></label>
+                    <input type="text" id="cust-address1" name="addressLine1" placeholder="Flat No. 402, Building A, Sai Residency" required />
+                  </div>
+
+                  <div class="fk-field fk-full">
+                    <label for="cust-address2">Area, Street, Sector, Village, Landmark</label>
+                    <input type="text" id="cust-address2" name="addressLine2" placeholder="Near Bright Computer Education, Mahadev Temple Road, Jadhav Wadi, Chikhali" />
+                  </div>
+
+                  <div class="fk-field">
+                    <label for="cust-city">City / District <span class="req">*</span></label>
+                    <input type="text" id="cust-city" name="city" value="Pimpri-Chinchwad, Pune" required />
+                  </div>
+
+                  <div class="fk-field">
+                    <label for="cust-state">State <span class="req">*</span></label>
+                    <input type="text" id="cust-state" name="state" value="Maharashtra" required />
+                  </div>
+
+                  <div class="fk-field fk-full">
+                    <label>Address Type</label>
+                    <div class="fk-radio-pills">
+                      <label class="fk-pill-label">
+                        <input type="radio" name="addressType" value="Home" checked />
+                        <span>🏠 Home (All day delivery)</span>
+                      </label>
+                      <label class="fk-pill-label">
+                        <input type="radio" name="addressType" value="Work" />
+                        <span>🏢 Work (Delivery between 10 AM - 6 PM)</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* STEP 3: Payment Options */}
+            <div class="fk-step-card">
+              <div class="fk-step-head active">
+                <span class="fk-step-num">3</span>
+                <span class="fk-step-title">PAYMENT OPTIONS</span>
+                <span class="fk-step-badge">CASHFREE / COD</span>
+              </div>
+
+              <div class="fk-step-body">
+                <div class="fk-payment-options">
+                  {/* Cashfree PG */}
+                  {cfConfig.enableOnline && (
+                    <label class="fk-pay-option active" id="pay-opt-cashfree">
+                      <div class="fk-pay-radio">
+                        <input type="radio" name="paymentMethod" value="cashfree" checked />
+                      </div>
+                      <div class="fk-pay-info">
+                        <div class="fk-pay-title-row">
+                          <span class="fk-pay-name">UPI / Credit &amp; Debit Card / NetBanking / Wallets</span>
+                          <span class="fk-rec-tag">Recommended</span>
+                        </div>
+                        <p class="fk-pay-desc">
+                          Pay securely via <strong>Cashfree Payment Gateway</strong>. Supports Google Pay, PhonePe, Paytm, BHIM, all major bank cards, and NetBanking.
+                        </p>
+                        <div class="fk-pay-icons">
+                          <span class="fk-icon-pill">GPay</span>
+                          <span class="fk-icon-pill">PhonePe</span>
+                          <span class="fk-icon-pill">Paytm</span>
+                          <span class="fk-icon-pill">UPI</span>
+                          <span class="fk-icon-pill">Cards</span>
+                          <span class="fk-icon-pill">NetBanking</span>
+                        </div>
+                      </div>
+                    </label>
+                  )}
+
+                  {/* Cash on Delivery (COD) */}
+                  {cfConfig.enableCod && (
+                    <label class="fk-pay-option" id="pay-opt-cod">
+                      <div class="fk-pay-radio">
+                        <input type="radio" name="paymentMethod" value="cod" />
+                      </div>
+                      <div class="fk-pay-info">
+                        <div class="fk-pay-title-row">
+                          <span class="fk-pay-name">Cash on Delivery (Pay at Doorstep)</span>
+                        </div>
+                        <p class="fk-pay-desc">
+                          Pay via cash or UPI to our technician after doorstep delivery, unboxing, and testing of your hardware.
+                        </p>
+                      </div>
+                    </label>
+                  )}
+                </div>
+
+                <div class="fk-order-notes-box">
+                  <label for="cust-notes">Order Notes or Technician Requests (optional)</label>
+                  <textarea id="cust-notes" name="notes" rows="2" placeholder="e.g. Please bring an HDMI cable, or install Windows 11 Chrome & MS Office."></textarea>
+                </div>
+
+                {/* Submit button bar */}
+                <div class="fk-submit-bar">
+                  <button type="submit" id="fk-btn-place-order" class="fk-btn-submit">
+                    <span>COMPLETE ORDER • {price ? inr(price) : 'SUBMIT'}</span>
+                    <span class="fk-arrow-btn">➔</span>
+                  </button>
+                  <p class="fk-submit-guarantee">
+                    🛡️ By placing this order, you agree to Virnobyte's <a href="/terms-and-conditions" target="_blank">Terms of Service</a> &amp; 7-Day Replacement Policy.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        {/* Right Column: Sticky Flipkart Price Details Card */}
+        <aside class="fk-checkout-sidebar">
+          <div class="fk-price-card">
+            <h3 class="fk-price-head">PRICE DETAILS</h3>
+
+            <div class="fk-price-rows">
+              <div class="fk-prow">
+                <span>Price (1 item)</span>
+                <span>{inr(mrp)}</span>
+              </div>
+
+              {discount > 0 && (
+                <div class="fk-prow">
+                  <span>Discount</span>
+                  <span class="fk-green-text">− {inr(discount)}</span>
+                </div>
+              )}
+
+              <div class="fk-prow">
+                <span>Delivery Charges</span>
+                <span class="fk-green-text">FREE</span>
+              </div>
+
+              <div class="fk-prow">
+                <span>Doorstep Installation &amp; Demo</span>
+                <span class="fk-green-text">FREE</span>
+              </div>
+
+              <div class="fk-total-row">
+                <span>Total Amount</span>
+                <span class="fk-final-total">{price ? inr(price) : 'Best Price'}</span>
+              </div>
+            </div>
+
+            {discount > 0 && (
+              <div class="fk-saving-box">
+                <span>🎉 You will save <strong>{inr(discount)}</strong> on this order!</span>
+              </div>
+            )}
+
+            <div class="fk-trust-assurances">
+              <div class="fk-assure-item">
+                <span class="fk-assure-icon">🛡️</span>
+                <span>Safe and Secure Payments via Cashfree</span>
+              </div>
+              <div class="fk-assure-item">
+                <span class="fk-assure-icon">✔️</span>
+                <span>100% Authentic Products &amp; Warranty</span>
+              </div>
+              <div class="fk-assure-item">
+                <span class="fk-assure-icon">🔄</span>
+                <span>7-Day Replacement Guarantee</span>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  {/* Cashfree v3 drop-in JS SDK */}
+  <script is:inline src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
+
+  <script is:inline>
+    (function () {
+      const form = document.getElementById('fk-checkout-form');
+      const submitBtn = document.getElementById('fk-btn-place-order');
+      const payOptions = document.querySelectorAll('.fk-pay-option');
+
+      // Radio selection highlight
+      payOptions.forEach((opt) => {
+        opt.addEventListener('click', () => {
+          payOptions.forEach((o) => o.classList.remove('active'));
+          opt.classList.add('active');
+        });
+      });
+
+      if (!form) return;
+
+      form.addEventListener('submit', async function (e) {
+        e.preventDefault();
+
+        const btnText = submitBtn.querySelector('span');
+        const origText = btnText ? btnText.textContent : 'COMPLETE ORDER';
+        if (btnText) btnText.textContent = 'Processing Order...';
+        submitBtn.disabled = true;
+
+        const formData = new FormData(form);
+        const payload = Object.fromEntries(formData.entries());
+
+        try {
+          const res = await fetch('/api/checkout/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+
+          const data = await res.json();
+
+          if (!res.ok || !data.ok) {
+            alert(data.error || 'Failed to process order. Please check your details and try again.');
+            if (btnText) btnText.textContent = origText;
+            submitBtn.disabled = false;
+            return;
+          }
+
+          // Case 1: Cash on Delivery or Test Mode Direct Redirect
+          if (data.paymentMethod === 'cod' || data.isTestMode) {
+            window.location.href = data.redirectUrl;
+            return;
+          }
+
+          // Case 2: Cashfree Live/Sandbox Payment Gateway via SDK
+          if (data.paymentSessionId && typeof window.Cashfree === 'function') {
+            const cashfree = window.Cashfree({
+              mode: data.env === 'PROD' ? 'production' : 'sandbox',
+            });
+
+            cashfree.checkout({
+              paymentSessionId: data.paymentSessionId,
+              redirectTarget: '_self',
+            });
+          } else {
+            // Fallback redirect
+            window.location.href = data.redirectUrl || '/order-success?order_id=' + data.orderId;
+          }
+        } catch (err) {
+          console.error('Checkout error:', err);
+          alert('A network error occurred. Please try again.');
+          if (btnText) btnText.textContent = origText;
+          submitBtn.disabled = false;
+        }
+      });
+    })();
+  </script>
+</Base>
+
+<style>
+  .fk-checkout-page {
+    background: #f1f3f6;
+    min-height: 85vh;
+    padding-top: 20px;
+    padding-bottom: 60px;
+  }
+
+  .fk-checkout-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #ffffff;
+    padding: 14px 24px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  }
+  .fk-checkout-logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    color: #0b2545;
+    font-weight: 800;
+    font-size: 1.15rem;
+  }
+  .fk-logo-sub {
+    color: #2874f0;
+    font-weight: 700;
+    font-style: italic;
+    font-size: 0.95rem;
+  }
+  .fk-secure-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #388e3c;
+    background: #e8f5e9;
+    padding: 6px 12px;
+    border-radius: 999px;
+  }
+
+  /* Two Column Grid */
+  .fk-checkout-grid {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    gap: 20px;
+    align-items: start;
+  }
+
+  /* Step Cards */
+  .fk-step-card {
+    background: #ffffff;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    border: 1px solid #e0e0e0;
+  }
+  .fk-step-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 20px;
+    background: #ffffff;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .fk-step-head.active {
+    background: #2874f0;
+    color: #ffffff;
+  }
+  .fk-step-num {
+    background: #ffffff;
+    color: #2874f0;
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    display: grid;
+    place-items: center;
+    font-weight: 800;
+    font-size: 13px;
+  }
+  .fk-step-title {
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+  }
+  .fk-step-badge {
+    margin-left: auto;
+    font-size: 11px;
+    font-weight: 700;
+    background: rgba(255, 255, 255, 0.2);
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+  .fk-step-body {
+    padding: 20px;
+  }
+
+  /* Order Item */
+  .fk-order-item {
+    display: flex;
+    gap: 18px;
+    align-items: flex-start;
+  }
+  .fk-item-thumb {
+    width: 100px;
+    height: 90px;
+    flex-shrink: 0;
+    background: #fafafa;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .fk-item-thumb img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+  }
+  .fk-item-details {
+    flex: 1;
+  }
+  .fk-item-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #212121;
+    margin: 0 0 6px;
+    line-height: 1.35;
+  }
+  .fk-item-meta {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    font-size: 12px;
+    margin-bottom: 8px;
+  }
+  .fk-item-category {
+    color: #878787;
+  }
+  .fk-item-assured {
+    color: #0284c7;
+    font-weight: 700;
+  }
+  .fk-item-specs {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    font-size: 12.5px;
+    color: #616161;
+  }
+  .fk-item-price-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .fk-item-mrp {
+    color: #878787;
+    text-decoration: line-through;
+    font-size: 13.5px;
+  }
+  .fk-item-price {
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: #212121;
+  }
+  .fk-item-discount {
+    color: #388e3c;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .fk-delivery-promise-chip {
+    font-size: 12.5px;
+    color: #2e7d32;
+    background: #f1f8e9;
+    padding: 6px 10px;
+    border-radius: 4px;
+    display: inline-block;
+  }
+
+  /* Form Fields */
+  .fk-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  .fk-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .fk-field.fk-full {
+    grid-column: 1 / -1;
+  }
+  .fk-field label {
+    font-size: 13px;
+    font-weight: 700;
+    color: #333333;
+  }
+  .fk-field .req {
+    color: #d32f2f;
+  }
+  .fk-field input,
+  .fk-order-notes-box textarea {
+    padding: 10px 14px;
+    border: 1px solid #cfcfcf;
+    border-radius: 6px;
+    font-size: 14px;
+    color: #212121;
+    background: #ffffff;
+    box-sizing: border-box;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    font-family: inherit;
+  }
+  .fk-field input:focus,
+  .fk-order-notes-box textarea:focus {
+    border-color: #2874f0;
+    box-shadow: 0 0 0 3px rgba(40, 116, 240, 0.15);
+    outline: none;
+  }
+
+  /* Radio Pills */
+  .fk-radio-pills {
+    display: flex;
+    gap: 12px;
+  }
+  .fk-pill-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border: 1px solid #dcdcdc;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .fk-pill-label:has(input:checked) {
+    border-color: #2874f0;
+    background: #f4f8ff;
+    color: #2874f0;
+  }
+
+  /* Payment Options */
+  .fk-payment-options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .fk-pay-option {
+    display: flex;
+    gap: 14px;
+    padding: 16px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .fk-pay-option:hover {
+    border-color: #b0c8f5;
+  }
+  .fk-pay-option.active {
+    border-color: #2874f0;
+    background: #f9fbfd;
+    box-shadow: 0 2px 6px rgba(40, 116, 240, 0.08);
+  }
+  .fk-pay-radio {
+    padding-top: 2px;
+  }
+  .fk-pay-info {
+    flex: 1;
+  }
+  .fk-pay-title-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 4px;
+  }
+  .fk-pay-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: #212121;
+  }
+  .fk-rec-tag {
+    background: #e8f5e9;
+    color: #388e3c;
+    font-size: 10.5px;
+    font-weight: 800;
+    padding: 2px 7px;
+    border-radius: 3px;
+    text-transform: uppercase;
+  }
+  .fk-pay-desc {
+    font-size: 12.5px;
+    color: #616161;
+    margin: 0 0 10px;
+    line-height: 1.4;
+  }
+  .fk-pay-icons {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .fk-icon-pill {
+    font-size: 11px;
+    font-weight: 700;
+    background: #f0f0f0;
+    color: #424242;
+    padding: 3px 8px;
+    border-radius: 4px;
+  }
+
+  .fk-order-notes-box {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 20px;
+  }
+  .fk-order-notes-box label {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #616161;
+  }
+
+  /* Submit Bar */
+  .fk-submit-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .fk-btn-submit {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: #fb641b;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    padding: 16px 24px;
+    font-size: 16px;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(251, 100, 27, 0.35);
+    transition: all 0.2s ease;
+  }
+  .fk-btn-submit:hover:not(:disabled) {
+    background: #e5530a;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(251, 100, 27, 0.45);
+  }
+  .fk-btn-submit:disabled {
+    background: #bdbdbd;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  .fk-arrow-btn {
+    font-size: 18px;
+  }
+  .fk-submit-guarantee {
+    font-size: 12px;
+    color: #757575;
+    text-align: center;
+    margin: 0;
+  }
+  .fk-submit-guarantee a {
+    color: #2874f0;
+    text-decoration: underline;
+  }
+
+  /* Sidebar Price Card */
+  .fk-checkout-sidebar {
+    position: sticky;
+    top: 24px;
+  }
+  .fk-price-card {
+    background: #ffffff;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    overflow: hidden;
+  }
+  .fk-price-head {
+    font-size: 13.5px;
+    font-weight: 800;
+    color: #878787;
+    letter-spacing: 0.04em;
+    padding: 16px 20px;
+    margin: 0;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .fk-price-rows {
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .fk-prow {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    color: #212121;
+  }
+  .fk-green-text {
+    color: #388e3c;
+    font-weight: 700;
+  }
+  .fk-total-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #212121;
+    border-top: 1px dashed #e0e0e0;
+    border-bottom: 1px dashed #e0e0e0;
+    padding: 14px 0;
+    margin-top: 4px;
+  }
+  .fk-final-total {
+    color: #2874f0;
+    font-size: 1.35rem;
+  }
+  .fk-saving-box {
+    background: #e8f5e9;
+    color: #2e7d32;
+    padding: 12px 20px;
+    font-size: 13px;
+    font-weight: 600;
+    border-bottom: 1px solid #c8e6c9;
+  }
+  .fk-trust-assurances {
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: #fdfdfd;
+  }
+  .fk-assure-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #616161;
+    font-weight: 600;
+  }
+
+  @media (max-width: 900px) {
+    .fk-checkout-grid {
+      grid-template-columns: 1fr;
+    }
+    .fk-checkout-sidebar {
+      position: static;
+      order: 2;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .fk-form-grid {
+      grid-template-columns: 1fr;
+    }
+    .fk-order-item {
+      flex-direction: column;
+    }
+    .fk-item-thumb {
+      width: 100%;
+      height: 140px;
+    }
+  }
+</style>

@@ -13,6 +13,7 @@ const user = Astro.locals.user!;
 const newEnq = get<{ n: number }>("SELECT COUNT(*) AS n FROM enquiries WHERE status = 'new'")!.n;
 const pending = get<{ n: number }>("SELECT COUNT(*) AS n FROM memberships WHERE status = 'pending'")!.n;
 const pcReq = get<{ n: number }>("SELECT COUNT(*) AS n FROM pc_builds WHERE status IN ('quote','ordered')")!.n;
+const newOrders = get<{ n: number }>("SELECT COUNT(*) AS n FROM orders WHERE order_status = 'CONFIRMED'")?.n ?? 0;
 
 const NAV: { group: string; items: { href: string; label: string; key: string; icon: string; badge?: number }[] }[] = [
   { group: 'Overview', items: [{ href: '/admin', label: 'Dashboard', key: 'dashboard', icon: 'dashboard' }] },
@@ -22,6 +23,14 @@ const NAV: { group: string; items: { href: string; label: string; key: string; i
       { href: '/admin/members', label: 'Members & coins', key: 'members', icon: 'users', badge: pending },
       { href: '/admin/r/plans', label: 'Plans & card design', key: 'plans', icon: 'credit-card' },
       { href: '/admin/settings#coins', label: 'Coin program', key: 'coins', icon: 'coin' },
+    ],
+  },
+  {
+    group: 'E-Commerce & Orders',
+    items: [
+      { href: '/admin/r/orders', label: 'Customer Orders', key: 'orders', icon: 'receipt', badge: newOrders },
+      { href: '/admin/r/products', label: 'Products Catalog', key: 'products', icon: 'shield' },
+      { href: '/admin/settings#payments', label: 'Cashfree & Checkout', key: 'payments', icon: 'credit-card' },
     ],
   },
   {

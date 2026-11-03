@@ -376,6 +376,44 @@ INSERT INTO `products` (`id`, `slug`, `name`, `category`, `summary`, `price`, `m
 (9, 'lap001', 'DELL 15 AMD Ryzen 5 Quad Core 7520U / Intel Core i5 11th Gen — (16 GB / 512 GB SSD / Windows 11 / 15.6" FHD)', 'Laptops', '• Processor: Intel Core i5 11th Gen / AMD Ryzen 5 Quad Core (Up to 4.2 GHz)\n• Memory: 16 GB DDR4 3200 MHz High-Speed RAM (Dual Channel)\n• Storage: 512 GB PCIe NVMe M.2 Solid State Drive\n• Display: 15.6 Inch (39.6 cm) Full HD (1920 x 1080) Anti-Glare Narrow Border Screen\n• Operating System: Windows 11 Pro 64-bit Genuine Pre-installed\n• Graphics: Intel Iris Xe / AMD Radeon 610M Graphics\n• Keyboard: Ergonomic Spill-Resistant Full-size Keyboard with Numeric Keypad\n• Battery & Power: Up to 6-8 Hours Battery Backup with Original Dell Fast Charger\n• Quality Check: Grade A++ Certified Refurbished | 35-Point Diagnostic Passed\n• Warranty: 1 Year Virnobyte Comprehensive Warranty + Free Doorstep Setup in PCMC & Pune', 34990, 68990, 'Refurbished', '/uploads/lap001-5dc673-1976x1272.webp', 1, 1, 0, '["/uploads/lap001-5dc673-1976x1272.webp","/uploads/lap001-df9ca7-1976x1976.webp","/uploads/lap001-ec39e2-1976x1976.webp","/uploads/lap001-a113a7-1976x1976.webp","/uploads/lap001-438d88-1976x1976.webp","/uploads/lap001-a12959-1976x1976.webp","/uploads/lap001-9a5c76-1976x1976.webp","/uploads/lap001-84def9-1976x1976.webp","/uploads/lap001-c0f096-1976x1976.webp"]');
 
 -- --------------------------------------------------------
+-- --------------------------------------------------------
+-- Table structure for table `orders`
+--
+
+CREATE TABLE IF NOT EXISTS `orders` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `order_id` varchar(100) NOT NULL,
+  `product_id` int(11) DEFAULT NULL,
+  `product_name` varchar(255) NOT NULL,
+  `product_slug` varchar(100) NOT NULL,
+  `quantity` int(11) NOT NULL DEFAULT 1,
+  `unit_price` int(11) NOT NULL,
+  `mrp` int(11) DEFAULT NULL,
+  `discount` int(11) DEFAULT 0,
+  `delivery_fee` int(11) DEFAULT 0,
+  `total_amount` int(11) NOT NULL,
+  `customer_name` varchar(255) NOT NULL,
+  `customer_phone` varchar(50) NOT NULL,
+  `customer_email` varchar(255) DEFAULT '',
+  `address_line1` text NOT NULL,
+  `address_line2` text DEFAULT '',
+  `pincode` varchar(20) NOT NULL,
+  `city` varchar(100) NOT NULL DEFAULT 'Pune',
+  `state` varchar(100) NOT NULL DEFAULT 'Maharashtra',
+  `address_type` varchar(50) DEFAULT 'Home',
+  `payment_method` varchar(50) NOT NULL DEFAULT 'cashfree',
+  `payment_status` varchar(50) NOT NULL DEFAULT 'PENDING',
+  `order_status` varchar(50) NOT NULL DEFAULT 'CONFIRMED',
+  `cashfree_order_id` varchar(100) DEFAULT '',
+  `cashfree_session_id` varchar(255) DEFAULT '',
+  `notes` text DEFAULT '',
+  `created_at` varchar(50) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` varchar(50) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_orders_order_id` (`order_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
 -- Table structure for table `projects`
 --
 

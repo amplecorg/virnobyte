@@ -132,6 +132,11 @@ const crumbs = [
 
           {/* Sticky Bottom Action CTA Buttons */}
           <div class="fk-detail-actions">
+            {p.price ? (
+              <a class="fk-action-btn fk-btn-buy" href={`/checkout/${p.slug}`}>
+                <span>⚡ Buy Now</span>
+              </a>
+            ) : null}
             <a
               class="fk-action-btn fk-btn-whatsapp-buy"
               href={c.whatsappUrl(`Hi ${c.name}, I want to order / enquire about: ${p.name} (Code: ${p.slug}, Price: ${p.price ? inr(p.price) : 'Best Price'}). Please confirm availability and delivery.`)}
@@ -519,6 +524,18 @@ const crumbs = [
     font-weight: 700;
     text-decoration: none;
     transition: all 0.2s ease;
+  }
+  .fk-btn-buy {
+    background: #fb641b;
+    color: #ffffff;
+    font-size: 15px;
+    font-weight: 800;
+    box-shadow: 0 4px 12px rgba(251, 100, 27, 0.35);
+  }
+  .fk-btn-buy:hover {
+    background: #e5530a;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(251, 100, 27, 0.45);
   }
   .fk-btn-whatsapp-buy {
     background: #25d366;

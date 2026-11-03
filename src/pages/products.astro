@@ -291,6 +291,11 @@ const categories = ['All', ...new Set(items.map((p) => p.category as string))];
                     </div>
 
                     <div class="fk-actions-block">
+                      {p.price ? (
+                        <a href={`/checkout/${p.slug}`} class="fk-btn-buynow">
+                          <span>⚡ Buy Now</span>
+                        </a>
+                      ) : null}
                       <a
                         class="fk-btn-whatsapp"
                         href={c.whatsappUrl(`Hi ${c.name}, I want to buy / enquire about: ${p.name} (Code: ${p.slug}, Price: ${p.price ? inr(p.price) : 'Best Price'}). Is it available?`)}
@@ -886,6 +891,26 @@ const categories = ['All', ...new Set(items.map((p) => p.category as string))];
     flex-direction: column;
     gap: 8px;
     margin-top: 16px;
+  }
+  .fk-btn-buynow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: #fb641b;
+    color: #ffffff;
+    font-size: 13.5px;
+    font-weight: 800;
+    text-decoration: none;
+    padding: 10px 14px;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(251, 100, 27, 0.35);
+    transition: all 0.2s ease;
+  }
+  .fk-btn-buynow:hover {
+    background: #e5530a;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(251, 100, 27, 0.45);
   }
   .fk-btn-whatsapp {
     display: flex;

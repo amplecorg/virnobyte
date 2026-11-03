@@ -120,6 +120,29 @@ const SECTIONS: Section[] = [
       { name: 'bingVerification', label: 'Bing verification code', type: 'text', half: true },
     ],
   },
+  {
+    key: 'payments',
+    title: 'Cashfree Payment Gateway & Checkout',
+    intro: 'Flipkart-style checkout settings. Enter your Cashfree Merchant credentials to enable live UPI, Cards, NetBanking and Wallets. When left empty, checkout automatically operates in test / COD mode.',
+    fields: [
+      { name: 'enabled', label: 'Enable checkout on website', type: 'bool', half: true },
+      { name: 'gateway', label: 'Payment gateway mode', type: 'select', half: true, options: [
+        { value: 'cashfree', label: 'Cashfree Gateway (Live / Sandbox)' },
+        { value: 'test', label: 'Simulated / Test Mode (Ready without keys)' },
+        { value: 'offline', label: 'Cash on Delivery (COD) Only' },
+      ]},
+      { name: 'cashfreeEnv', label: 'Cashfree environment', type: 'select', half: true, options: [
+        { value: 'TEST', label: 'Sandbox / Test Mode (sandbox.cashfree.com)' },
+        { value: 'PROD', label: 'Production / Live Mode (api.cashfree.com)' },
+      ]},
+      { name: 'cashfreeAppId', label: 'Cashfree App / Client ID', type: 'text', half: true, help: 'Obtain from Cashfree Merchant Dashboard → Developers → API Keys.' },
+      { name: 'cashfreeSecretKey', label: 'Cashfree Secret Key', type: 'text', half: true, help: 'Secret Key from Cashfree API Keys. Stored securely.' },
+      { name: 'enableCod', label: 'Enable Cash on Delivery (Pay at Doorstep)', type: 'bool', half: true },
+      { name: 'enableOnline', label: 'Enable Online UPI / Cards / NetBanking', type: 'bool', half: true },
+      { name: 'deliveryFee', label: 'Standard delivery fee (₹)', type: 'number', half: true, help: 'Set 0 for Free Delivery.' },
+      { name: 'minFreeDelivery', label: 'Free delivery order minimum (₹)', type: 'number', half: true },
+    ],
+  },
 ];
 
 const getPath = (o: any, path: string) => path.split('.').reduce((a, k) => (a == null ? a : a[k]), o);
