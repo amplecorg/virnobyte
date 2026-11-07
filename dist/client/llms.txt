@@ -32,3 +32,4 @@
 - Agent Markdown: Request any page with header `Accept: text/markdown` for high-density token-efficient markdown.
 - MCP Server Card: https://virnobyte.com/.well-known/mcp/server-card.json
 - MCP API Endpoint: https://virnobyte.com/api/mcp
+

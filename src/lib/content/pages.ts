@@ -97,8 +97,8 @@ Questions about these terms? Reach us through the [contact page](/contact).`,
     slug: 'company-profile',
     title: 'Company Profile',
     description:
-      'Virnobyte company profile: IT services, computer repair, CCTV and networking company based in Chikhali, Pimpri-Chinchwad, serving Pune since 2014.',
-    body: `Virnobyte is a hardware, networking and IT services company based in Chikhali, Pimpri-Chinchwad. Since 2014 we have repaired, installed and supported technology for homes, shops, offices and growing businesses across Pune.
+      'Virnobyte company profile: IT services, computer repair, CCTV and networking company based in Chikhali, Pimpri-Chinchwad, serving Pune since 2019.',
+    body: `Virnobyte is a hardware, networking and IT services company based in Chikhali, Pimpri-Chinchwad. Since 2019 we have repaired, installed and supported technology for homes, shops, offices and growing businesses across Pune.
 
 ## What we do
 

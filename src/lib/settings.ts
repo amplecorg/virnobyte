@@ -18,7 +18,7 @@ export const DEFAULT_SETTINGS = {
     region: 'Maharashtra',
     postalCode: '411062',
     country: 'India',
-    foundedYear: 2014,
+    foundedYear: 2019,
     // Left empty on purpose: opening hours are shown (and added to schema) only once the business supplies them.
     hours: 'Mo-Sa 09:30-20:30',
     serviceAreas: ['Chikhali', 'Pimpri-Chinchwad', 'Pune'],
@@ -36,7 +36,7 @@ export const DEFAULT_SETTINGS = {
     lede:
       'Computer and laptop repair, CCTV, networking and complete business IT support — diagnosed first, quoted clearly, and fixed by technicians who explain what they did.',
     facts: [
-      { value: 'Since 2014', label: 'Repairing and supporting IT in Pune' },
+      { value: 'Since 2019', label: 'Repairing and supporting IT in Pune' },
       { value: 'Doorstep', label: 'Visits for homes and offices' },
       { value: 'Itemised', label: 'Quote before any work starts' },
     ],
