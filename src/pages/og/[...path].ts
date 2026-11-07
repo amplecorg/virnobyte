@@ -97,7 +97,7 @@ export const GET: APIRoute = async ({ params }) => {
   const lines = wrap(item.title, 26);
   const fontSize = lines.length > 2 ? 58 : 66;
   const startY = H - 150 - (lines.length - 1) * fontSize * 1.12;
-  const font = "'Bricolage Grotesque', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif";
+  const font = "'Amazon Ember', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif";
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
     <defs>
       <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">

@@ -4,7 +4,7 @@ import PageHero from '@/components/PageHero.astro';
 import ServiceGrid from '@/components/ServiceGrid.astro';
 import CtaBand from '@/components/CtaBand.astro';
 import { services } from '@/lib/data';
-import { breadcrumbs } from '@/lib/schema';
+import { breadcrumbs, itemList } from '@/lib/schema';
 
 const all = services();
 const groups = [...new Set(all.map((s) => s.group_name))];
@@ -23,7 +23,10 @@ const INTRO: Record<string, string> = {
   title="IT Services in Pune & Pimpri-Chinchwad | Virnobyte"
   description="Computer and laptop repair, CCTV, networking, 3D website development, data recovery, IT AMC, and business IT services from Virnobyte in Chikhali, Pimpri-Chinchwad and Pune."
   canonical="/services"
-  jsonLd={breadcrumbs(Astro.site!, crumbs)}
+  jsonLd={[
+    breadcrumbs(Astro.site!, crumbs),
+    itemList(Astro.site!, 'Virnobyte IT Services Directory', all.map((s) => ({ name: s.name, url: `/services/${s.slug}`, description: s.short })))
+  ]}
 >
   <PageHero
     crumbs={crumbs}

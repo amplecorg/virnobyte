@@ -143,6 +143,41 @@ const SECTIONS: Section[] = [
       { name: 'minFreeDelivery', label: 'Free delivery order minimum (₹)', type: 'number', half: true },
     ],
   },
+  {
+    key: 'blog',
+    title: 'Blog Page Header & Image Sizes',
+    intro: 'Customize the main blog listing page (/blog), including the page title, intro text, and card image display sizes.',
+    fields: [
+      { name: 'eyebrow', label: 'Eyebrow tagline', type: 'text', half: true },
+      { name: 'title', label: 'Blog main title', type: 'text', required: true, half: true },
+      { name: 'lede', label: 'Introductory description', type: 'textarea', rows: 2, required: true },
+      {
+        name: 'leadImageSize',
+        label: 'Lead article image size',
+        type: 'select',
+        half: true,
+        options: [
+          { value: '16/9', label: 'Standard Cinematic (16:9)' },
+          { value: '21/9', label: 'Wide Banner (21:9)' },
+          { value: '4/3', label: 'Classic Photo (4:3)' },
+          { value: 'natural', label: 'Natural Height (No crop)' },
+        ],
+      },
+      {
+        name: 'gridImageSize',
+        label: 'Grid articles image size',
+        type: 'select',
+        half: true,
+        options: [
+          { value: '16/10', label: 'Editorial (16:10)' },
+          { value: '16/9', label: 'Standard Cinematic (16:9)' },
+          { value: '4/3', label: 'Classic Photo (4:3)' },
+          { value: '1/1', label: 'Square (1:1)' },
+          { value: 'natural', label: 'Natural Height (No crop)' },
+        ],
+      },
+    ],
+  },
 ];
 
 const getPath = (o: any, path: string) => path.split('.').reduce((a, k) => (a == null ? a : a[k]), o);

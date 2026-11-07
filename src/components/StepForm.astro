@@ -13,7 +13,17 @@ interface Props {
 const { action, id, submitLabel, draftKey } = Astro.props;
 ---
 
-<form class="stepform" method="post" action={action} id={id} data-stepform data-draft={draftKey} novalidate>
+<form
+  class="stepform"
+  method="post"
+  action={action}
+  id={id}
+  data-stepform
+  data-draft={draftKey}
+  toolname="book_service"
+  tooldescription="Submit a doorstep IT repair, hardware diagnosis, or service booking request for Pune & PCMC."
+  novalidate
+>
   <div class="progress" aria-hidden="true" hidden>
     <div class="progress-meta">
       <span data-step-label></span>

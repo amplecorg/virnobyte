@@ -114,7 +114,12 @@ const specs = (p.summary || '')
           </div>
 
           {/* Form wrapper */}
-          <form id="fk-checkout-form" class="fk-form">
+          <form
+            id="fk-checkout-form"
+            class="fk-form"
+            toolname="order_product"
+            tooldescription="Place an order enquiry for a certified computer, laptop, or hardware product from Virnobyte."
+          >
             <input type="hidden" name="slug" value={p.slug} />
             <input type="hidden" name="quantity" id="fk-qty-input" value="1" />
 

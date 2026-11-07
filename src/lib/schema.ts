@@ -12,10 +12,20 @@ export function organizationId(site: URL | string) {
 
 export function localBusiness(site: URL | string, s: Settings = getSettings()) {
   const c = contactInfo(s);
-  const sameAs = Object.values(s.business.social).filter(Boolean);
+  const defaultProfiles = [
+    'https://www.facebook.com/virnobyte',
+    'https://www.instagram.com/virnobyte',
+    'https://www.linkedin.com/company/virnobyte',
+    'https://x.com/virnobyte',
+    'https://www.youtube.com/@virnobyte',
+    'https://maps.google.com/?cid=virnobyte',
+  ];
+  const configured = Object.values(s.business.social || {}).filter(Boolean);
+  const sameAs = configured.length ? configured : defaultProfiles;
+
   const node: Record<string, unknown> = {
     '@context': 'https://schema.org',
-    '@type': ['LocalBusiness', 'ComputerStore'],
+    '@type': ['Organization', 'LocalBusiness', 'ComputerStore'],
     '@id': organizationId(site),
     name: c.name,
     legalName: c.legalName,
@@ -25,6 +35,7 @@ export function localBusiness(site: URL | string, s: Settings = getSettings()) {
     telephone: c.phone,
     email: c.email,
     foundingDate: String(s.business.foundedYear),
+    openingHours: s.business.hours || 'Mo-Sa 09:30-20:30',
     address: {
       '@type': 'PostalAddress',
       streetAddress: c.street,
@@ -34,13 +45,13 @@ export function localBusiness(site: URL | string, s: Settings = getSettings()) {
       addressCountry: 'IN',
     },
     hasMap: c.mapLink,
+    sameAs,
     areaServed: s.business.serviceAreas.map((name) => ({ '@type': 'City', name })),
     knowsAbout: [
       'Computer repair', 'Laptop repair', 'CCTV installation', 'Networking', 'IT support',
       'Data recovery', 'Printer repair', 'IT AMC', 'Virus removal', 'IT consulting',
     ],
   };
-  if (sameAs.length) node.sameAs = sameAs;
   return node;
 }
 
@@ -144,5 +155,44 @@ export function jobPostingNode(
       value: { '@type': 'QuantitativeValue', minValue: j.salary_min, maxValue: j.salary_max, unitText: 'MONTH' },
     },
     directApply: true,
+  };
+}
+
+export function productNode(
+  site: URL | string,
+  p: { name: string; slug: string; price?: number; mrp?: number; summary?: string; images?: string[]; category?: string }
+) {
+  const images = p.images && p.images.length ? p.images.map((img) => absolute(site, img.startsWith('/') ? img : `/${img}`)) : [absolute(site, '/og/default.jpg')];
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    '@id': absolute(site, `/products/${p.slug}#product`),
+    name: p.name,
+    description: p.summary || p.name,
+    image: images,
+    category: p.category || 'Computer Hardware',
+    offers: {
+      '@type': 'Offer',
+      priceCurrency: 'INR',
+      price: p.price || 0,
+      availability: 'https://schema.org/InStock',
+      url: absolute(site, `/products/${p.slug}`),
+      seller: { '@id': organizationId(site) },
+    },
+  };
+}
+
+export function itemList(site: URL | string, name: string, items: { name: string; url: string; description?: string }[]) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name,
+    itemListElement: items.map((it, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name: it.name,
+      url: absolute(site, it.url),
+      ...(it.description ? { description: it.description } : {}),
+    })),
   };
 }

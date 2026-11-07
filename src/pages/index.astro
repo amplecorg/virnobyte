@@ -10,7 +10,7 @@ import CtaBand from '@/components/CtaBand.astro';
 import { getSettings, contactInfo } from '@/lib/settings';
 import { services, plans, homeFaqs, testimonials, posts } from '@/lib/data';
 import { resolveImage } from '@/lib/images';
-import { localBusiness, website, faqPage } from '@/lib/schema';
+import { localBusiness, website, faqPage, itemList } from '@/lib/schema';
 import { formatDate, num } from '@/lib/format';
 
 const s = getSettings();
@@ -72,7 +72,12 @@ const STEPS = [
   title="Virnobyte – IT Services, Computer Repair & IT Solutions in Pune"
   description="Virnobyte provides computer repair, laptop repair, CCTV installation, networking, IT support, data recovery and business IT solutions in Chikhali, Pimpri-Chinchwad and Pune."
   canonical="/"
-  jsonLd={[localBusiness(site, s), website(site, s.business.name), ...(faqs.length ? [faqPage(faqs)] : [])]}
+  jsonLd={[
+    localBusiness(site, s),
+    website(site, s.business.name),
+    itemList(site, 'Featured IT Services', allServices.slice(0, 8).map((svc) => ({ name: svc.name, url: `/services/${svc.slug}`, description: svc.short }))),
+    ...(faqs.length ? [faqPage(faqs)] : [])
+  ]}
   preloadImage={preload ? { srcset: preload.srcSet.attribute, sizes: heroSizes, type: 'image/avif' } : undefined}
 >
   <!-- Hero: one promise, three facts, full screen on laptops -->

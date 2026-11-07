@@ -1,5 +1,6 @@
 ---
 import { getSettings } from '@/lib/settings';
+import { localBusiness } from '@/lib/schema';
 
 interface Props {
   title: string;
@@ -35,7 +36,13 @@ const site = Astro.site ?? new URL(Astro.url.origin);
 const path = (canonical ?? Astro.url.pathname).toLowerCase().replace(/\/+$/, '') || '/';
 const canonicalUrl = /^https?:/.test(path) ? path : new URL(path, site).href;
 const imageUrl = /^https?:/.test(image) ? image : new URL(image, site).href;
-const graph = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
+const baseNodes = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
+const hasOrgOrBusiness = baseNodes.some((n: any) => {
+  const t = n && n['@type'];
+  if (Array.isArray(t)) return t.includes('Organization') || t.includes('LocalBusiness');
+  return t === 'Organization' || t === 'LocalBusiness';
+});
+const graph = hasOrgOrBusiness ? baseNodes : [localBusiness(site, settings), ...baseNodes];
 const ld = (o: unknown) => JSON.stringify(o).replace(/</g, '\\u003c');
 ---
 

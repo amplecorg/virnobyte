@@ -5,7 +5,7 @@ import Icon from '@/components/Icon.astro';
 import CtaBand from '@/components/CtaBand.astro';
 import { products, type Product } from '@/lib/data';
 import { contactInfo } from '@/lib/settings';
-import { breadcrumbs } from '@/lib/schema';
+import { breadcrumbs, itemList } from '@/lib/schema';
 import { inr } from '@/lib/format';
 import { resolveImage } from '@/lib/images';
 
@@ -49,7 +49,10 @@ const categories = ['All', ...new Set(items.map((p) => p.category as string))];
   description="Shop certified laptops, custom PCs, CCTV kits, SSDs, RAM upgrades, routers, and power backup from Virnobyte in Chikhali, Pune. Doorstep delivery, warranty and installation."
   canonical="/products"
   image="/og/pages/products.jpg"
-  jsonLd={breadcrumbs(Astro.site!, crumbs)}
+  jsonLd={[
+    breadcrumbs(Astro.site!, crumbs),
+    itemList(Astro.site!, 'Virnobyte Certified Hardware Catalog', items.map((it) => ({ name: it.name, url: `/products/${it.slug}`, description: it.summary })))
+  ]}
 >
   <PageHero
     crumbs={crumbs}
@@ -235,26 +238,28 @@ const categories = ['All', ...new Set(items.map((p) => p.category as string))];
                       )}
                     </ul>
 
-                    <div class="fk-trust-row">
-                      {p.warranty && (
-                        <span class="fk-trust-item">
-                          <Icon name="shield" size={14} />
-                          <span>{p.warranty}</span>
-                        </span>
-                      )}
-                      {p.replacement_policy && (
-                        <span class="fk-trust-item">
-                          <Icon name="clock" size={14} />
-                          <span>{p.replacement_policy}</span>
-                        </span>
-                      )}
-                      {p.diagnostic_setup && (
-                        <span class="fk-trust-item">
-                          <Icon name="wrench" size={14} />
-                          <span>{p.diagnostic_setup}</span>
-                        </span>
-                      )}
-                    </div>
+                    {(p.warranty || p.replacement_policy || p.diagnostic_setup) && (
+                      <div class="fk-trust-row">
+                        {p.warranty && (
+                          <span class="fk-trust-item">
+                            <Icon name="shield" size={14} />
+                            <span>{p.warranty}</span>
+                          </span>
+                        )}
+                        {p.replacement_policy && (
+                          <span class="fk-trust-item">
+                            <Icon name="clock" size={14} />
+                            <span>{p.replacement_policy}</span>
+                          </span>
+                        )}
+                        {p.diagnostic_setup && (
+                          <span class="fk-trust-item">
+                            <Icon name="wrench" size={14} />
+                            <span>{p.diagnostic_setup}</span>
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Column 3: Flipkart Price Block & Fast Order CTA */}
@@ -284,10 +289,12 @@ const categories = ['All', ...new Set(items.map((p) => p.category as string))];
                         </p>
                       )}
 
-                      <div class="fk-delivery-text">
-                        <strong>{p.delivery_text || 'Free Delivery by Tomorrow'}</strong>
-                        <span>{p.delivery_sub || 'Doorstep setup & testing in PCMC & Pune'}</span>
-                      </div>
+                      {(p.delivery_text || p.delivery_sub) && (
+                        <div class="fk-delivery-text">
+                          <strong>{p.delivery_text || 'Free Delivery'}</strong>
+                          {p.delivery_sub && <span>{p.delivery_sub}</span>}
+                        </div>
+                      )}
                     </div>
 
                     <div class="fk-actions-block">
@@ -296,15 +303,6 @@ const categories = ['All', ...new Set(items.map((p) => p.category as string))];
                           <span>⚡ Buy Now</span>
                         </a>
                       ) : null}
-                      <a
-                        class="fk-btn-whatsapp"
-                        href={c.whatsappUrl(`Hi ${c.name}, I want to buy / enquire about: ${p.name} (Code: ${p.slug}, Price: ${p.price ? inr(p.price) : 'Best Price'}). Is it available?`)}
-                        target="_blank"
-                        rel="noopener"
-                      >
-                        <Icon name="whatsapp" size={18} />
-                        <span>Enquire on WhatsApp</span>
-                      </a>
 
                       <a href={`/products/${p.slug}`} class="fk-btn-details">
                         <span>View Full Specs &amp; Photos →</span>

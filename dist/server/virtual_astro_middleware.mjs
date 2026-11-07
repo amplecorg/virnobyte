@@ -1,5 +1,6 @@
 import { t as sequence, ut as defineMiddleware } from "./chunks/sequence_BTIhAKFo.mjs";
-import { l as userFromCookies } from "./chunks/auth_D-dTm5Q5.mjs";
+import { l as userFromCookies } from "./chunks/auth_mC5wn6o3.mjs";
+import { t as generatePageMarkdown } from "./chunks/agent-markdown_CXZuCac-.mjs";
 //#region src/middleware.ts
 var LEGACY = {
 	"/memberships": "/membership",
@@ -34,6 +35,19 @@ var onRequest$1 = defineMiddleware(async (ctx, next) => {
 		if (!PRIVATE.test(clean)) clean = clean.toLowerCase();
 		const target = LEGACY[clean] ?? clean;
 		if (target !== pathname) return ctx.redirect(target + url.search, 301);
+	}
+	const accept = ctx.request.headers.get("accept") || "";
+	if ((accept.includes("text/markdown") || accept.includes("text/x-markdown") || url.searchParams.get("format") === "markdown") && ctx.request.method === "GET" && !PRIVATE.test(pathname)) {
+		const md = generatePageMarkdown(pathname, url.origin);
+		if (md) return new Response(md, {
+			status: 200,
+			headers: {
+				"Content-Type": "text/markdown; charset=utf-8",
+				"Vary": "Accept",
+				"X-Content-Type-Options": "nosniff",
+				"Cache-Control": "public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400"
+			}
+		});
 	}
 	let user = null;
 	try {

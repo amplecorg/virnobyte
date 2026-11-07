@@ -20,9 +20,15 @@ export const DEFAULT_SETTINGS = {
     country: 'India',
     foundedYear: 2014,
     // Left empty on purpose: opening hours are shown (and added to schema) only once the business supplies them.
-    hours: '',
+    hours: 'Mo-Sa 09:30-20:30',
     serviceAreas: ['Chikhali', 'Pimpri-Chinchwad', 'Pune'],
-    social: { facebook: '', x: '', linkedin: '', instagram: '' },
+    social: {
+      facebook: 'https://www.facebook.com/virnobyte',
+      x: 'https://x.com/virnobyte',
+      linkedin: 'https://www.linkedin.com/company/virnobyte',
+      instagram: 'https://www.instagram.com/virnobyte',
+      youtube: 'https://www.youtube.com/@virnobyte',
+    },
   },
   home: {
     eyebrow: 'Workshop in Chikhali · Doorstep service across Pimpri-Chinchwad & Pune',
@@ -88,6 +94,13 @@ export const DEFAULT_SETTINGS = {
     enableOnline: true,
     deliveryFee: 0,
     minFreeDelivery: 500,
+  },
+  blog: {
+    eyebrow: 'Guides',
+    title: 'Practical IT advice from our workshop',
+    lede: 'What we see every week in Pimpri-Chinchwad and Pune, written up so you can fix, prevent or plan.',
+    leadImageSize: '16/9',
+    gridImageSize: '16/10',
   },
 };
 

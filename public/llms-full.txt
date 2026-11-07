@@ -1,0 +1,8 @@
+# Virnobyte Full Context Index (llms-full.txt)
+
+> Virnobyte is a technology service and hardware repair enterprise based in Chikhali, Pimpri-Chinchwad, Pune.
+> Phone: +91 86698 83332 | WhatsApp: +91 86698 83332 | Email: info@virnobyte.com
+> Address: Office No. 1, Sadichha Complex, Savtamali Temple Road, Jadhav Wadi, Chikhali, Pune 411062, Maharashtra, India
+
+For real-time generated full context including all latest services, products, pricing, and troubleshooting guides, query https://virnobyte.com/llms-full.txt or send an HTTP request with `Accept: text/markdown` to any page.
+

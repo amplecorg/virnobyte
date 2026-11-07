@@ -1,0 +1,34 @@
+# Virnobyte
+
+> Professional on-site and workshop IT support, computer & laptop repair, custom PC builds, CCTV installations, and hardware sales across Pune and PCMC.
+
+- Workshop: Office No. 1, Sadichha Complex, Savtamali Temple Road, Jadhav Wadi, Chikhali, Pune 411062, Maharashtra, India
+- Phone: +91 86698 83332
+- WhatsApp: +91 86698 83332
+- Email: info@virnobyte.com
+- Hours: Monday - Saturday, 9:30 AM - 8:30 PM
+- Service Areas: Chikhali, Pimpri-Chinchwad, Pune, Bhosari, Moshi, Ravet, Wakad, Hinjawadi, Talawade
+
+## Core Services
+- [Computer Repair](https://virnobyte.com/services/computer-repair): Desktop diagnosis, motherboard repair, PSU replacement, OS reinstallation.
+- [Laptop Repair](https://virnobyte.com/services/laptop-repair): Screen replacement, battery replacement, hinge repair, keyboard repair.
+- [Custom PC Building](https://virnobyte.com/custom-pc-builder): 3D PC builder for gaming, video editing, and workstations.
+- [CCTV Security Systems](https://virnobyte.com/services/cctv-installation): Commercial and residential IP camera setup and recording.
+- [Structured Networking](https://virnobyte.com/services/networking): Wi-Fi mesh, CAT6 cabling, switch and router setups.
+- [Data Recovery](https://virnobyte.com/services/data-recovery): HDD, SSD, and external drive recovery with cleanroom diagnostics.
+- [IT AMC](https://virnobyte.com/services/amc-services): Annual maintenance contracts with scheduled monthly servicing and SLA.
+
+## Products & Hardware
+- [Store Catalog](https://virnobyte.com/products): Certified laptops, desktops, mice, keyboards, SSDs, RAM, and computer peripherals with 35-point benchmark checks.
+
+## Customer Programs & Information
+- [Membership & Virno Coins](https://virnobyte.com/membership): Comprehensive annual support plans with reward coin redemption.
+- [About Virnobyte](https://virnobyte.com/about): Company background, ISO certifications, and workshop standards.
+- [Contact & Doorstep Booking](https://virnobyte.com/contact#book): Book a technician visit or walk in to our Chikhali center.
+- [FAQ](https://virnobyte.com/faq): Common IT troubleshooting and service policies.
+- [Full LLM Index](https://virnobyte.com/llms-full.txt): Complete detailed site context for AI systems.
+
+## Machine-Readable Endpoints
+- Agent Markdown: Request any page with header `Accept: text/markdown` for high-density token-efficient markdown.
+- MCP Server Card: https://virnobyte.com/.well-known/mcp/server-card.json
+- MCP API Endpoint: https://virnobyte.com/api/mcp

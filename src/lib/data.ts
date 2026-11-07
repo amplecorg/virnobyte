@@ -159,14 +159,34 @@ export const allFaqs = () => all<{ question: string; answer: string; topic: stri
 export const testimonials = () => all<{ name: string; role: string; quote: string }>('SELECT name, role, quote FROM testimonials WHERE published = 1 ORDER BY sort, id');
 
 export interface Post {
-  id: number; slug: string; title: string; description: string; body: string; image: string;
-  related: string[]; published_at: string; updated_at: string;
+  id: number;
+  slug: string;
+  title: string;
+  description: string;
+  body: string;
+  image: string;
+  image_size?: string;
+  image_fit?: string;
+  author?: string;
+  related: string[];
+  published?: number;
+  published_at: string;
+  updated_at: string;
 }
-const hydratePost = (r: any): Post => ({ ...r, related: json(r.related, []) });
+const hydratePost = (r: any): Post => ({
+  ...r,
+  image_size: r.image_size || '21/9',
+  image_fit: r.image_fit || 'cover',
+  author: r.author || 'Virnobyte Team',
+  related: json(r.related, []),
+});
 export const posts = (limit = 100) =>
   all("SELECT * FROM posts WHERE published = 1 AND published_at <= date('now') ORDER BY published_at DESC, id DESC LIMIT ?", limit).map(hydratePost);
-export const post = (slug: string) => {
-  const r = get("SELECT * FROM posts WHERE slug = ? AND published = 1 AND published_at <= date('now')", slug);
+export const post = (slug: string, includeUnpublished = false) => {
+  const sql = includeUnpublished
+    ? "SELECT * FROM posts WHERE slug = ?"
+    : "SELECT * FROM posts WHERE slug = ? AND published = 1 AND published_at <= date('now')";
+  const r = get(sql, slug);
   return r ? hydratePost(r) : undefined;
 };
 
@@ -185,12 +205,15 @@ export interface Product {
   rating_count: string;
   badge: string;
   offer_tag: string;
+  wow_deal: string;
+  bank_offer: string;
+  emi_offer: string;
+  partner_offer: string;
   warranty: string;
   replacement_policy: string;
   diagnostic_setup: string;
   delivery_text: string;
   delivery_sub: string;
-  wow_deal: string;
   in_stock: number;
   published: number;
   sort: number;
@@ -203,16 +226,19 @@ export const hydrateProduct = (r: any): Product => {
     ...r,
     image: images[0] || r.image || '',
     images,
-    rating: r.rating || '4.5',
-    rating_count: r.rating_count || '128 Ratings & 42 Reviews',
-    badge: r.badge || 'Assured',
-    offer_tag: r.offer_tag || 'Extra ₹1,000 off with Virnobyte Card',
-    warranty: r.warranty || '1 Year Virnobyte Warranty',
-    replacement_policy: r.replacement_policy || '7-Day Replacement Guarantee',
-    diagnostic_setup: r.diagnostic_setup || 'Free On-Site Diagnostic Setup',
-    delivery_text: r.delivery_text || 'Free Delivery by Tomorrow',
-    delivery_sub: r.delivery_sub || 'Doorstep setup & testing in PCMC & Pune',
-    wow_deal: r.wow_deal || 'Exchange Old Laptop / PC & save up to ₹15,000',
+    rating: r.rating ?? '',
+    rating_count: r.rating_count ?? '',
+    badge: r.badge ?? '',
+    offer_tag: r.offer_tag ?? '',
+    wow_deal: r.wow_deal ?? '',
+    bank_offer: r.bank_offer ?? '',
+    emi_offer: r.emi_offer ?? '',
+    partner_offer: r.partner_offer ?? '',
+    warranty: r.warranty ?? '',
+    replacement_policy: r.replacement_policy ?? '',
+    diagnostic_setup: r.diagnostic_setup ?? '',
+    delivery_text: r.delivery_text ?? '',
+    delivery_sub: r.delivery_sub ?? '',
   };
 };
 

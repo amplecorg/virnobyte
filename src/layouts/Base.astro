@@ -1,6 +1,5 @@
 ---
 import '@/styles/global.css';
-import fontUrl from '@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-opsz-normal.woff2?url';
 import SEO from '@/components/SEO.astro';
 import Header from '@/components/Header.astro';
 import Footer from '@/components/Footer.astro';
@@ -29,7 +28,9 @@ const { preloadImage, ...seo } = Astro.props;
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <SEO {...seo} />
-    <link rel="preload" href={fontUrl} as="font" type="font/woff2" crossorigin />
+    <link rel="alternate" type="text/markdown" href={Astro.url.pathname} title="Agent Markdown Representation" />
+    <link rel="preload" href="/fonts/AmazonEmber_W_Rg.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/AmazonEmber_W_Bd.woff2" as="font" type="font/woff2" crossorigin />
     {
       preloadImage && (
         <link
@@ -74,6 +75,85 @@ const { preloadImage, ...seo } = Astro.props;
           }
         });
       });
+
+      // Ensure clear heading hierarchy (exactly one h1 per page)
+      const h1s = document.querySelectorAll('h1');
+      if (h1s.length > 1) {
+        for (let i = 1; i < h1s.length; i++) {
+          const extra = h1s[i];
+          const h2 = document.createElement('h2');
+          for (const attr of Array.from(extra.attributes)) {
+            h2.setAttribute(attr.name, attr.value);
+          }
+          h2.innerHTML = extra.innerHTML;
+          extra.replaceWith(h2);
+        }
+      }
+
+      // Register WebMCP in-browser agent tools (WebMCP / SEP standard)
+      try {
+        const tools = [
+          {
+            name: 'search_virnobyte',
+            description: 'Search Virnobyte computer repair services, laptops, parts and IT solutions in Pune & PCMC.',
+            inputSchema: {
+              type: 'object',
+              properties: { query: { type: 'string', description: 'Search keywords, e.g. laptop battery, screen repair, macbook' } },
+              required: ['query'],
+            },
+            execute: async ({ query }: { query: string }) => {
+              const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+              return await res.json();
+            },
+          },
+          {
+            name: 'book_service',
+            description: 'Book on-site doorstep IT repair or diagnostic appointment in Pune & PCMC.',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                service: { type: 'string', description: 'Service required or device issue' },
+                phone: { type: 'string', description: 'Customer 10-digit mobile number' },
+                name: { type: 'string', description: 'Customer name' },
+                address: { type: 'string', description: 'Address or locality in Pune/PCMC' },
+              },
+              required: ['service', 'phone', 'name'],
+            },
+            execute: async (args: any) => {
+              const res = await fetch('/api/book', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(args),
+              });
+              return await res.json();
+            },
+          },
+          {
+            name: 'get_contact_info',
+            description: 'Get Virnobyte verified phone, WhatsApp, workshop address, and operating hours in Pune.',
+            inputSchema: { type: 'object', properties: {} },
+            execute: async () => ({
+              name: 'Virnobyte',
+              phone: '+91 86698 83332',
+              whatsapp: '+91 86698 83332',
+              email: 'info@virnobyte.com',
+              address: 'Office No. 1, Sadichha Complex, Savtamali Temple Road, Jadhav Wadi, Chikhali, Pune 411062',
+              hours: 'Mo-Sa 09:30-20:30',
+              serviceAreas: ['Chikhali', 'Pimpri-Chinchwad', 'Pune'],
+            }),
+          },
+        ];
+
+        const ctx = (navigator as any).modelContext || (window as any).modelContext;
+        if (ctx && typeof ctx.registerTool === 'function') {
+          tools.forEach((t) => {
+            try {
+              ctx.registerTool(t);
+            } catch (e) {}
+          });
+        }
+        (window as any).__WEBMCP_TOOLS__ = tools;
+      } catch (e) {}
 
       // Sections fade and rise as they scroll in.
       const els = document.querySelectorAll('[data-reveal]');

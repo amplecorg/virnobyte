@@ -1,5 +1,6 @@
 import { defineMiddleware } from 'astro:middleware';
 import { userFromCookies } from './lib/auth';
+import { generatePageMarkdown } from './lib/agent-markdown';
 
 // Old WordPress URLs → new canonical pages (permanent redirects keep their link equity).
 const LEGACY: Record<string, string> = {
@@ -41,6 +42,28 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
     const target = LEGACY[clean] ?? clean;
     if (target !== pathname) {
       return ctx.redirect(target + url.search, 301);
+    }
+  }
+
+  // Content negotiation for AI agents: return clean, token-efficient Markdown if requested
+  const accept = ctx.request.headers.get('accept') || '';
+  const wantsMarkdown =
+    accept.includes('text/markdown') ||
+    accept.includes('text/x-markdown') ||
+    url.searchParams.get('format') === 'markdown';
+
+  if (wantsMarkdown && ctx.request.method === 'GET' && !PRIVATE.test(pathname)) {
+    const md = generatePageMarkdown(pathname, url.origin);
+    if (md) {
+      return new Response(md, {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/markdown; charset=utf-8',
+          'Vary': 'Accept',
+          'X-Content-Type-Options': 'nosniff',
+          'Cache-Control': 'public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400',
+        },
+      });
     }
   }
 

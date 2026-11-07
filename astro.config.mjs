@@ -17,7 +17,7 @@ export default defineConfig({
   integrations: [react()],
   // The middleware 301s trailing-slash URLs to the canonical form.
   trailingSlash: 'ignore',
-  build: { format: 'file', inlineStylesheets: 'auto' },
+  build: { format: 'file', inlineStylesheets: 'never' },
   compressHTML: true,
   prefetch: { prefetchAll: false, defaultStrategy: 'hover' },
   image: {

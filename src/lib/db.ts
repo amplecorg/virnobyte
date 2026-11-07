@@ -265,13 +265,16 @@ CREATE TABLE IF NOT EXISTS products (
   rating TEXT NOT NULL DEFAULT '4.5',
   rating_count TEXT NOT NULL DEFAULT '128 Ratings & 42 Reviews',
   badge TEXT NOT NULL DEFAULT 'Assured',
-  offer_tag TEXT NOT NULL DEFAULT 'Extra ₹1,000 off with Virnobyte Card',
-  warranty TEXT NOT NULL DEFAULT '1 Year Virnobyte Warranty',
-  replacement_policy TEXT NOT NULL DEFAULT '7-Day Replacement Guarantee',
-  diagnostic_setup TEXT NOT NULL DEFAULT 'Free On-Site Diagnostic Setup',
-  delivery_text TEXT NOT NULL DEFAULT 'Free Delivery by Tomorrow',
-  delivery_sub TEXT NOT NULL DEFAULT 'Doorstep setup & testing in PCMC & Pune',
-  wow_deal TEXT NOT NULL DEFAULT 'Exchange Old Laptop / PC & save up to ₹15,000',
+  offer_tag TEXT NOT NULL DEFAULT '',
+  wow_deal TEXT NOT NULL DEFAULT '',
+  bank_offer TEXT NOT NULL DEFAULT '',
+  emi_offer TEXT NOT NULL DEFAULT '',
+  partner_offer TEXT NOT NULL DEFAULT '',
+  warranty TEXT NOT NULL DEFAULT '',
+  replacement_policy TEXT NOT NULL DEFAULT '',
+  diagnostic_setup TEXT NOT NULL DEFAULT '',
+  delivery_text TEXT NOT NULL DEFAULT '',
+  delivery_sub TEXT NOT NULL DEFAULT '',
   in_stock INTEGER NOT NULL DEFAULT 1,
   published INTEGER NOT NULL DEFAULT 1,
   sort INTEGER NOT NULL DEFAULT 0
@@ -473,13 +476,16 @@ export function db(): any {
         ['rating', "TEXT NOT NULL DEFAULT '4.5'"],
         ['rating_count', "TEXT NOT NULL DEFAULT '128 Ratings & 42 Reviews'"],
         ['badge', "TEXT NOT NULL DEFAULT 'Assured'"],
-        ['offer_tag', "TEXT NOT NULL DEFAULT 'Extra ₹1,000 off with Virnobyte Card'"],
-        ['warranty', "TEXT NOT NULL DEFAULT '1 Year Virnobyte Warranty'"],
-        ['replacement_policy', "TEXT NOT NULL DEFAULT '7-Day Replacement Guarantee'"],
-        ['diagnostic_setup', "TEXT NOT NULL DEFAULT 'Free On-Site Diagnostic Setup'"],
-        ['delivery_text', "TEXT NOT NULL DEFAULT 'Free Delivery by Tomorrow'"],
-        ['delivery_sub', "TEXT NOT NULL DEFAULT 'Doorstep setup & testing in PCMC & Pune'"],
-        ['wow_deal', "TEXT NOT NULL DEFAULT 'Exchange Old Laptop / PC & save up to ₹15,000'"],
+        ['offer_tag', "TEXT NOT NULL DEFAULT ''"],
+        ['wow_deal', "TEXT NOT NULL DEFAULT ''"],
+        ['bank_offer', "TEXT NOT NULL DEFAULT ''"],
+        ['emi_offer', "TEXT NOT NULL DEFAULT ''"],
+        ['partner_offer', "TEXT NOT NULL DEFAULT ''"],
+        ['warranty', "TEXT NOT NULL DEFAULT ''"],
+        ['replacement_policy', "TEXT NOT NULL DEFAULT ''"],
+        ['diagnostic_setup', "TEXT NOT NULL DEFAULT ''"],
+        ['delivery_text', "TEXT NOT NULL DEFAULT ''"],
+        ['delivery_sub', "TEXT NOT NULL DEFAULT ''"],
       ];
 
       for (const [colName, colDef] of productMigrations) {
@@ -493,6 +499,25 @@ export function db(): any {
       }
     } catch (migErr) {
       console.warn('[Virnobyte DB] Migration error for products table:', migErr);
+    }
+
+    // Auto-migration: ensure posts table columns exist for image size and content control
+    try {
+      const postCols = d.prepare('PRAGMA table_info(posts)').all() as { name: string }[];
+      const postColSet = new Set(postCols.map((c) => c.name));
+      const postMigrations: [string, string][] = [
+        ['image_size', "TEXT NOT NULL DEFAULT '21/9'"],
+        ['image_fit', "TEXT NOT NULL DEFAULT 'cover'"],
+        ['author', "TEXT NOT NULL DEFAULT 'Virnobyte Team'"],
+      ];
+
+      for (const [colName, colDef] of postMigrations) {
+        if (!postColSet.has(colName)) {
+          d.exec(`ALTER TABLE posts ADD COLUMN ${colName} ${colDef}`);
+        }
+      }
+    } catch (migErr) {
+      console.warn('[Virnobyte DB] Migration error for posts table:', migErr);
     }
 
     // Auto-migration: ensure orders table exists

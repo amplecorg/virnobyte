@@ -1,0 +1,92 @@
+{
+  "$schema": "https://modelcontextprotocol.io/schemas/server-card.json",
+  "name": "virnobyte",
+  "title": "Virnobyte IT Services & Hardware MCP Server",
+  "version": "1.0.0",
+  "description": "Model Context Protocol server for Virnobyte computer repair, custom PC builds, IT AMC, doorstep services, and certified hardware catalog in Pune & PCMC.",
+  "endpoint": "https://virnobyte.com/api/mcp",
+  "transport": "streamable-http",
+  "capabilities": {
+    "tools": {
+      "listChanged": false
+    },
+    "resources": {
+      "subscribe": false,
+      "listChanged": false
+    },
+    "prompts": {
+      "listChanged": false
+    }
+  },
+  "tools": [
+    {
+      "name": "search_services",
+      "description": "Search available IT, computer repair, laptop repair, Mac repair, network, and AMC services with pricing and diagnostic details in Pune & PCMC.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Search query, e.g. laptop screen replacement, macbook battery, gaming pc build, wifi setup"
+          }
+        }
+      }
+    },
+    {
+      "name": "search_products",
+      "description": "Search refurbished and new computers, laptops, mice, monitors, accessories, and components available at Virnobyte.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Product search query, e.g. mouse, laptop, ssd, ram"
+          },
+          "category": {
+            "type": "string",
+            "description": "Optional category filter"
+          }
+        }
+      }
+    },
+    {
+      "name": "book_service_enquiry",
+      "description": "Submit a doorstep service booking enquiry or diagnostic request for Pune or PCMC.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["name", "phone", "service"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Customer name"
+          },
+          "phone": {
+            "type": "string",
+            "description": "Customer phone number (10-digit Indian mobile)"
+          },
+          "service": {
+            "type": "string",
+            "description": "Service required or device issue"
+          },
+          "address": {
+            "type": "string",
+            "description": "Pincode or address in Pune / PCMC"
+          }
+        }
+      }
+    },
+    {
+      "name": "get_business_info",
+      "description": "Get business contact details, doorstep coverage areas (Pune & PCMC), operating hours, and warranty policy.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    }
+  ],
+  "contact": {
+    "email": "info@virnobyte.com",
+    "phone": "+91 86698 83332",
+    "url": "https://virnobyte.com"
+  }
+}

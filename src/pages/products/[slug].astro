@@ -6,6 +6,7 @@ import { product, products, type Product } from '@/lib/data';
 import { contactInfo } from '@/lib/settings';
 import { inr } from '@/lib/format';
 import { resolveImage } from '@/lib/images';
+import { productNode, breadcrumbs } from '@/lib/schema';
 
 const { slug } = Astro.params;
 const p = product(slug as string) as Product | undefined;
@@ -16,7 +17,6 @@ if (!p) {
 
 const c = contactInfo();
 const allProducts = products() as Product[];
-const related = allProducts.filter((item) => item.id !== p.id && item.category === p.category).slice(0, 4);
 
 // Helper to resolve images
 function getPhotoUrls(images: string[]) {
@@ -25,6 +25,61 @@ function getPhotoUrls(images: string[]) {
     const res = resolveImage(imgKey);
     return res.kind === 'upload' ? res.src : res.meta.src;
   });
+}
+
+// Suggestions: prioritize products from the same category, followed by other catalog products
+const sameCategory = allProducts.filter((item) => item.id !== p.id && item.category === p.category);
+const otherProducts = allProducts.filter((item) => item.id !== p.id && item.category !== p.category);
+const suggestions = [...sameCategory, ...otherProducts];
+
+// Format price like Amazon India (e.g. ₹109.00 or ₹24,990.00)
+function formatAmzPrice(price: number | null) {
+  if (!price) return null;
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(price);
+}
+
+// Amazon star rating generator
+function getAmzStars(ratingStr?: string | null) {
+  const val = parseFloat(ratingStr || '4.2');
+  const full = Math.floor(val);
+  const half = val % 1 >= 0.3;
+  let s = '★'.repeat(full);
+  if (half && s.length < 5) s += '★';
+  while (s.length < 5) s += '☆';
+  return s.slice(0, 5);
+}
+
+// Amazon review count extractor
+function getAmzCount(countStr?: string | null) {
+  if (!countStr) return '128';
+  const m = countStr.match(/\d[\d,]*/);
+  return m ? m[0] : '128';
+}
+
+// Formatted delivery date matching Amazon format (e.g. "Wednesday, November 11")
+function getAmzDeliveryDate() {
+  const d = new Date();
+  d.setDate(d.getDate() + 2);
+  return d.toLocaleDateString('en-IN', { weekday: 'long', month: 'long', day: 'numeric' });
+}
+const amzDeliveryDate = getAmzDeliveryDate();
+
+// Helper to resolve card images
+function getCardImage(prod: Product) {
+  const list = Array.isArray(prod.images) && prod.images.length ? prod.images : (prod.image ? [prod.image] : []);
+  const resolved = getPhotoUrls(list);
+  return resolved.length ? resolved[0] : '/virnobyte-circuit-board.webp';
+}
+
+// Helper to calculate discount percentage
+function calcDiscount(price: number | null, mrp: number | null) {
+  if (!price || !mrp || mrp <= price) return null;
+  return Math.round(((mrp - price) / mrp) * 100);
 }
 
 const rawList = Array.isArray(p.images) && p.images.length ? p.images : (p.image ? [p.image] : []);
@@ -45,6 +100,22 @@ const specs = parseSpecs(p.summary);
 // Discount calculation
 const discount = p.price && p.mrp && p.mrp > p.price ? Math.round(((p.mrp - p.price) / p.mrp) * 100) : null;
 
+// Helper to parse custom badge prefix like [Special Offer] or default to given label
+function parseBadge(text: string, defaultBadge: string) {
+  const m = (text || '').match(/^\[(.*?)\]\s*(.*)$/);
+  if (m) return { badge: m[1], text: m[2] };
+  return { badge: defaultBadge, text };
+}
+
+// Format secondary perk under price (Image 1 line 2)
+function formatPerk(text: string) {
+  if (!text) return '';
+  const trimmed = text.trim();
+  if (trimmed.startsWith('+')) return trimmed;
+  const hasIncluded = trimmed.toLowerCase().includes('included');
+  return `+ ${trimmed}${hasIncluded ? '' : ' Included'}`;
+}
+
 const crumbs = [
   { name: 'Home', href: '/' },
   { name: 'Products', href: '/products' },
@@ -58,6 +129,7 @@ const crumbs = [
   description={`${p.name} - ${p.summary ? p.summary.slice(0, 150) : 'Supplied, tested, and backed by local warranty from Virnobyte in Chikhali, Pune.'}`}
   canonical={`/products/${p.slug}`}
   image={photoUrls[0]}
+  jsonLd={[productNode(Astro.site || Astro.url.origin, p), breadcrumbs(Astro.site || Astro.url.origin, crumbs)]}
 >
   <div class="fk-detail-page">
     <div class="wrap">
@@ -137,15 +209,6 @@ const crumbs = [
                 <span>⚡ Buy Now</span>
               </a>
             ) : null}
-            <a
-              class="fk-action-btn fk-btn-whatsapp-buy"
-              href={c.whatsappUrl(`Hi ${c.name}, I want to order / enquire about: ${p.name} (Code: ${p.slug}, Price: ${p.price ? inr(p.price) : 'Best Price'}). Please confirm availability and delivery.`)}
-              target="_blank"
-              rel="noopener"
-            >
-              <Icon name="whatsapp" size={20} />
-              <span>Enquire &amp; Order on WhatsApp</span>
-            </a>
 
             <a class="fk-action-btn fk-btn-call" href={c.tel}>
               <Icon name="phone" size={18} />
@@ -188,84 +251,113 @@ const crumbs = [
               )}
             </div>
 
-            {p.offer_tag && (
+            {/* Image 1 Line 1: Primary offer tag under price */}
+            {p.offer_tag ? (
               <div class="fk-discount-callout">
                 <span>🏷️ {p.offer_tag}</span>
               </div>
-            )}
-            {p.diagnostic_setup && (
+            ) : null}
+
+            {/* Image 1 Line 2: Secondary perk under price */}
+            {p.diagnostic_setup ? (
               <div class="fk-fee-note">
-                <span>+ {p.diagnostic_setup} Included</span>
+                <span>{formatPerk(p.diagnostic_setup)}</span>
               </div>
-            )}
+            ) : null}
           </div>
 
-          {/* Flipkart WOW! DEAL & Offers Card */}
-          <div class="fk-offers-card">
-            <div class="fk-offer-heading">
-              <span class="fk-wow-tag">WOW! DEAL</span>
-              <span class="fk-wow-text">
-                {p.wow_deal || 'Exchange Old Laptop / PC & save up to ₹15,000'}
-              </span>
-            </div>
+          {/* Flipkart WOW! DEAL & Offers Card (Image 2) - Only displayed if at least one offer is entered */}
+          {(p.wow_deal || p.bank_offer || p.emi_offer || p.partner_offer) && (
+            <div class="fk-offers-card">
+              {p.wow_deal && (() => {
+                const { badge, text } = parseBadge(p.wow_deal, 'WOW! DEAL');
+                return (
+                  <div class="fk-offer-heading">
+                    <span class="fk-wow-tag">{badge}</span>
+                    <span class="fk-wow-text">{text}</span>
+                  </div>
+                );
+              })()}
 
-            <div class="fk-offer-list">
-              <div class="fk-offer-item">
-                <span class="fk-offer-badge">Bank Offer</span>
-                <span>5% Instant Cashback on Direct UPI / Card Payment</span>
-              </div>
-              <div class="fk-offer-item">
-                <span class="fk-offer-badge">No Cost EMI</span>
-                <span>Available from <strong>₹2,999/month</strong> on major cards</span>
-              </div>
-              <div class="fk-offer-item">
-                <span class="fk-offer-badge">Partner Offer</span>
-                <span>Free Data Transfer from your old system + Antivirus Setup</span>
-              </div>
+              {(p.bank_offer || p.emi_offer || p.partner_offer) && (
+                <div class="fk-offer-list">
+                  {p.bank_offer && (() => {
+                    const { badge, text } = parseBadge(p.bank_offer, 'Bank Offer');
+                    return (
+                      <div class="fk-offer-item">
+                        <span class="fk-offer-badge">{badge}</span>
+                        <span>{text}</span>
+                      </div>
+                    );
+                  })()}
+                  {p.emi_offer && (() => {
+                    const { badge, text } = parseBadge(p.emi_offer, 'No Cost EMI');
+                    return (
+                      <div class="fk-offer-item">
+                        <span class="fk-offer-badge">{badge}</span>
+                        <span>{text}</span>
+                      </div>
+                    );
+                  })()}
+                  {p.partner_offer && (() => {
+                    const { badge, text } = parseBadge(p.partner_offer, 'Partner Offer');
+                    return (
+                      <div class="fk-offer-item">
+                        <span class="fk-offer-badge">{badge}</span>
+                        <span>{text}</span>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
             </div>
-          </div>
+          )}
 
           {/* Delivery & Pincode Checker */}
-          <div class="fk-delivery-box">
-            <div class="fk-delivery-head">
-              <Icon name="pin" size={16} />
-              <span>Deliver to: <strong>Pune &amp; PCMC (411019, 411062, 411033...)</strong></span>
+          {(p.delivery_text || p.delivery_sub) && (
+            <div class="fk-delivery-box">
+              <div class="fk-delivery-head">
+                <Icon name="pin" size={16} />
+                <span>Deliver to: <strong>Pune &amp; PCMC (411019, 411062, 411033...)</strong></span>
+              </div>
+              <p class="fk-delivery-promise">
+                🚚 <strong>{p.delivery_text || 'Free Doorstep Delivery'}</strong>{p.delivery_sub ? ` — ${p.delivery_sub}` : ''}
+              </p>
             </div>
-            <p class="fk-delivery-promise">
-              🚚 <strong>{p.delivery_text || 'Free Doorstep Delivery by Tomorrow'}</strong> — {p.delivery_sub || 'Delivered, unboxed, and demonstrated by our certified technician.'}
-            </p>
-          </div>
+          )}
 
           {/* Services & Guarantees */}
-          <div class="fk-services-strip">
-            {p.warranty && (
-              <div class="fk-service-cell">
-                <Icon name="shield" size={20} class="fk-serv-icon" />
-                <div class="fk-serv-text">
-                  <strong>Warranty</strong>
-                  <span>{p.warranty}</span>
+          {(p.warranty || p.replacement_policy || p.diagnostic_setup) && (
+            <div class="fk-services-strip">
+              {p.warranty && (
+                <div class="fk-service-cell">
+                  <Icon name="shield" size={20} class="fk-serv-icon" />
+                  <div class="fk-serv-text">
+                    <strong>Warranty</strong>
+                    <span>{p.warranty}</span>
+                  </div>
                 </div>
-              </div>
-            )}
-            {p.replacement_policy && (
-              <div class="fk-service-cell">
-                <Icon name="clock" size={20} class="fk-serv-icon" />
-                <div class="fk-serv-text">
-                  <strong>Replacement</strong>
-                  <span>{p.replacement_policy}</span>
+              )}
+              {p.replacement_policy && (
+                <div class="fk-service-cell">
+                  <Icon name="clock" size={20} class="fk-serv-icon" />
+                  <div class="fk-serv-text">
+                    <strong>Replacement</strong>
+                    <span>{p.replacement_policy}</span>
+                  </div>
                 </div>
-              </div>
-            )}
-            {p.diagnostic_setup && (
-              <div class="fk-service-cell">
-                <Icon name="wrench" size={20} class="fk-serv-icon" />
-                <div class="fk-serv-text">
-                  <strong>Diagnostic / Setup</strong>
-                  <span>{p.diagnostic_setup}</span>
+              )}
+              {p.diagnostic_setup && (
+                <div class="fk-service-cell">
+                  <Icon name="wrench" size={20} class="fk-serv-icon" />
+                  <div class="fk-serv-text">
+                    <strong>Diagnostic / Setup</strong>
+                    <span>{p.diagnostic_setup.replace(/^\+\s*/, '').replace(/\s+Included$/i, '')}</span>
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
           {/* ── Sorted Product Specifications (Flipkart Highlights) ── */}
           <div class="fk-specs-section">
@@ -296,6 +388,214 @@ const crumbs = [
           </div>
         </div>
       </div>
+
+      {/* ── Amazon-Style Product Suggestions Carousel (As Attached) ── */}
+      {suggestions.length > 0 && (
+        <section class="amz-suggestions-section" aria-label="Related Products & Recommendations">
+          <div class="amz-sug-header">
+            <h2 class="amz-sug-title">Related products with free delivery on eligible orders</h2>
+            <span class="amz-sug-page-indicator" id="amz-page-indicator">Page 1 of {Math.max(1, Math.ceil(suggestions.length / 5))}</span>
+          </div>
+
+          <div class="amz-carousel-wrapper">
+            {/* Left Scroll Arrow */}
+            <button
+              type="button"
+              class="amz-carousel-arrow amz-arrow-prev"
+              id="amz-carousel-prev"
+              aria-label="Previous suggestions"
+              title="Previous"
+            >
+              ‹
+            </button>
+
+            {/* Scrollable Products Track */}
+            <div class="amz-carousel-track" id="amz-carousel-track" role="region" aria-label="Suggested products carousel">
+              {suggestions.map((item) => {
+                const itemImg = getCardImage(item);
+                const itemDisc = calcDiscount(item.price, item.mrp);
+                const itemPriceFormatted = formatAmzPrice(item.price);
+                const itemMrpFormatted = formatAmzPrice(item.mrp);
+                const stars = getAmzStars(item.rating);
+                const reviewCount = getAmzCount(item.rating_count);
+
+                return (
+                  <article class="amz-card">
+                    <a href={`/products/${item.slug}`} class="amz-card-media" aria-label={item.name}>
+                      <img src={itemImg} alt={item.name} loading="lazy" decoding="async" />
+                    </a>
+
+                    <div class="amz-card-details">
+                      <a href={`/products/${item.slug}`} class="amz-card-title" title={item.name}>
+                        {item.name}
+                      </a>
+
+                      {/* Ratings row: Amazon Orange Stars + Review count */}
+                      <div class="amz-rating-row">
+                        <span class="amz-stars" aria-label={`${item.rating || '4.2'} out of 5 stars`}>
+                          {stars}
+                        </span>
+                        <a href={`/products/${item.slug}`} class="amz-rating-count">
+                          {reviewCount}
+                        </a>
+                      </div>
+
+                      {/* Price & Discount row (e.g. -56% ₹109.00) */}
+                      <div class="amz-price-row">
+                        {itemDisc ? <span class="amz-discount-pct">-{itemDisc}%</span> : null}
+                        {itemPriceFormatted ? (
+                          <span class="amz-main-price">{itemPriceFormatted}</span>
+                        ) : (
+                          <span class="amz-main-price amz-ask">Ask for Price</span>
+                        )}
+                      </div>
+
+                      {/* Badge (e.g. #1 Best Seller - NO "Great Indian Festival") */}
+                      {item.badge ? (
+                        <div class="amz-badge-row">
+                          <span class="amz-badge-pill">#1 Best Seller</span>
+                        </div>
+                      ) : null}
+
+                      {/* M.R.P. strikethrough */}
+                      {itemMrpFormatted && item.price && item.mrp && item.mrp > item.price ? (
+                        <div class="amz-mrp-row">
+                          <span>M.R.P.: </span>
+                          <span class="amz-mrp-crossed">{itemMrpFormatted}</span>
+                        </div>
+                      ) : null}
+
+                      {/* Delivery lines */}
+                      <div class="amz-delivery-info">
+                        <p class="amz-del-date">
+                          Get it by <strong>{amzDeliveryDate}</strong>
+                        </p>
+                        <p class="amz-del-ship">FREE Delivery over ₹499.</p>
+                        <p class="amz-del-fulfill">Fulfilled by Virnobyte.</p>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+
+            {/* Right Scroll Arrow */}
+            <button
+              type="button"
+              class="amz-carousel-arrow amz-arrow-next"
+              id="amz-carousel-next"
+              aria-label="Next suggestions"
+              title="Next"
+            >
+              ›
+            </button>
+          </div>
+        </section>
+      )}
+
+      {/* ── Amazon-Style Product Suggestions Carousel (As Attached) ── */}
+      {suggestions.length > 0 && (
+        <section class="amz-suggestions-section" aria-label="Related Products & Recommendations">
+          <div class="amz-sug-header">
+            <h2 class="amz-sug-title">Related products with free delivery on eligible orders</h2>
+            <span class="amz-sug-page-indicator" id="amz-page-indicator">Page 1 of {Math.max(1, Math.ceil(suggestions.length / 5))}</span>
+          </div>
+
+          <div class="amz-carousel-wrapper">
+            {/* Left Scroll Arrow */}
+            <button
+              type="button"
+              class="amz-carousel-arrow amz-arrow-prev"
+              id="amz-carousel-prev"
+              aria-label="Previous suggestions"
+              title="Previous"
+            >
+              ‹
+            </button>
+
+            {/* Scrollable Products Track */}
+            <div class="amz-carousel-track" id="amz-carousel-track" role="region" aria-label="Suggested products carousel">
+              {suggestions.map((item) => {
+                const itemImg = getCardImage(item);
+                const itemDisc = calcDiscount(item.price, item.mrp);
+                const itemPriceFormatted = formatAmzPrice(item.price);
+                const itemMrpFormatted = formatAmzPrice(item.mrp);
+                const stars = getAmzStars(item.rating);
+                const reviewCount = getAmzCount(item.rating_count);
+
+                return (
+                  <article class="amz-card">
+                    <a href={`/products/${item.slug}`} class="amz-card-media" aria-label={item.name}>
+                      <img src={itemImg} alt={item.name} loading="lazy" decoding="async" />
+                    </a>
+
+                    <div class="amz-card-details">
+                      <a href={`/products/${item.slug}`} class="amz-card-title" title={item.name}>
+                        {item.name}
+                      </a>
+
+                      {/* Ratings row: Amazon Orange Stars + Review count */}
+                      <div class="amz-rating-row">
+                        <span class="amz-stars" aria-label={`${item.rating || '4.2'} out of 5 stars`}>
+                          {stars}
+                        </span>
+                        <a href={`/products/${item.slug}`} class="amz-rating-count">
+                          {reviewCount}
+                        </a>
+                      </div>
+
+                      {/* Price & Discount row (e.g. -56% ₹109.00) */}
+                      <div class="amz-price-row">
+                        {itemDisc ? <span class="amz-discount-pct">-{itemDisc}%</span> : null}
+                        {itemPriceFormatted ? (
+                          <span class="amz-main-price">{itemPriceFormatted}</span>
+                        ) : (
+                          <span class="amz-main-price amz-ask">Ask for Price</span>
+                        )}
+                      </div>
+
+                      {/* Badge (e.g. #1 Best Seller - NO "Great Indian Festival") */}
+                      {item.badge ? (
+                        <div class="amz-badge-row">
+                          <span class="amz-badge-pill">#1 Best Seller</span>
+                        </div>
+                      ) : null}
+
+                      {/* M.R.P. strikethrough */}
+                      {itemMrpFormatted && item.price && item.mrp && item.mrp > item.price ? (
+                        <div class="amz-mrp-row">
+                          <span>M.R.P.: </span>
+                          <span class="amz-mrp-crossed">{itemMrpFormatted}</span>
+                        </div>
+                      ) : null}
+
+                      {/* Delivery lines */}
+                      <div class="amz-delivery-info">
+                        <p class="amz-del-date">
+                          Get it by <strong>{amzDeliveryDate}</strong>
+                        </p>
+                        <p class="amz-del-ship">FREE Delivery over ₹499.</p>
+                        <p class="amz-del-fulfill">Fulfilled by Virnobyte.</p>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+
+            {/* Right Scroll Arrow */}
+            <button
+              type="button"
+              class="amz-carousel-arrow amz-arrow-next"
+              id="amz-carousel-next"
+              aria-label="Next suggestions"
+              title="Next"
+            >
+              ›
+            </button>
+          </div>
+        </section>
+      )}
     </div>
   </div>
 
@@ -845,6 +1145,251 @@ const crumbs = [
       grid-template-columns: 1fr;
       gap: 10px;
     }
+    .amz-arrow-prev {
+      left: -8px;
+    }
+    .amz-arrow-next {
+      right: -8px;
+    }
+    .amz-card {
+      flex: 0 0 150px;
+      max-width: 150px;
+    }
+  }
+
+  /* ── Amazon-Style Suggestions Carousel ─────────────────────── */
+  .amz-suggestions-section {
+    background: #ffffff;
+    border: 1px solid #e7e7e7;
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin-top: 24px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    position: relative;
+  }
+  .amz-sug-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .amz-sug-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #0f1111;
+    margin: 0;
+    line-height: 1.3;
+  }
+  .amz-sug-page-indicator {
+    font-size: 12.5px;
+    color: #565959;
+    font-weight: 500;
+  }
+  .amz-carousel-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .amz-carousel-track {
+    display: flex;
+    gap: 24px;
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding: 6px 2px 14px 2px;
+    width: 100%;
+  }
+  .amz-carousel-track::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Carousel Navigation Buttons */
+  .amz-carousel-arrow {
+    position: absolute;
+    top: 35%;
+    transform: translateY(-50%);
+    width: 36px;
+    height: 48px;
+    background: #ffffff;
+    border: 1px solid #d5d9d9;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(213, 217, 217, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    line-height: 1;
+    color: #0f1111;
+    cursor: pointer;
+    z-index: 5;
+    transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+    user-select: none;
+  }
+  .amz-carousel-arrow:hover {
+    background: #f7fafa;
+    border-color: #888c8c;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  }
+  .amz-carousel-arrow:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+  .amz-arrow-prev {
+    left: -14px;
+  }
+  .amz-arrow-next {
+    right: -14px;
+  }
+
+  /* Amazon Card Layout */
+  .amz-card {
+    flex: 0 0 172px;
+    max-width: 172px;
+    display: flex;
+    flex-direction: column;
+    font-size: 13px;
+    color: #0f1111;
+    box-sizing: border-box;
+  }
+  .amz-card-media {
+    width: 100%;
+    height: 155px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 8px;
+    text-decoration: none;
+  }
+  .amz-card-media img {
+    max-width: 100%;
+    max-height: 145px;
+    object-fit: contain;
+    transition: transform 0.2s ease;
+  }
+  .amz-card:hover .amz-card-media img {
+    transform: scale(1.04);
+  }
+
+  .amz-card-details {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .amz-card-title {
+    color: #007185;
+    text-decoration: none;
+    font-size: 13.5px;
+    line-height: 1.35;
+    font-weight: 400;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: 3.8em;
+  }
+  .amz-card-title:hover {
+    color: #c7511f;
+    text-decoration: underline;
+  }
+
+  /* Ratings */
+  .amz-rating-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+  }
+  .amz-stars {
+    color: #de7921;
+    letter-spacing: 1px;
+    font-size: 14px;
+    line-height: 1;
+  }
+  .amz-rating-count {
+    color: #007185;
+    text-decoration: none;
+    font-size: 12px;
+  }
+  .amz-rating-count:hover {
+    color: #c7511f;
+    text-decoration: underline;
+  }
+
+  /* Price & Discount */
+  .amz-price-row {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin-top: 2px;
+  }
+  .amz-discount-pct {
+    color: #cc0c39;
+    font-size: 17px;
+    font-weight: 400;
+    line-height: 1;
+  }
+  .amz-main-price {
+    color: #0f1111;
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .amz-main-price.amz-ask {
+    font-size: 14px;
+    color: #007185;
+  }
+
+  /* Badges */
+  .amz-badge-row {
+    margin-top: 2px;
+  }
+  .amz-badge-pill {
+    display: inline-block;
+    background: #e67a00;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 2px;
+    line-height: 1.2;
+  }
+
+  /* M.R.P. */
+  .amz-mrp-row {
+    font-size: 12px;
+    color: #565959;
+    line-height: 1.3;
+  }
+  .amz-mrp-crossed {
+    text-decoration: line-through;
+  }
+
+  /* Delivery info */
+  .amz-delivery-info {
+    font-size: 12px;
+    color: #565959;
+    line-height: 1.35;
+    margin-top: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .amz-delivery-info p {
+    margin: 0;
+  }
+  .amz-del-date {
+    color: #0f1111;
+  }
+  .amz-del-date strong {
+    font-weight: 700;
+  }
+  .amz-del-ship,
+  .amz-del-fulfill {
+    color: #565959;
   }
 </style>
 
@@ -906,5 +1451,37 @@ const crumbs = [
     btn.onclick = handleSwitch;
     btn.onmouseenter = handleSwitch;
   });
+
+  // ── Amazon Suggestions Carousel Navigation ─────────────────
+  const amzTrack = document.getElementById('amz-carousel-track');
+  const amzPrev = document.getElementById('amz-carousel-prev') as HTMLButtonElement | null;
+  const amzNext = document.getElementById('amz-carousel-next') as HTMLButtonElement | null;
+  const amzIndicator = document.getElementById('amz-page-indicator');
+
+  if (amzTrack && amzPrev && amzNext) {
+    const updateAmzArrows = () => {
+      const maxScroll = amzTrack.scrollWidth - amzTrack.clientWidth;
+      amzPrev.disabled = amzTrack.scrollLeft <= 5;
+      amzNext.disabled = amzTrack.scrollLeft >= maxScroll - 5;
+
+      if (amzIndicator && amzTrack.clientWidth > 0) {
+        const totalPages = Math.max(1, Math.ceil(amzTrack.scrollWidth / amzTrack.clientWidth));
+        const currentPage = Math.min(totalPages, Math.floor((amzTrack.scrollLeft + 10) / amzTrack.clientWidth) + 1);
+        amzIndicator.textContent = `Page ${currentPage} of ${totalPages}`;
+      }
+    };
+
+    amzPrev.addEventListener('click', () => {
+      amzTrack.scrollBy({ left: -(amzTrack.clientWidth * 0.75), behavior: 'smooth' });
+    });
+
+    amzNext.addEventListener('click', () => {
+      amzTrack.scrollBy({ left: amzTrack.clientWidth * 0.75, behavior: 'smooth' });
+    });
+
+    amzTrack.addEventListener('scroll', updateAmzArrows, { passive: true });
+    window.addEventListener('resize', updateAmzArrows);
+    setTimeout(updateAmzArrows, 150);
+  }
 </script>
 

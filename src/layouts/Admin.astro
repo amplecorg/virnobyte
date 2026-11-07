@@ -74,6 +74,8 @@ const NAV: { group: string; items: { href: string; label: string; key: string; i
     <meta name="robots" content="noindex, nofollow" />
     <title>{title} · Virnobyte admin</title>
     <link rel="icon" href="/favicon.ico" />
+    <link rel="preload" href="/fonts/AmazonEmber_W_Rg.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/AmazonEmber_W_Bd.woff2" as="font" type="font/woff2" crossorigin />
     <script is:inline>
       if (typeof localStorage !== 'undefined' && localStorage.getItem('vb_sidebar_collapsed') === 'true' && window.matchMedia('(min-width: 900px)').matches) {
         document.documentElement.classList.add('sidebar-collapsed');

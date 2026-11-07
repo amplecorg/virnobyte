@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /account
+Disallow: /api/
+Disallow: /og-cache/
+
+# AI & Agent Directives
+Content-Signal: search=yes, ai-train=no
+
+Sitemap: https://virnobyte.com/sitemap.xml
