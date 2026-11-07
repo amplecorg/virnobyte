@@ -26,3 +26,4 @@ export const GET: APIRoute = async ({ url, redirect }) => {
     return redirect(`/order-success?order_id=${encodeURIComponent(orderId)}`, 303);
   }
 };
+

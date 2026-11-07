@@ -1,5 +1,5 @@
 import { t as sequence, ut as defineMiddleware } from "./chunks/sequence_BTIhAKFo.mjs";
-import { l as userFromCookies } from "./chunks/auth_iehkRLLM.mjs";
+import { l as userFromCookies } from "./chunks/auth_D-dTm5Q5.mjs";
 //#region src/middleware.ts
 var LEGACY = {
 	"/memberships": "/membership",

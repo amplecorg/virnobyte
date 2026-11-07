@@ -56,7 +56,31 @@ if (f.type === 'image' || f.type === 'images') {
 
   {
     (f.type === 'text' || f.type === 'slug') && (
-      <input id={id} name={f.name} type="text" value={value} required={f.required} data-max={f.max} />
+      <>
+        <input
+          id={id}
+          name={f.name}
+          type="text"
+          value={value}
+          required={f.type === 'slug' ? false : f.required}
+          data-max={f.max}
+          list={f.name === 'category' ? 'category-options' : undefined}
+          placeholder={f.type === 'slug' ? 'e.g. lap001 (auto-generated from name if empty)' : undefined}
+        />
+        {f.name === 'category' && (
+          <datalist id="category-options">
+            <option value="Laptops" />
+            <option value="Desktops" />
+            <option value="Keyboards & Mice" />
+            <option value="Components" />
+            <option value="CCTV" />
+            <option value="Networking" />
+            <option value="Power backup" />
+            <option value="Printers" />
+            <option value="Accessories" />
+          </datalist>
+        )}
+      </>
     )
   }
   {(f.type === 'number' || f.type === 'money') && <input id={id} name={f.name} type="number" inputmode="numeric" value={value} step="1" />}

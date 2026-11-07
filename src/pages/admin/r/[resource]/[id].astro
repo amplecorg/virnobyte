@@ -23,7 +23,7 @@ const DEFAULTS: Record<string, any> = {
   published: 1, active: 1, in_stock: 1, sort: 0, validity_days: 365, card_from: '#0f2a4a', card_to: '#2a5d8f', card_text: '#ffffff',
   card_pattern: 'circuit', employment_type: 'FULL_TIME', location: 'Chikhali, Pimpri-Chinchwad', condition: 'New', topic: 'General',
   group_name: 'Repair & support', published_at: new Date().toISOString().slice(0, 10), posted_at: new Date().toISOString().slice(0, 10),
-  benefits: '[]', images: '[]', category: def.key === 'projects' ? 'cctv-projects' : '',
+  benefits: '[]', images: '[]', category: def.key === 'projects' ? 'cctv-projects' : (def.key === 'products' ? 'Laptops' : ''),
   rating: '4.5', rating_count: '128 Ratings & 42 Reviews', badge: 'Assured',
   offer_tag: 'Extra ₹1,000 off with Virnobyte Card',
   warranty: '1 Year Virnobyte Warranty', replacement_policy: '7-Day Replacement Guarantee',
@@ -46,8 +46,13 @@ if (Astro.request.method === 'POST') {
     const parsed = await parseForm(def, form, id);
     errors = parsed.errors;
     if (!Object.keys(errors).length) {
-      const newId = saveRow(def, parsed.row, id);
-      return Astro.redirect(form.get('_action') === 'save_close' ? `/admin/r/${def.key}?saved=1` : `/admin/r/${def.key}/${newId}?saved=1`, 303);
+      try {
+        const newId = saveRow(def, parsed.row, id);
+        return Astro.redirect(form.get('_action') === 'save_close' ? `/admin/r/${def.key}?saved=1` : `/admin/r/${def.key}/${newId}?saved=1`, 303);
+      } catch (saveErr: any) {
+        console.error('[Admin Save Error]:', saveErr);
+        errors._form = 'Could not save record: ' + (saveErr?.message || String(saveErr));
+      }
     }
     // Re-show what the admin typed.
     for (const f of def.fields) {
@@ -166,3 +171,29 @@ let lastSection = '';
     </script>
   )
 }
+
+<script>
+  // Auto-slugify Name or Title into Slug field if slug is empty
+  const nameInput = document.querySelector<HTMLInputElement>('input[name="name"], input[name="title"]');
+  const slugInput = document.querySelector<HTMLInputElement>('input[name="slug"]');
+
+  if (nameInput && slugInput) {
+    let slugTouched = Boolean(slugInput.value.trim());
+
+    slugInput.addEventListener('input', () => {
+      slugTouched = true;
+    });
+
+    nameInput.addEventListener('input', () => {
+      if (!slugTouched || !slugInput.value.trim()) {
+        const val = nameInput.value
+          .toLowerCase()
+          .trim()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '')
+          .slice(0, 60);
+        slugInput.value = val;
+      }
+    });
+  }
+</script>

@@ -255,13 +255,23 @@ CREATE TABLE IF NOT EXISTS products (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   slug TEXT NOT NULL UNIQUE,
   name TEXT NOT NULL,
-  category TEXT NOT NULL DEFAULT 'Hardware',
+  category TEXT NOT NULL DEFAULT 'Laptops',
   summary TEXT NOT NULL DEFAULT '',
   price INTEGER,
   mrp INTEGER,
   condition TEXT NOT NULL DEFAULT 'New',
   image TEXT NOT NULL DEFAULT '',
   images TEXT NOT NULL DEFAULT '[]',
+  rating TEXT NOT NULL DEFAULT '4.5',
+  rating_count TEXT NOT NULL DEFAULT '128 Ratings & 42 Reviews',
+  badge TEXT NOT NULL DEFAULT 'Assured',
+  offer_tag TEXT NOT NULL DEFAULT 'Extra ₹1,000 off with Virnobyte Card',
+  warranty TEXT NOT NULL DEFAULT '1 Year Virnobyte Warranty',
+  replacement_policy TEXT NOT NULL DEFAULT '7-Day Replacement Guarantee',
+  diagnostic_setup TEXT NOT NULL DEFAULT 'Free On-Site Diagnostic Setup',
+  delivery_text TEXT NOT NULL DEFAULT 'Free Delivery by Tomorrow',
+  delivery_sub TEXT NOT NULL DEFAULT 'Doorstep setup & testing in PCMC & Pune',
+  wow_deal TEXT NOT NULL DEFAULT 'Exchange Old Laptop / PC & save up to ₹15,000',
   in_stock INTEGER NOT NULL DEFAULT 1,
   published INTEGER NOT NULL DEFAULT 1,
   sort INTEGER NOT NULL DEFAULT 0
@@ -373,6 +383,37 @@ CREATE TABLE IF NOT EXISTS enquiries (
   status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new','contacted','closed')),
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS orders (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  order_id TEXT NOT NULL UNIQUE,
+  product_id INTEGER,
+  product_name TEXT NOT NULL,
+  product_slug TEXT NOT NULL,
+  quantity INTEGER NOT NULL DEFAULT 1,
+  unit_price INTEGER NOT NULL,
+  mrp INTEGER,
+  discount INTEGER NOT NULL DEFAULT 0,
+  delivery_fee INTEGER NOT NULL DEFAULT 0,
+  total_amount INTEGER NOT NULL,
+  customer_name TEXT NOT NULL,
+  customer_phone TEXT NOT NULL,
+  customer_email TEXT NOT NULL DEFAULT '',
+  address_line1 TEXT NOT NULL,
+  address_line2 TEXT NOT NULL DEFAULT '',
+  pincode TEXT NOT NULL,
+  city TEXT NOT NULL DEFAULT 'Pune',
+  state TEXT NOT NULL DEFAULT 'Maharashtra',
+  address_type TEXT NOT NULL DEFAULT 'Home',
+  payment_method TEXT NOT NULL DEFAULT 'cashfree',
+  payment_status TEXT NOT NULL DEFAULT 'PENDING',
+  order_status TEXT NOT NULL DEFAULT 'CONFIRMED',
+  cashfree_order_id TEXT NOT NULL DEFAULT '',
+  cashfree_session_id TEXT NOT NULL DEFAULT '',
+  notes TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 `;
 
 let instance: any = null;
@@ -422,15 +463,74 @@ export function db(): any {
 
     d.exec(SCHEMA);
 
-    // Auto-migration: ensure products table has images column
+    // Auto-migration: ensure products table has all modern Flipkart & e-commerce columns
     try {
       const cols = d.prepare('PRAGMA table_info(products)').all() as { name: string }[];
-      if (cols.length > 0 && !cols.some((c: any) => c.name === 'images')) {
-        d.exec("ALTER TABLE products ADD COLUMN images TEXT NOT NULL DEFAULT '[]'");
+      const colSet = new Set(cols.map((c: any) => c.name));
+
+      const productMigrations: [string, string][] = [
+        ['images', "TEXT NOT NULL DEFAULT '[]'"],
+        ['rating', "TEXT NOT NULL DEFAULT '4.5'"],
+        ['rating_count', "TEXT NOT NULL DEFAULT '128 Ratings & 42 Reviews'"],
+        ['badge', "TEXT NOT NULL DEFAULT 'Assured'"],
+        ['offer_tag', "TEXT NOT NULL DEFAULT 'Extra ₹1,000 off with Virnobyte Card'"],
+        ['warranty', "TEXT NOT NULL DEFAULT '1 Year Virnobyte Warranty'"],
+        ['replacement_policy', "TEXT NOT NULL DEFAULT '7-Day Replacement Guarantee'"],
+        ['diagnostic_setup', "TEXT NOT NULL DEFAULT 'Free On-Site Diagnostic Setup'"],
+        ['delivery_text', "TEXT NOT NULL DEFAULT 'Free Delivery by Tomorrow'"],
+        ['delivery_sub', "TEXT NOT NULL DEFAULT 'Doorstep setup & testing in PCMC & Pune'"],
+        ['wow_deal', "TEXT NOT NULL DEFAULT 'Exchange Old Laptop / PC & save up to ₹15,000'"],
+      ];
+
+      for (const [colName, colDef] of productMigrations) {
+        if (!colSet.has(colName)) {
+          d.exec(`ALTER TABLE products ADD COLUMN ${colName} ${colDef}`);
+        }
+      }
+
+      if (!colSet.has('images')) {
         d.exec("UPDATE products SET images = json_array(image) WHERE image != '' AND (images = '' OR images = '[]')");
       }
     } catch (migErr) {
-      console.warn('[Virnobyte DB] Migration error for products.images:', migErr);
+      console.warn('[Virnobyte DB] Migration error for products table:', migErr);
+    }
+
+    // Auto-migration: ensure orders table exists
+    try {
+      d.exec(`
+        CREATE TABLE IF NOT EXISTS orders (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          order_id TEXT NOT NULL UNIQUE,
+          product_id INTEGER,
+          product_name TEXT NOT NULL,
+          product_slug TEXT NOT NULL,
+          quantity INTEGER NOT NULL DEFAULT 1,
+          unit_price INTEGER NOT NULL,
+          mrp INTEGER,
+          discount INTEGER NOT NULL DEFAULT 0,
+          delivery_fee INTEGER NOT NULL DEFAULT 0,
+          total_amount INTEGER NOT NULL,
+          customer_name TEXT NOT NULL,
+          customer_phone TEXT NOT NULL,
+          customer_email TEXT NOT NULL DEFAULT '',
+          address_line1 TEXT NOT NULL,
+          address_line2 TEXT NOT NULL DEFAULT '',
+          pincode TEXT NOT NULL,
+          city TEXT NOT NULL DEFAULT 'Pune',
+          state TEXT NOT NULL DEFAULT 'Maharashtra',
+          address_type TEXT NOT NULL DEFAULT 'Home',
+          payment_method TEXT NOT NULL DEFAULT 'cashfree',
+          payment_status TEXT NOT NULL DEFAULT 'PENDING',
+          order_status TEXT NOT NULL DEFAULT 'CONFIRMED',
+          cashfree_order_id TEXT NOT NULL DEFAULT '',
+          cashfree_session_id TEXT NOT NULL DEFAULT '',
+          notes TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+    } catch (migErr) {
+      console.warn('[Virnobyte DB] Migration error for orders table:', migErr);
     }
 
     seedDatabase(d);

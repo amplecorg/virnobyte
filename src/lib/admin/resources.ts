@@ -172,9 +172,9 @@ export const RESOURCES: Record<string, ResourceDef> = {
     ],
     publicUrl: (r) => `/products/${r.slug}`,
     fields: [
-      { name: 'name', label: 'Name', type: 'text', required: true, half: true, section: 'Basic Details' },
-      { name: 'slug', label: 'Product code / ID', type: 'slug', required: true, half: true },
-      { name: 'category', label: 'Category', type: 'text', half: true, required: true },
+      { name: 'name', label: 'Product Name', type: 'text', required: true, half: true, section: 'Basic Details' },
+      { name: 'slug', label: 'Product URL / Code (auto-created if empty)', type: 'slug', required: false, half: true, help: 'Unique web link / code (e.g. lap001 or dell-latitude-i5). Leave blank to auto-create from name.' },
+      { name: 'category', label: 'Category', type: 'text', half: true, required: true, help: 'e.g. Laptops, Desktops, Keyboards & Mice, Components, CCTV, Networking, Power backup' },
       { name: 'condition', label: 'Condition', type: 'select', half: true, options: opt('New', 'Refurbished', 'Used') },
       { name: 'summary', label: 'Summary & Specifications', type: 'textarea', rows: 6, help: 'Flipkart specifications bullet list. Start each point with • on a new line (e.g. • Processor: Intel Core i5).' },
       { name: 'price', label: 'Price (₹)', type: 'money', half: true, help: 'Selling price. Leave empty to show "Ask for price".' },
