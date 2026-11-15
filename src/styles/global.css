@@ -366,6 +366,17 @@ textarea {
   flex-wrap: wrap;
   gap: var(--space-3);
 }
+@media (max-width: 480px) {
+  .btn-row {
+    flex-direction: column;
+    width: 100%;
+  }
+  .btn-row .btn {
+    width: 100%;
+    text-align: center;
+    justify-content: center;
+  }
+}
 .chip {
   display: inline-flex;
   align-items: center;

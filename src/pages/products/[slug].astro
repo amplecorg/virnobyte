@@ -1410,6 +1410,111 @@ const crumbs = [
   .amz-del-fulfill {
     color: #565959;
   }
+
+  /* ── Responsive Mobile & Tablet Rules ────────────────────────── */
+  @media (max-width: 960px) {
+    .fk-detail-grid {
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+    .fk-detail-left {
+      position: static;
+    }
+    .fk-detail-stage {
+      max-width: 500px;
+      margin-inline: auto;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .fk-detail-page {
+      padding-top: 8px;
+      padding-bottom: 24px;
+    }
+    .fk-gallery-wrapper {
+      padding: 12px;
+      gap: 10px;
+    }
+    .fk-detail-stage {
+      max-width: 100%;
+      aspect-ratio: 1 / 1;
+    }
+    .fk-detail-thumbs {
+      gap: 6px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 4px;
+    }
+    .fk-detail-thumb-btn {
+      width: 52px;
+      height: 52px;
+      flex-shrink: 0;
+    }
+    .fk-detail-actions {
+      gap: 8px;
+    }
+    .fk-action-btn {
+      padding: 12px 14px;
+      font-size: 14px;
+    }
+    .fk-detail-right {
+      padding: 16px 14px;
+      gap: 14px;
+    }
+    .fk-detail-title {
+      font-size: 1.25rem;
+      line-height: 1.3;
+    }
+    .fk-detail-price-box {
+      padding: 12px 14px;
+    }
+    .fk-final-price {
+      font-size: 1.65rem;
+    }
+    .fk-services-strip {
+      grid-template-columns: 1fr;
+      gap: 8px;
+      padding: 10px;
+    }
+    .fk-service-cell {
+      padding: 4px 0;
+    }
+    .fk-specs-table tr {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 8px 0;
+    }
+    .fk-specs-table td {
+      padding: 2px 0;
+    }
+    .fk-spec-label {
+      width: 100%;
+      font-weight: 700;
+      color: #717478;
+    }
+    .amz-suggestions-section {
+      padding: 16px 12px;
+    }
+    .amz-card {
+      flex: 0 0 135px;
+      max-width: 135px;
+    }
+    .amz-card-media {
+      height: 120px;
+    }
+    .amz-card-media img {
+      max-height: 110px;
+    }
+    .amz-card-title {
+      font-size: 12px;
+      -webkit-line-clamp: 3;
+      min-height: 3.2em;
+    }
+    .amz-carousel-arrow {
+      display: none;
+    }
+  }
 </style>
 
 <script>

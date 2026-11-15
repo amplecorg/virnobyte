@@ -833,15 +833,38 @@ const itemsLabel = `${totals.itemCount} ITEM${totals.itemCount === 1 ? '' : 'S'}
   }
 
   @media (max-width: 600px) {
+    .fk-checkout-page {
+      padding: 12px 0 40px;
+    }
+    .fk-step-head {
+      padding: 12px 14px;
+    }
+    .fk-step-body {
+      padding: 14px;
+    }
     .fk-form-grid {
       grid-template-columns: 1fr;
+      gap: 12px;
     }
     .fk-order-item {
-      flex-direction: column;
+      gap: 12px;
     }
     .fk-item-thumb {
+      width: 76px;
+      height: 76px;
+      flex-shrink: 0;
+    }
+    .fk-item-title {
+      font-size: 0.95rem;
+      line-height: 1.3;
+    }
+    .fk-price-card {
+      padding: 14px;
+    }
+    .fk-btn-continue,
+    .fk-btn-submit {
       width: 100%;
-      height: 140px;
+      padding: 13px 18px;
     }
   }
 

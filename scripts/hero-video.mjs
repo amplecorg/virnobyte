@@ -14,15 +14,21 @@ if (!input || !existsSync(input)) {
 
 const probe = spawnSync(
   'ffprobe',
-  ['-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height', '-of', 'csv=p=0', input],
+  ['-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height,r_frame_rate', '-of', 'csv=p=0', input],
   { encoding: 'utf8' },
 );
 if (probe.status !== 0) {
   console.error('ffprobe failed. Is ffmpeg installed and is this a video file?\n' + probe.stderr);
   process.exit(1);
 }
-const [srcW, srcH] = probe.stdout.trim().split(',').map(Number);
-console.log(`Source: ${srcW}x${srcH}`);
+const [probeW, probeH, probeRate = '30/1'] = probe.stdout.trim().split(',');
+const srcW = Number(probeW);
+const srcH = Number(probeH);
+const [num, den = '1'] = probeRate.split('/');
+const srcFps = Number(num) / Number(den) || 30;
+// Keep the source frame rate (forcing 25 → 30 duplicates frames and judders); only cap high-fps sources.
+const fpsFilter = srcFps > 30 ? ',fps=30' : '';
+console.log(`Source: ${srcW}x${srcH} @ ${Math.round(srcFps * 100) / 100} fps`);
 
 const outDir = join(process.cwd(), 'public', 'video');
 mkdirSync(outDir, { recursive: true });
@@ -46,7 +52,7 @@ for (const [h, crf, maxrate] of RUNGS) {
     [
       '-y', '-ss', start, '-t', seconds, '-i', input,
       '-an',
-      '-vf', `scale=-2:${Math.min(h, srcH)}:flags=lanczos,fps=30`,
+      '-vf', `scale=-2:${Math.min(h, srcH)}:flags=lanczos${fpsFilter}`,
       '-c:v', 'libx264', '-preset', 'slow', '-profile:v', 'high', '-pix_fmt', 'yuv420p',
       '-crf', String(crf), '-maxrate', maxrate, '-bufsize', maxrate,
       '-movflags', '+faststart',

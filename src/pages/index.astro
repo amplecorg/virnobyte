@@ -498,14 +498,71 @@ const STEPS = [
     gap: var(--space-4);
   }
   @media (max-width: 640px) {
+    .hero-inner {
+      padding-block: var(--space-6) var(--space-4);
+      gap: var(--space-4);
+    }
+    .hero .hero-chip {
+      padding: 6px 14px;
+      font-size: 0.8rem;
+      border-left-width: 2px;
+      border-radius: 4px;
+      max-width: 95%;
+    }
+    .hero h1 {
+      font-size: clamp(1.75rem, 1.35rem + 2.5vw, 2.5rem);
+      line-height: 1.18;
+      max-width: 100%;
+    }
+    .hero .h1-accent {
+      font-size: clamp(1.65rem, 1.25rem + 2.5vw, 2.3rem);
+    }
+    .hero-lede {
+      font-size: 0.95rem;
+      line-height: 1.45;
+      max-width: 100%;
+    }
+    .fixes {
+      font-size: 1.05rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-top: 0;
+      gap: 0.3em;
+    }
+    .rotator {
+      min-width: 10ch;
+    }
+    .hero .hero-cta {
+      width: min(100%, 280px);
+      padding: 0.85em 1.8em;
+      font-size: 0.95rem;
+    }
     .facts {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: var(--space-3);
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      padding-top: var(--space-3);
+      margin-top: var(--space-2);
+    }
+    .facts dd {
+      font-size: clamp(0.95rem, 0.8rem + 1vw, 1.15rem);
+    }
+    .facts dt {
+      font-size: 0.7rem;
+      line-height: 1.25;
+      text-align: center;
     }
   }
   @media (max-width: 380px) {
     .facts {
       grid-template-columns: 1fr;
+      gap: 8px;
+    }
+    .facts div {
+      flex-direction: row;
+      justify-content: space-between;
+      width: 100%;
+      border-bottom: 1px solid rgb(255 255 255 / 0.12);
+      padding-bottom: 4px;
     }
   }
   .facts div {
@@ -608,6 +665,30 @@ const STEPS = [
     top: 26%;
     transform: rotate(7deg);
     z-index: 2;
+  }
+  @media (max-width: 640px) {
+    .fan {
+      height: clamp(220px, 58vw, 300px);
+      max-width: 360px;
+    }
+    .fan-card {
+      width: min(85%, 300px);
+    }
+    .fan-card.f0 {
+      left: 1%;
+      top: 14%;
+      transform: rotate(-6deg);
+    }
+    .fan-card.f1 {
+      left: 8%;
+      top: 3%;
+      transform: rotate(-1deg);
+    }
+    .fan-card.f2 {
+      right: 1%;
+      top: 20%;
+      transform: rotate(5deg);
+    }
   }
   @media (hover: hover) and (prefers-reduced-motion: no-preference) {
     .fan:hover .f0 {
