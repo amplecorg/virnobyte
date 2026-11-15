@@ -7,3 +7,4 @@ data/og-cache
 .env
 .env.*
 !.env.example
+.claude
