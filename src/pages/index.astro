@@ -2,6 +2,7 @@
 import { getImage } from 'astro:assets';
 import Base from '@/layouts/Base.astro';
 import Photo from '@/components/Photo.astro';
+import HeroVideo from '@/components/HeroVideo.astro';
 import Icon from '@/components/Icon.astro';
 import ServiceGrid from '@/components/ServiceGrid.astro';
 import MembershipCard from '@/components/MembershipCard.astro';
@@ -47,18 +48,10 @@ const FIX_LABELS: Record<string, string> = {
 };
 const rotating = allServices.filter((x) => FIX_LABELS[x.slug]).map((x) => ({ slug: x.slug, label: FIX_LABELS[x.slug] }));
 
-// Circuit traces for the hero (viewBox 800×600, anchored to the right edge).
-const TRACES = [
-  'M800 90H610l-30 30H430l-26 26H300',
-  'M800 170H660l-24-24H520',
-  'M800 250H700l-40 40H560l-20 20H420',
-  'M800 330H640l-30-30H500l-24 24H380',
-  'M800 420H720l-28 28H600l-26-26H470',
-  'M800 500H660l-36 36H520',
-  'M690 0v60l-30 30',
-  'M560 600v-70l24-24h70',
-];
-const NODES = [[300, 146], [520, 146], [420, 310], [380, 324], [470, 422], [520, 536], [660, 90], [654, 506]];
+// Two-tone headline: the part from " & " onwards sits on its own line in the accent colour.
+const h1Cut = s.home.h1.indexOf(' & ');
+const h1Main = h1Cut > 0 ? s.home.h1.slice(0, h1Cut) : s.home.h1;
+const h1Accent = h1Cut > 0 ? s.home.h1.slice(h1Cut + 1) : '';
 
 const STEPS = [
   { title: 'Tell us the problem', text: 'Call, WhatsApp, book online or walk in. Many issues can be narrowed down over the phone.' },
@@ -80,7 +73,7 @@ const STEPS = [
   ]}
   preloadImage={preload ? { srcset: preload.srcSet.attribute, sizes: heroSizes, type: 'image/avif' } : undefined}
 >
-  <!-- Hero: one promise, three facts, full screen on laptops -->
+  <!-- Hero: centred promise over the background video/photo, one action, three facts -->
   <section class="hero">
     <Photo
       image={s.home.heroImage}
@@ -91,21 +84,10 @@ const STEPS = [
       class="hero-img"
       position="60% 50%"
     />
-    <!-- Current pulses along circuit traces: the same motif as the membership card -->
-    <svg class="hero-traces" viewBox="0 0 800 600" preserveAspectRatio="xMaxYMid slice" aria-hidden="true">
-      <g class="tr-base">
-        {TRACES.map((d) => <path d={d} />)}
-      </g>
-      <g class="tr-pulse">
-        {TRACES.map((d, i) => <path d={d} pathLength="100" style={`animation-delay:${(i * 0.9) % 5.4}s;animation-duration:${4.5 + (i % 3)}s`} />)}
-      </g>
-      <g class="tr-nodes">
-        {NODES.map(([x, y], i) => <circle cx={x} cy={y} r="3.5" style={`animation-delay:${i * 0.7}s`} />)}
-      </g>
-    </svg>
+    {s.home.heroVideo && <HeroVideo src={s.home.heroVideo} src4k={s.home.heroVideo4k} srcMobile={s.home.heroVideoMobile} />}
     <div class="wrap hero-inner">
-      <span class="eyebrow live"><span class="dot" aria-hidden="true"></span>{s.home.eyebrow}</span>
-      <h1>{s.home.h1}</h1>
+      <span class="eyebrow hero-chip">{s.home.eyebrow}</span>
+      <h1>{h1Main}{h1Accent && <span class="h1-accent"> {h1Accent}</span>}</h1>
       <p class="hero-lede">{s.home.lede}</p>
       <p class="fixes">
         <span class="fixes-label">We fix</span>
@@ -114,11 +96,7 @@ const STEPS = [
         </span>
         <span class="sr-only">{rotating.map((r) => r.label).join(', ')}</span>
       </p>
-      <div class="btn-row">
-        <a class="btn" href="/contact#book"><Icon name="calendar" /> Book a Service</a>
-        <a class="btn btn--light" href={c.tel}><Icon name="phone" /> Call Now</a>
-        <a class="btn btn--light" href={c.whatsappUrl()} rel="noopener" target="_blank"><Icon name="whatsapp" /> WhatsApp Now</a>
-      </div>
+      <a class="btn hero-cta" href="/contact#book">Book a Service</a>
       <dl class="facts">
         {
           s.home.facts.map((f) => (
@@ -339,7 +317,8 @@ const STEPS = [
     position: relative;
     isolation: isolate;
     display: grid;
-    align-items: end;
+    align-items: center;
+    text-align: center;
     min-height: min(88svh, 900px);
     color: #fff;
     background: var(--night);
@@ -358,62 +337,46 @@ const STEPS = [
     position: absolute;
     inset: 0;
     z-index: -1;
+    /* Even dark-blue wash so centred white text stays readable over any frame of the video. */
     background:
-      linear-gradient(180deg, rgb(11 23 36 / 0.35) 0%, rgb(11 23 36 / 0.55) 40%, rgb(11 23 36 / 0.94) 100%),
-      linear-gradient(90deg, rgb(11 23 36 / 0.75) 0%, rgb(11 23 36 / 0) 70%);
+      linear-gradient(180deg, rgb(8 20 48 / 0.55) 0%, rgb(8 20 48 / 0.68) 55%, rgb(8 16 36 / 0.9) 100%),
+      rgb(10 40 110 / 0.22);
   }
   .hero-inner {
     position: relative;
     z-index: 1;
     display: grid;
     gap: var(--space-5);
-    justify-items: start;
+    justify-items: center;
     padding-block: var(--space-8) var(--space-6);
   }
+  /* Tagline chip above the headline */
+  .hero .hero-chip {
+    padding: 10px 20px;
+    background: rgb(20 26 38 / 0.82);
+    border-left: 3px solid #4f8cff;
+    color: #fff;
+    font-weight: 500;
+    line-height: 1.4;
+  }
+  .hero .h1-accent {
+    display: block;
+    color: #4f8cff;
+  }
+  .hero .hero-cta {
+    --btn-bg: #2f6bff;
+    --btn-bd: #2f6bff;
+    padding: 0.95em 2.4em;
+    border-radius: 999px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .hero .hero-cta:hover {
+    --btn-bg: #1f56e0;
+    --btn-bd: #1f56e0;
+  }
 
-  /* ── Hero life ─────────────────────────────────────────────── */
-  .hero-traces {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 0;
-    pointer-events: none;
-    /* Keep the traces off the headline: fade them in from the right. */
-    -webkit-mask-image: linear-gradient(90deg, transparent 30%, #000 62%);
-    mask-image: linear-gradient(90deg, transparent 30%, #000 62%);
-  }
-  .hero-traces path {
-    fill: none;
-    stroke-width: 1.4;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-  }
-  .tr-base path {
-    stroke: rgb(158 201 255 / 0.14);
-  }
-  .tr-pulse path {
-    stroke: #6db6ff;
-    stroke-width: 2.2;
-    stroke-dasharray: 8 92;
-    stroke-dashoffset: 100;
-    opacity: 0;
-    filter: drop-shadow(0 0 6px rgb(109 182 255 / 0.9));
-  }
-  .tr-nodes circle {
-    fill: #9ec9ff;
-    opacity: 0.35;
-  }
-  .live .dot {
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    margin-right: 8px;
-    border-radius: 50%;
-    background: #3ddc97;
-    box-shadow: 0 0 0 0 rgb(61 220 151 / 0.6);
-    vertical-align: 1px;
-  }
   .fixes {
     display: flex;
     align-items: baseline;
@@ -475,51 +438,6 @@ const STEPS = [
         transform: scale(1.14) translate3d(-1.5%, -1%, 0);
       }
     }
-    .tr-pulse path {
-      animation-name: pulse-run;
-      animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
-      animation-iteration-count: infinite;
-    }
-    @keyframes pulse-run {
-      0% {
-        stroke-dashoffset: 100;
-        opacity: 0;
-      }
-      8% {
-        opacity: 1;
-      }
-      70% {
-        opacity: 1;
-      }
-      100% {
-        stroke-dashoffset: 0;
-        opacity: 0;
-      }
-    }
-    .tr-nodes circle {
-      animation: node 3.2s ease-in-out infinite;
-    }
-    @keyframes node {
-      0%,
-      100% {
-        opacity: 0.25;
-      }
-      50% {
-        opacity: 0.9;
-      }
-    }
-    .live .dot {
-      animation: ping 2s ease-out infinite;
-    }
-    @keyframes ping {
-      0% {
-        box-shadow: 0 0 0 0 rgb(61 220 151 / 0.6);
-      }
-      80%,
-      100% {
-        box-shadow: 0 0 0 9px rgb(61 220 151 / 0);
-      }
-    }
     /* Staged entrance: transform-only so the LCP image is never delayed. */
     .hero-inner > * {
       animation: rise 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) both;
@@ -553,14 +471,6 @@ const STEPS = [
       }
     }
   }
-  @media (max-width: 700px) {
-    .tr-base path {
-      stroke: rgb(158 201 255 / 0.08);
-    }
-    .tr-pulse path {
-      stroke-width: 1.6;
-    }
-  }
   .hero .eyebrow {
     color: #d5e1ee;
     text-transform: none;
@@ -568,11 +478,14 @@ const STEPS = [
     font-size: var(--fs-small);
   }
   .hero h1 {
-    max-width: 15ch;
+    max-width: 22ch;
   }
   .hero-lede {
-    max-width: 56ch;
+    max-width: 60ch;
     color: #dde6ef;
+  }
+  .fixes {
+    justify-content: center;
   }
   .facts {
     margin: var(--space-4) 0 0;
@@ -598,6 +511,7 @@ const STEPS = [
   .facts div {
     display: flex;
     flex-direction: column-reverse;
+    align-items: center;
     justify-content: flex-end;
     gap: 4px;
   }

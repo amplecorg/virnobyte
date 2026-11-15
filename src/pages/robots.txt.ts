@@ -7,6 +7,9 @@ Allow: /
 Disallow: /admin
 Disallow: /account
 Disallow: /api/
+Disallow: /cart
+Disallow: /checkout
+Disallow: /order-success
 Disallow: /og-cache/
 
 # AI & Agent Directives

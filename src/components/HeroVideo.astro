@@ -1,0 +1,147 @@
+---
+/**
+ * Background video for the home hero. The hero photo stays underneath as the
+ * poster and LCP element; the video is fetched only after the page has loaded,
+ * and never for visitors who asked for reduced motion or data saving.
+ */
+interface Props {
+  /** 1080p MP4 (H.264), the default source. */
+  src: string;
+  /** 2160p MP4, used only on screens wide enough to show it. */
+  src4k?: string;
+  /** 720p MP4 for phones. */
+  srcMobile?: string;
+}
+const { src, src4k = '', srcMobile = '' } = Astro.props;
+---
+
+<video
+  class="hero-video"
+  data-hero-video
+  data-src={src}
+  data-src-4k={src4k}
+  data-src-mobile={srcMobile}
+  muted
+  loop
+  playsinline
+  preload="none"
+  disablepictureinpicture
+  aria-hidden="true"
+  tabindex="-1"></video>
+<button type="button" class="hero-video-toggle" data-hero-video-toggle hidden aria-pressed="false">
+  <span class="sr-only">Pause background video</span>
+  <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+    <path class="i-pause" d="M8 5v14M16 5v14"></path>
+    <path class="i-play" d="M8 5l11 7-11 7z"></path>
+  </svg>
+</button>
+
+<script>
+  const video = document.querySelector<HTMLVideoElement>('[data-hero-video]');
+  const toggle = document.querySelector<HTMLButtonElement>('[data-hero-video-toggle]');
+  const conn = (navigator as any).connection;
+  const lite =
+    matchMedia('(prefers-reduced-motion: reduce)').matches ||
+    conn?.saveData === true ||
+    /(^|-)2g$/.test(conn?.effectiveType ?? '');
+
+  if (video && !lite) {
+    let userPaused = false;
+    let visible = true;
+
+    const pick = () => {
+      const px = Math.max(innerWidth, innerHeight) * Math.min(devicePixelRatio || 1, 2);
+      if (innerWidth < 768 && video.dataset.srcMobile) return video.dataset.srcMobile;
+      if (px >= 2560 && video.dataset.src4k) return video.dataset.src4k;
+      return video.dataset.src!;
+    };
+    const sync = () => {
+      if (userPaused || !visible || document.hidden) video.pause();
+      else video.play().catch(() => {});
+    };
+    const start = () => {
+      video.src = pick();
+      video.addEventListener(
+        'canplay',
+        () => {
+          video.classList.add('is-ready');
+          if (toggle) toggle.hidden = false;
+          sync();
+        },
+        { once: true },
+      );
+      video.load();
+    };
+
+    toggle?.addEventListener('click', () => {
+      userPaused = !userPaused;
+      toggle.setAttribute('aria-pressed', String(userPaused));
+      toggle.querySelector('.sr-only')!.textContent = userPaused ? 'Play background video' : 'Pause background video';
+      sync();
+    });
+    document.addEventListener('visibilitychange', sync);
+    new IntersectionObserver(([e]) => {
+      visible = e.isIntersecting;
+      if (video.src) sync();
+    }).observe(video);
+
+    // Never compete with the hero photo for bandwidth.
+    if (document.readyState === 'complete') start();
+    else addEventListener('load', start, { once: true });
+  }
+</script>
+
+<style>
+  .hero-video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: -2;
+    opacity: 0;
+    transition: opacity 0.9s ease;
+    pointer-events: none;
+  }
+  .hero-video.is-ready {
+    opacity: 1;
+  }
+  .hero-video-toggle {
+    position: absolute;
+    right: max(16px, env(safe-area-inset-right));
+    bottom: 16px;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border: 1px solid rgb(255 255 255 / 0.35);
+    border-radius: 50%;
+    background: rgb(11 23 36 / 0.55);
+    color: #fff;
+    cursor: pointer;
+  }
+  .hero-video-toggle[hidden] {
+    display: none;
+  }
+  .hero-video-toggle:hover {
+    background: rgb(11 23 36 / 0.8);
+  }
+  .hero-video-toggle svg {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .hero-video-toggle .i-play {
+    display: none;
+    fill: currentColor;
+  }
+  .hero-video-toggle[aria-pressed='true'] .i-play {
+    display: block;
+  }
+  .hero-video-toggle[aria-pressed='true'] .i-pause {
+    display: none;
+  }
+</style>

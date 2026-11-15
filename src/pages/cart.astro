@@ -1,0 +1,490 @@
+---
+import Base from '@/layouts/Base.astro';
+import { inr } from '@/lib/format';
+import { getCart } from '@/lib/commerce/cart';
+import { getPaymentConfig } from '@/lib/commerce/payments';
+import { MAX_QTY } from '@/lib/commerce/pricing';
+
+const secure = Astro.url.protocol === 'https:' || Astro.request.headers.get('x-forwarded-proto') === 'https';
+const cart = getCart(Astro.cookies, Astro.locals.user, secure);
+const { lines, totals } = cart;
+const cfg = getPaymentConfig();
+const toFreeDelivery = totals.deliveryFee > 0 ? cfg.minFreeDelivery - totals.subtotal : 0;
+---
+
+<Base title="Your Cart | Virnobyte" description="Review the items in your Virnobyte cart before checkout." canonical="/cart" noindex>
+  <div class="vc-page">
+    <div class="wrap">
+      {/* Everything inside #vc-root is re-fetched and swapped after each cart change. */}
+      <div id="vc-root" data-count={cart.count}>
+        {
+          lines.length === 0 ? (
+            <div class="vc-empty">
+              <div class="vc-empty-icon" aria-hidden="true">🛒</div>
+              <h1>Your cart is empty</h1>
+              <p>Browse laptops, desktops, CCTV kits and accessories — every product is tested before delivery.</p>
+              <a class="vc-btn-primary" href="/products">Shop Products</a>
+            </div>
+          ) : (
+            <div class="vc-grid">
+              <section class="vc-main" aria-label="Cart items">
+                <header class="vc-head">
+                  <h1>My Cart <span>({cart.count} item{cart.count === 1 ? '' : 's'})</span></h1>
+                  <a href="/products">Continue shopping</a>
+                </header>
+
+                <ul class="vc-list">
+                  {lines.map((l) => (
+                    <li class:list={['vc-line', { 'vc-line--off': !l.available }]}>
+                      <a class="vc-thumb" href={`/products/${l.slug}`}>
+                        <img src={l.image} alt="" loading="lazy" />
+                      </a>
+
+                      <div class="vc-info">
+                        <a class="vc-name" href={`/products/${l.slug}`}>{l.name}</a>
+                        <span class="vc-cat">{l.category}</span>
+
+                        {l.available ? (
+                          <div class="vc-price-row">
+                            <span class="vc-price">{inr(l.lineTotal)}</span>
+                            {l.mrp > l.unitPrice && <span class="vc-mrp">{inr(l.mrp * l.quantity)}</span>}
+                            {l.mrp > l.unitPrice && (
+                              <span class="vc-off">{Math.round(((l.mrp - l.unitPrice) / l.mrp) * 100)}% off</span>
+                            )}
+                            {l.quantity > 1 && <span class="vc-each">{inr(l.unitPrice)} each</span>}
+                          </div>
+                        ) : (
+                          <p class="vc-unavailable">{l.unavailableReason}</p>
+                        )}
+
+                        <div class="vc-controls">
+                          {l.available && (
+                            <div class="vc-qty" role="group" aria-label={`Quantity for ${l.name}`}>
+                              <button type="button" data-cart-qty={l.quantity - 1} data-product={l.productId} aria-label="Decrease quantity" disabled={l.quantity <= 1}>−</button>
+                              <span aria-live="polite">{l.quantity}</span>
+                              <button type="button" data-cart-qty={l.quantity + 1} data-product={l.productId} aria-label="Increase quantity" disabled={l.quantity >= MAX_QTY}>+</button>
+                            </div>
+                          )}
+                          <button type="button" class="vc-remove" data-cart-qty="0" data-product={l.productId}>REMOVE</button>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+
+                <div class="vc-place">
+                  {totals.itemCount > 0 ? (
+                    <a class="vc-btn-primary" href="/checkout">PLACE ORDER</a>
+                  ) : (
+                    <span class="vc-btn-primary vc-btn-disabled">PLACE ORDER</span>
+                  )}
+                </div>
+              </section>
+
+              <aside class="vc-side" aria-label="Price details">
+                <div class="vc-card">
+                  <h2>PRICE DETAILS</h2>
+                  <dl>
+                    <div>
+                      <dt>Price ({totals.itemCount} item{totals.itemCount === 1 ? '' : 's'})</dt>
+                      <dd>{inr(totals.mrpTotal)}</dd>
+                    </div>
+                    {totals.discount > 0 && (
+                      <div>
+                        <dt>Discount</dt>
+                        <dd class="vc-green">− {inr(totals.discount)}</dd>
+                      </div>
+                    )}
+                    <div>
+                      <dt>Delivery Charges</dt>
+                      {totals.deliveryFee > 0 ? <dd>{inr(totals.deliveryFee)}</dd> : <dd class="vc-green">FREE</dd>}
+                    </div>
+                    <div class="vc-total">
+                      <dt>Total Amount</dt>
+                      <dd>{inr(totals.total)}</dd>
+                    </div>
+                  </dl>
+                  {totals.discount > 0 && <p class="vc-save">You will save {inr(totals.discount)} on this order</p>}
+                  {toFreeDelivery > 0 && <p class="vc-hint">Add {inr(toFreeDelivery)} more for free delivery.</p>}
+                  {cart.hasUnavailable && <p class="vc-hint">Unavailable items are not included in the total.</p>}
+                </div>
+                <p class="vc-secure">🛡️ Safe and secure payments. 100% authentic products with a 7-day replacement guarantee.</p>
+              </aside>
+            </div>
+          )
+        }
+      </div>
+      <p class="vc-error" id="vc-error" role="alert"></p>
+    </div>
+  </div>
+</Base>
+
+<script>
+  const root = document.getElementById('vc-root')!;
+  const errorBox = document.getElementById('vc-error')!;
+
+  // Server stays the single renderer: after a change, fetch this page again and swap the cart block.
+  async function refresh() {
+    const html = await fetch('/cart', { headers: { Accept: 'text/html' }, cache: 'no-store' }).then((r) => r.text());
+    const next = new DOMParser().parseFromString(html, 'text/html').getElementById('vc-root');
+    if (!next) return window.location.reload();
+    root.innerHTML = next.innerHTML;
+    root.dataset.count = next.dataset.count || '0';
+    document.dispatchEvent(new CustomEvent('vb:cart', { detail: { count: Number(root.dataset.count) } }));
+  }
+
+  root.addEventListener('click', async (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-cart-qty]');
+    if (!btn || btn.disabled) return;
+    errorBox.textContent = '';
+    root.classList.add('is-busy');
+    try {
+      const res = await fetch('/api/cart/items', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId: Number(btn.dataset.product), quantity: Number(btn.dataset.cartQty) }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || 'Could not update the cart.');
+      await refresh();
+    } catch (err: any) {
+      errorBox.textContent = err?.message || 'Could not update the cart. Please try again.';
+    } finally {
+      root.classList.remove('is-busy');
+    }
+  });
+</script>
+
+<style>
+  .vc-page {
+    background: #f1f3f6;
+    min-height: 75vh;
+    padding: 20px 0 60px;
+  }
+  #vc-root.is-busy {
+    opacity: 0.6;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+  }
+  .vc-grid {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    gap: 20px;
+    align-items: start;
+  }
+  .vc-main,
+  .vc-card,
+  .vc-empty {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  }
+  .vc-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 20px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .vc-head h1 {
+    font-size: 1.15rem;
+    font-weight: 800;
+    margin: 0;
+    color: #212121;
+  }
+  .vc-head h1 span {
+    font-weight: 600;
+    color: #878787;
+    font-size: 0.95rem;
+  }
+  .vc-head a {
+    font-size: 13px;
+    font-weight: 700;
+    color: #2874f0;
+    text-decoration: none;
+  }
+  .vc-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .vc-line {
+    display: flex;
+    gap: 18px;
+    padding: 20px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .vc-thumb {
+    width: 112px;
+    height: 112px;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    background: #fafafa;
+    padding: 6px;
+  }
+  .vc-thumb img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+  }
+  .vc-line--off .vc-thumb,
+  .vc-line--off .vc-name {
+    opacity: 0.55;
+  }
+  .vc-info {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+    flex: 1;
+  }
+  .vc-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: #212121;
+    text-decoration: none;
+    line-height: 1.35;
+  }
+  .vc-name:hover {
+    color: #2874f0;
+  }
+  .vc-cat {
+    font-size: 12.5px;
+    color: #878787;
+  }
+  .vc-price-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 10px;
+    margin-top: 4px;
+  }
+  .vc-price {
+    font-size: 18px;
+    font-weight: 800;
+    color: #212121;
+  }
+  .vc-mrp {
+    font-size: 13.5px;
+    color: #878787;
+    text-decoration: line-through;
+  }
+  .vc-off {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #388e3c;
+  }
+  .vc-each {
+    font-size: 12.5px;
+    color: #878787;
+  }
+  .vc-unavailable {
+    margin: 4px 0 0;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #c62828;
+  }
+  .vc-controls {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    margin-top: 10px;
+  }
+  .vc-qty {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .vc-qty button {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 1px solid #c2c2c2;
+    background: #fff;
+    font-size: 18px;
+    line-height: 1;
+    font-weight: 600;
+    color: #212121;
+    cursor: pointer;
+  }
+  .vc-qty button:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+  .vc-qty span {
+    min-width: 44px;
+    text-align: center;
+    border: 1px solid #c2c2c2;
+    border-radius: 3px;
+    padding: 3px 6px;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .vc-remove {
+    background: none;
+    border: 0;
+    padding: 6px 0;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: #212121;
+    cursor: pointer;
+  }
+  .vc-remove:hover {
+    color: #2874f0;
+  }
+  .vc-place {
+    display: flex;
+    justify-content: flex-end;
+    padding: 16px 20px;
+    position: sticky;
+    bottom: 0;
+    background: #fff;
+    border-radius: 0 0 8px 8px;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.08);
+  }
+  .vc-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 220px;
+    padding: 14px 28px;
+    border-radius: 4px;
+    background: #fb641b;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    text-decoration: none;
+    box-shadow: 0 2px 8px rgba(251, 100, 27, 0.35);
+  }
+  .vc-btn-primary:hover {
+    background: #e5530a;
+  }
+  .vc-btn-disabled,
+  .vc-btn-disabled:hover {
+    background: #bdbdbd;
+    box-shadow: none;
+    cursor: not-allowed;
+  }
+  .vc-side {
+    position: sticky;
+    top: calc(var(--header-h, 72px) + 16px);
+  }
+  .vc-card h2 {
+    margin: 0;
+    padding: 14px 20px;
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    color: #878787;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .vc-card dl {
+    margin: 0;
+    padding: 6px 20px 0;
+  }
+  .vc-card dl div {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 0;
+    font-size: 15px;
+    color: #212121;
+  }
+  .vc-card dd {
+    margin: 0;
+  }
+  .vc-green {
+    color: #388e3c;
+    font-weight: 600;
+  }
+  .vc-card dl .vc-total {
+    border-top: 1px dashed #e0e0e0;
+    margin-top: 6px;
+    padding: 16px 0;
+    font-size: 17px;
+    font-weight: 800;
+  }
+  .vc-save {
+    margin: 0;
+    padding: 12px 20px;
+    border-top: 1px solid #f0f0f0;
+    font-size: 14.5px;
+    font-weight: 700;
+    color: #388e3c;
+  }
+  .vc-hint {
+    margin: 0;
+    padding: 0 20px 12px;
+    font-size: 13px;
+    color: #878787;
+  }
+  .vc-secure {
+    margin: 14px 4px 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: #878787;
+    line-height: 1.5;
+  }
+  .vc-empty {
+    text-align: center;
+    padding: 56px 24px;
+  }
+  .vc-empty-icon {
+    font-size: 56px;
+    line-height: 1;
+  }
+  .vc-empty h1 {
+    font-size: 1.35rem;
+    margin: 16px 0 8px;
+  }
+  .vc-empty p {
+    color: #878787;
+    max-width: 440px;
+    margin: 0 auto 22px;
+  }
+  .vc-error {
+    margin: 12px 0 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #c62828;
+  }
+  .vc-error:empty {
+    display: none;
+  }
+
+  /* Below 768px the site shows a fixed 60px Call / WhatsApp / Book bar; sit above it. */
+  @media (max-width: 767px) {
+    .vc-place {
+      bottom: calc(60px + env(safe-area-inset-bottom));
+    }
+  }
+  @media (max-width: 900px) {
+    .vc-grid {
+      grid-template-columns: 1fr;
+    }
+    .vc-side {
+      position: static;
+    }
+  }
+  @media (max-width: 520px) {
+    .vc-line {
+      gap: 12px;
+      padding: 16px;
+    }
+    .vc-thumb {
+      width: 84px;
+      height: 84px;
+    }
+    .vc-btn-primary {
+      min-width: 0;
+      width: 100%;
+    }
+  }
+</style>

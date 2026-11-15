@@ -77,6 +77,9 @@ const SECTIONS: Section[] = [
       { name: 'facts.2.label', label: 'Fact 3 label', type: 'text', half: true },
       { name: 'heroImage', label: 'Hero photo', type: 'image', help: 'A real photo of your workshop works best. Shown full-screen, so upload at least 2560px wide.' },
       { name: 'heroAlt', label: 'Hero photo description (alt text)', type: 'text' },
+      { name: 'heroVideo', label: 'Hero video – 1080p MP4 path', type: 'text', help: 'e.g. /video/hero-1080.mp4. Plays silently over the hero photo. Leave empty to show the photo only.' },
+      { name: 'heroVideo4k', label: 'Hero video – 4K MP4 path', type: 'text', half: true, help: 'e.g. /video/hero-2160.mp4. Sent only to large screens.' },
+      { name: 'heroVideoMobile', label: 'Hero video – mobile MP4 path', type: 'text', half: true, help: 'e.g. /video/hero-720.mp4. Sent to phones.' },
     ],
   },
   {
@@ -122,15 +125,18 @@ const SECTIONS: Section[] = [
   },
   {
     key: 'payments',
-    title: 'Cashfree Payment Gateway & Checkout',
-    intro: 'Flipkart-style checkout settings. Enter your Cashfree Merchant credentials to enable live UPI, Cards, NetBanking and Wallets. When left empty, checkout automatically operates in test / COD mode.',
+    title: 'Payments, Cart & Checkout',
+    intro: 'Choose the payment gateway and enter its keys to accept UPI, cards, NetBanking and wallets. Until the selected gateway has keys, the store offers Cash on Delivery only — orders are never marked paid without a real payment. For Razorpay, also add a webhook in the Razorpay Dashboard pointing to /api/webhooks/razorpay (events: payment.captured, order.paid) and paste its secret below.',
     fields: [
       { name: 'enabled', label: 'Enable checkout on website', type: 'bool', half: true },
-      { name: 'gateway', label: 'Payment gateway mode', type: 'select', half: true, options: [
-        { value: 'cashfree', label: 'Cashfree Gateway (Live / Sandbox)' },
-        { value: 'test', label: 'Simulated / Test Mode (Ready without keys)' },
-        { value: 'offline', label: 'Cash on Delivery (COD) Only' },
+      { name: 'gateway', label: 'Payment gateway', type: 'select', half: true, options: [
+        { value: 'razorpay', label: 'Razorpay' },
+        { value: 'cashfree', label: 'Cashfree' },
+        { value: 'offline', label: 'Cash on Delivery (COD) only' },
       ]},
+      { name: 'razorpayKeyId', label: 'Razorpay Key ID', type: 'text', half: true, help: 'Razorpay Dashboard → Account & Settings → API Keys. Starts with rzp_test_ (test mode) or rzp_live_.' },
+      { name: 'razorpayKeySecret', label: 'Razorpay Key Secret', type: 'text', half: true, help: 'Shown once when the key is generated. Can instead be set as RAZORPAY_KEY_SECRET on the server.' },
+      { name: 'razorpayWebhookSecret', label: 'Razorpay Webhook Secret', type: 'text', half: true, help: 'The secret you typed when creating the webhook. Confirms payments even if the customer closes the browser.' },
       { name: 'cashfreeEnv', label: 'Cashfree environment', type: 'select', half: true, options: [
         { value: 'TEST', label: 'Sandbox / Test Mode (sandbox.cashfree.com)' },
         { value: 'PROD', label: 'Production / Live Mode (api.cashfree.com)' },

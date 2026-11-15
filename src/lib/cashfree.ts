@@ -1,4 +1,4 @@
-import { getSettings } from './settings';
+import { getPaymentConfig } from './commerce/payments';
 
 export interface CreateOrderParams {
   orderId: string;
@@ -19,57 +19,24 @@ export interface CashfreeOrderResult {
   error?: string;
 }
 
-/**
- * Returns Cashfree configuration merged from admin settings and environment variables.
- */
-export function getCashfreeConfig() {
-  const settings = getSettings();
-  const p = settings.payments || ({} as any);
-
-  const appId = (p.cashfreeAppId || process.env.CASHFREE_APP_ID || '').trim();
-  const secretKey = (p.cashfreeSecretKey || process.env.CASHFREE_SECRET_KEY || '').trim();
-  const env = (p.cashfreeEnv || process.env.CASHFREE_ENV || 'TEST').toUpperCase();
-  const gateway = p.gateway || 'cashfree';
-  const enabled = p.enabled !== false;
-  const enableCod = p.enableCod !== false;
-  const enableOnline = p.enableOnline !== false;
-  const deliveryFee = Number(p.deliveryFee) || 0;
-  const minFreeDelivery = Number(p.minFreeDelivery) || 500;
-
-  const isConfigured = Boolean(appId && secretKey);
-  const baseUrl = env === 'PROD' ? 'https://api.cashfree.com/pg' : 'https://sandbox.cashfree.com/pg';
-
+/** Cashfree credentials come from the shared payment config (admin settings, then env). */
+function cashfreeApi() {
+  const { cashfree } = getPaymentConfig();
   return {
-    enabled,
-    gateway,
-    env,
-    appId,
-    secretKey,
-    isConfigured,
-    baseUrl,
-    enableCod,
-    enableOnline,
-    deliveryFee,
-    minFreeDelivery,
+    ...cashfree,
+    baseUrl: cashfree.env === 'PROD' ? 'https://api.cashfree.com/pg' : 'https://sandbox.cashfree.com/pg',
   };
 }
 
 /**
  * Creates an order session on Cashfree Payment Gateway.
- * If credentials are not yet entered by the admin, returns a simulated session for seamless testing.
+ * Callers must check `getPaymentConfig().onlineAvailable` first; there is no simulated mode.
  */
 export async function createCashfreeOrder(params: CreateOrderParams): Promise<CashfreeOrderResult> {
-  const cfg = getCashfreeConfig();
+  const cfg = cashfreeApi();
 
-  // If not configured or explicitly set to test/offline mode
-  if (!cfg.isConfigured || cfg.gateway === 'test' || cfg.gateway === 'offline') {
-    return {
-      success: true,
-      orderId: params.orderId,
-      cfOrderId: `SIM_${Date.now()}`,
-      paymentSessionId: `sim_session_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
-      isTestMode: true,
-    };
+  if (!cfg.configured) {
+    return { success: false, orderId: params.orderId, error: 'Online payment is not configured.' };
   }
 
   // Format valid 10-digit Indian phone for Cashfree
@@ -139,12 +106,9 @@ export async function createCashfreeOrder(params: CreateOrderParams): Promise<Ca
  * Verifies an order's payment status with Cashfree.
  */
 export async function verifyCashfreeOrder(orderId: string): Promise<{ isPaid: boolean; status: string; data?: any }> {
-  const cfg = getCashfreeConfig();
+  const cfg = cashfreeApi();
 
-  // If in simulated/test mode
-  if (!cfg.isConfigured || cfg.gateway === 'test') {
-    return { isPaid: true, status: 'PAID' };
-  }
+  if (!cfg.configured) return { isPaid: false, status: 'UNCONFIGURED' };
 
   try {
     const res = await fetch(`${cfg.baseUrl}/orders/${encodeURIComponent(orderId)}`, {

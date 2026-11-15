@@ -256,6 +256,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { name: 'order_id', label: 'Order ID', type: 'readonly', half: true, section: 'Order Overview' },
       { name: 'created_at', label: 'Order Date', type: 'readonly', half: true },
       { name: 'order_status', label: 'Order Status', type: 'select', half: true, options: [
+        { value: 'PENDING_PAYMENT', label: 'Awaiting Online Payment (not confirmed)' },
         { value: 'CONFIRMED', label: 'Confirmed (New Order)' },
         { value: 'PROCESSING', label: 'Processing / Diagnostic Testing' },
         { value: 'OUT_FOR_DELIVERY', label: 'Out for Doorstep Delivery' },
@@ -263,7 +264,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
         { value: 'CANCELLED', label: 'Cancelled' },
       ]},
       { name: 'payment_status', label: 'Payment Status', type: 'select', half: true, options: [
-        { value: 'PAID', label: 'PAID (Cashfree / Received)' },
+        { value: 'PAID', label: 'PAID (Received)' },
         { value: 'PENDING', label: 'PENDING (Awaiting Payment)' },
         { value: 'COD_PENDING', label: 'COD (Pay at Doorstep)' },
         { value: 'FAILED', label: 'FAILED' },
@@ -271,10 +272,10 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { name: 'payment_method', label: 'Payment Method', type: 'text', half: true },
       { name: 'total_amount', label: 'Total Amount (₹)', type: 'money', half: true },
 
-      { name: 'product_name', label: 'Product Name', type: 'text', section: 'Product Details' },
-      { name: 'product_slug', label: 'Product ID / Slug', type: 'text', half: true },
-      { name: 'quantity', label: 'Quantity', type: 'number', half: true },
-      { name: 'unit_price', label: 'Unit Price (₹)', type: 'money', half: true },
+      { name: 'product_name', label: 'Items Ordered', type: 'textarea', rows: 2, section: 'Order Items', help: 'All items in this order. Use "View on site" for the per-item price breakdown.' },
+      { name: 'items_count', label: 'Different Products', type: 'readonly', half: true },
+      { name: 'quantity', label: 'Total Units', type: 'number', half: true },
+      { name: 'subtotal', label: 'Items Subtotal (₹)', type: 'money', half: true },
       { name: 'delivery_fee', label: 'Delivery Fee (₹)', type: 'money', half: true },
 
       { name: 'customer_name', label: 'Customer Full Name', type: 'text', half: true, section: 'Delivery & Customer Info' },
@@ -287,8 +288,10 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { name: 'city', label: 'City', type: 'text', half: true },
       { name: 'state', label: 'State', type: 'text', half: true },
 
-      { name: 'cashfree_order_id', label: 'Cashfree Order ID', type: 'readonly', half: true, section: 'Payment Gateway Technical Info' },
-      { name: 'cashfree_session_id', label: 'Cashfree Session ID', type: 'readonly', half: true },
+      { name: 'gateway', label: 'Gateway', type: 'readonly', half: true, section: 'Payment Gateway Technical Info' },
+      { name: 'gateway_order_id', label: 'Gateway Order ID', type: 'readonly', half: true },
+      { name: 'gateway_payment_id', label: 'Gateway Payment ID', type: 'readonly', half: true },
+      { name: 'paid_at', label: 'Paid At (UTC)', type: 'readonly', half: true },
       { name: 'notes', label: 'Admin Internal Notes', type: 'textarea', rows: 3 },
     ],
   },

@@ -1,47 +1,79 @@
 ---
 import Base from '@/layouts/Base.astro';
 import Icon from '@/components/Icon.astro';
-import { get } from '@/lib/db';
 import { contactInfo } from '@/lib/settings';
 import { inr } from '@/lib/format';
+import { getCart } from '@/lib/commerce/cart';
+import { reconcileOrder } from '@/lib/commerce/checkout';
+import { orderItems } from '@/lib/commerce/orders';
 
 const orderId = Astro.url.searchParams.get('order_id');
 if (!orderId) {
   return Astro.redirect('/products', 302);
 }
 
-const order = get<any>('SELECT * FROM orders WHERE order_id = ?', orderId);
+// If the shopper paid but the confirmation never reached us, ask the gateway before rendering.
+const order = await reconcileOrder(orderId).catch(() => undefined);
 if (!order) {
   return Astro.redirect('/products', 302);
 }
 
+const items = orderItems(order.id);
 const c = contactInfo();
 const isPaid = order.payment_status === 'PAID';
 const isCod = order.payment_method === 'cod';
+const isCancelled = order.order_status === 'CANCELLED';
+// Online order that has not been paid yet: not confirmed, offer to finish the payment.
+const awaitingPayment = !isPaid && !isCod && !isCancelled && order.payment_status === 'PENDING';
+const confirmed = (isPaid || isCod) && !isCancelled;
+const gatewayLabel = order.gateway === 'cashfree' ? 'Cashfree' : order.gateway === 'razorpay' ? 'Razorpay' : 'online payment';
+
+// Keeps the header cart badge in step after the cart was emptied by this order.
+const secure = Astro.url.protocol === 'https:' || Astro.request.headers.get('x-forwarded-proto') === 'https';
+getCart(Astro.cookies, Astro.locals.user, secure);
 
 const whatsappTrackUrl = c.whatsappUrl(
-  `Hi ${c.name}, I placed an order on the website! Order ID: ${order.order_id} (${order.product_name}, Amount: ${inr(order.total_amount)}). Please confirm dispatch and technician visit.`
+  `Hi ${c.name}, I placed an order on the website. Order ID: ${order.order_id} (Amount: ${inr(order.total_amount)}). Please confirm dispatch and technician visit.`
 );
+const heading = confirmed ? 'Order Placed Successfully!' : awaitingPayment ? 'Payment Pending' : isCancelled ? 'Order Cancelled' : 'Payment Not Completed';
 ---
 
 <Base
-  title={`Order Confirmed: ${order.order_id} | Virnobyte`}
-  description="Your order has been placed successfully with Virnobyte."
+  title={`${confirmed ? 'Order Confirmed' : 'Order'}: ${order.order_id} | Virnobyte`}
+  description="Your Virnobyte order details and payment status."
+  noindex
 >
   <div class="fk-success-page">
     <div class="wrap wrap--narrow">
       <div class="fk-success-card">
-        {/* Animated Checkmark Circle */}
         <div class="fk-success-icon-wrap">
-          <div class="fk-checkmark-circle">
-            <span class="fk-checkmark">✓</span>
+          <div class:list={['fk-checkmark-circle', { 'fk-checkmark-circle--wait': !confirmed }]}>
+            <span class="fk-checkmark">{confirmed ? '✓' : '!'}</span>
           </div>
         </div>
 
-        <h1 class="fk-success-heading">Order Placed Successfully!</h1>
-        <p class="fk-success-sub">
-          Thank you for choosing <strong>Virnobyte Assured</strong>. Your order is confirmed and our technician is preparing your system for delivery.
-        </p>
+        <h1 class="fk-success-heading">{heading}</h1>
+        {confirmed ? (
+          <p class="fk-success-sub">
+            Thank you for choosing <strong>Virnobyte Assured</strong>. Your order is confirmed and our technician is preparing it for delivery.
+          </p>
+        ) : awaitingPayment ? (
+          <p class="fk-success-sub">
+            Your order is saved but <strong>not yet confirmed</strong> — we have not received the payment. Complete the payment below to confirm it.
+            If money was already debited, this page updates once the bank confirms.
+          </p>
+        ) : (
+          <p class="fk-success-sub">This order is not active. Please contact us if you need help or want to order again.</p>
+        )}
+
+        {awaitingPayment && (
+          <div class="fk-pay-now">
+            <button type="button" class="fk-btn-pay-now" id="fk-pay-now" data-order={order.order_id}>
+              Complete Payment • {inr(order.total_amount)}
+            </button>
+            <p class="fk-pay-now-error" id="fk-pay-now-error" role="alert"></p>
+          </div>
+        )}
 
         {/* Order Details Summary Box */}
         <div class="fk-order-summary-box">
@@ -51,9 +83,29 @@ const whatsappTrackUrl = c.whatsappUrl(
           </div>
 
           <div class="fk-sum-row">
-            <span class="fk-sum-label">Item Ordered:</span>
-            <span class="fk-sum-value"><strong>{order.product_name}</strong> (Qty: {order.quantity})</span>
+            <span class="fk-sum-label">{items.length > 1 ? `Items Ordered (${items.length}):` : 'Item Ordered:'}</span>
+            <span class="fk-sum-value">
+              {items.length > 0 ? (
+                <ul class="fk-sum-items">
+                  {items.map((it) => (
+                    <li>
+                      <span><strong>{it.product_name}</strong> × {it.quantity}</span>
+                      <span>{inr(it.line_total)}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <span><strong>{order.product_name}</strong> (Qty: {order.quantity})</span>
+              )}
+            </span>
           </div>
+
+          {order.delivery_fee > 0 && (
+            <div class="fk-sum-row">
+              <span class="fk-sum-label">Delivery Charges:</span>
+              <span class="fk-sum-value">{inr(order.delivery_fee)}</span>
+            </div>
+          )}
 
           <div class="fk-sum-row">
             <span class="fk-sum-label">Total Amount:</span>
@@ -64,7 +116,7 @@ const whatsappTrackUrl = c.whatsappUrl(
             <span class="fk-sum-label">Payment Mode:</span>
             <span class="fk-sum-value">
               {isPaid ? (
-                <span class="fk-status-pill paid">✓ Paid via Cashfree</span>
+                <span class="fk-status-pill paid">✓ Paid via {gatewayLabel}</span>
               ) : isCod ? (
                 <span class="fk-status-pill cod">🕒 Cash on Delivery (Pay at Doorstep)</span>
               ) : (
@@ -73,10 +125,12 @@ const whatsappTrackUrl = c.whatsappUrl(
             </span>
           </div>
 
-          <div class="fk-sum-row">
-            <span class="fk-sum-label">Estimated Delivery:</span>
-            <span class="fk-sum-value fk-green-val">🚚 Tomorrow by 6:00 PM (Doorstep Setup &amp; Testing)</span>
-          </div>
+          {confirmed && (
+            <div class="fk-sum-row">
+              <span class="fk-sum-label">Estimated Delivery:</span>
+              <span class="fk-sum-value fk-green-val">🚚 Tomorrow by 6:00 PM (Doorstep Setup &amp; Testing)</span>
+            </div>
+          )}
 
           <div class="fk-sum-row">
             <span class="fk-sum-label">Delivering To:</span>
@@ -87,7 +141,7 @@ const whatsappTrackUrl = c.whatsappUrl(
           </div>
         </div>
 
-        {/* Next Steps Card */}
+        {confirmed && (
         <div class="fk-next-steps">
           <h3>What happens next?</h3>
           <ol>
@@ -96,6 +150,7 @@ const whatsappTrackUrl = c.whatsappUrl(
             <li><strong>On-Site Setup:</strong> Our engineer unboxes, powers on, and tests your hardware in front of you.</li>
           </ol>
         </div>
+        )}
 
         {/* Action Buttons */}
         <div class="fk-success-actions">
@@ -114,7 +169,82 @@ const whatsappTrackUrl = c.whatsappUrl(
   </div>
 </Base>
 
+<script>
+  import { openPayment } from '../scripts/pay';
+
+  const btn = document.getElementById('fk-pay-now') as HTMLButtonElement | null;
+  const err = document.getElementById('fk-pay-now-error');
+  btn?.addEventListener('click', async () => {
+    const label = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Opening secure payment…';
+    if (err) err.textContent = '';
+    try {
+      const res = await fetch('/api/checkout/retry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: btn.dataset.order }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || 'Could not start the payment.');
+      if (data.paid) return window.location.reload();
+      await openPayment(data);
+    } catch (e: any) {
+      if (err) err.textContent = e?.message || 'Could not start the payment. Please try again.';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = label;
+    }
+  });
+</script>
+
 <style>
+  .fk-checkmark-circle--wait {
+    background: #f9a825 !important;
+    box-shadow: 0 6px 20px rgba(249, 168, 37, 0.35) !important;
+    animation: none !important;
+  }
+  .fk-pay-now {
+    margin: 0 0 24px;
+    text-align: center;
+  }
+  .fk-btn-pay-now {
+    border: 0;
+    cursor: pointer;
+    padding: 14px 30px;
+    border-radius: 6px;
+    background: #fb641b;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 800;
+    box-shadow: 0 4px 12px rgba(251, 100, 27, 0.35);
+  }
+  .fk-btn-pay-now:disabled {
+    opacity: 0.7;
+    cursor: progress;
+  }
+  .fk-pay-now-error {
+    margin: 10px 0 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #c62828;
+  }
+  .fk-pay-now-error:empty {
+    display: none;
+  }
+  .fk-sum-items {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .fk-sum-items li {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+  }
   .fk-success-page {
     background: #f1f3f6;
     min-height: 85vh;

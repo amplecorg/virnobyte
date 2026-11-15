@@ -11,6 +11,7 @@
     "start": "node --disable-warning=ExperimentalWarning ./server.js",
     "images": "node scripts/fetch-images.mjs",
     "brand": "node scripts/brand-assets.mjs",
+    "hero-video": "node scripts/hero-video.mjs",
     "tunnel": "node scripts/tunnel.mjs"
   },
   "dependencies": {

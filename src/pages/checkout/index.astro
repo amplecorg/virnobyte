@@ -1,8 +1,17 @@
 ---
+// Cart checkout. Old links of the form /checkout?product=<slug> still go to Buy Now.
+import Base from '@/layouts/Base.astro';
+import CheckoutView from '@/components/shop/CheckoutView.astro';
+import { getCart } from '@/lib/commerce/cart';
+
 const prod = Astro.url.searchParams.get('product') || Astro.url.searchParams.get('slug');
-if (prod) {
-  return Astro.redirect(`/checkout/${encodeURIComponent(prod)}`, 302);
-}
-return Astro.redirect('/products', 302);
+if (prod) return Astro.redirect(`/checkout/${encodeURIComponent(prod)}`, 302);
+
+const secure = Astro.url.protocol === 'https:' || Astro.request.headers.get('x-forwarded-proto') === 'https';
+const view = getCart(Astro.cookies, Astro.locals.user, secure);
+if (!view.totals.itemCount) return Astro.redirect('/cart', 302);
 ---
 
+<Base title="Checkout | Virnobyte Secure Order" description="Enter your delivery address and pay securely to complete your Virnobyte order." canonical="/checkout" noindex>
+  <CheckoutView lines={view.lines} totals={view.totals} mode="cart" />
+</Base>

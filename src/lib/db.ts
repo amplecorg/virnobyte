@@ -417,6 +417,53 @@ CREATE TABLE IF NOT EXISTS orders (
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+-- One cart per browser (cookie token); user_id is attached once the shopper signs in.
+CREATE TABLE IF NOT EXISTS carts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  token TEXT NOT NULL UNIQUE,
+  user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_carts_user ON carts(user_id);
+
+-- Cart lines hold only product + quantity; prices are always read live from products.
+CREATE TABLE IF NOT EXISTS cart_items (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  cart_id INTEGER NOT NULL REFERENCES carts(id) ON DELETE CASCADE,
+  product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  quantity INTEGER NOT NULL DEFAULT 1 CHECK (quantity > 0),
+  added_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE (cart_id, product_id)
+);
+
+-- Order lines are a price snapshot taken at checkout; later product edits never change them.
+CREATE TABLE IF NOT EXISTS order_items (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  product_id INTEGER,
+  product_slug TEXT NOT NULL,
+  product_name TEXT NOT NULL,
+  image TEXT NOT NULL DEFAULT '',
+  quantity INTEGER NOT NULL DEFAULT 1,
+  unit_price INTEGER NOT NULL,
+  mrp INTEGER NOT NULL DEFAULT 0,
+  line_total INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id);
+
+-- Gateway webhook log; the UNIQUE event id makes webhook handling idempotent.
+CREATE TABLE IF NOT EXISTS payment_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  provider TEXT NOT NULL,
+  event_id TEXT NOT NULL,
+  event_type TEXT NOT NULL DEFAULT '',
+  order_ref TEXT NOT NULL DEFAULT '',
+  payload TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE (provider, event_id)
+);
 `;
 
 let instance: any = null;
@@ -556,6 +603,31 @@ export function db(): any {
       `);
     } catch (migErr) {
       console.warn('[Virnobyte DB] Migration error for orders table:', migErr);
+    }
+
+    // Auto-migration: multi-item orders and gateway-neutral payment columns
+    try {
+      const orderCols = d.prepare('PRAGMA table_info(orders)').all() as { name: string }[];
+      const orderColSet = new Set(orderCols.map((c) => c.name));
+      const orderMigrations: [string, string][] = [
+        ['user_id', 'INTEGER'],
+        ['cart_id', 'INTEGER'],
+        ['items_count', 'INTEGER NOT NULL DEFAULT 1'],
+        ['subtotal', 'INTEGER NOT NULL DEFAULT 0'],
+        ['gateway', "TEXT NOT NULL DEFAULT ''"],
+        ['gateway_order_id', "TEXT NOT NULL DEFAULT ''"],
+        ['gateway_payment_id', "TEXT NOT NULL DEFAULT ''"],
+        ['paid_at', 'TEXT'],
+      ];
+      for (const [colName, colDef] of orderMigrations) {
+        if (!orderColSet.has(colName)) {
+          d.exec(`ALTER TABLE orders ADD COLUMN ${colName} ${colDef}`);
+        }
+      }
+      d.exec('CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id)');
+      d.exec('CREATE INDEX IF NOT EXISTS idx_orders_gateway_order ON orders(gateway_order_id)');
+    } catch (migErr) {
+      console.warn('[Virnobyte DB] Migration error for orders columns:', migErr);
     }
 
     seedDatabase(d);

@@ -88,6 +88,12 @@ const groups = [...new Set(svc.map((s) => s.group_name))];
         <span>{c.phone}</span>
       </a>
 
+      {/* Count is filled in by script from a cookie: this HTML is shared-cached, so it never contains cart state. */}
+      <a class="icon-btn cart-btn" href="/cart" aria-label="Cart" title="Cart" data-cart-link>
+        <Icon name="cart" size={20} />
+        <span class="cart-badge" data-cart-count hidden></span>
+      </a>
+
       <a
         class="icon-btn account-btn"
         href={user ? (user.role === 'admin' ? '/admin' : '/account') : '/account/login'}
@@ -341,6 +347,57 @@ const groups = [...new Set(svc.map((s) => s.group_name))];
       }
     });
 
+    // ── Cart badge + "Add to Cart" buttons (any element with data-add-to-cart="<slug>") ──
+    const cartLink = document.querySelector('[data-cart-link]');
+    const cartBadge = document.querySelector('[data-cart-count]');
+    const readCartCount = () => {
+      const m = document.cookie.match(/(?:^|; )vb_cart_n=(\d+)/);
+      return m ? Number(m[1]) : 0;
+    };
+    const paintCart = (n) => {
+      if (!cartBadge) return;
+      cartBadge.textContent = n > 99 ? '99+' : String(n);
+      cartBadge.hidden = !n;
+      cartLink?.setAttribute('aria-label', n ? `Cart, ${n} item${n === 1 ? '' : 's'}` : 'Cart');
+    };
+    paintCart(readCartCount());
+    window.addEventListener('pageshow', () => paintCart(readCartCount()));
+    document.addEventListener('vb:cart', (e) => paintCart(e.detail && typeof e.detail.count === 'number' ? e.detail.count : readCartCount()));
+
+    document.addEventListener('click', async (e) => {
+      const btn = e.target instanceof Element ? e.target.closest('[data-add-to-cart]') : null;
+      if (!btn) return;
+      e.preventDefault();
+      if (btn.dataset.busy) return;
+      if (btn.dataset.added) {
+        window.location.href = '/cart';
+        return;
+      }
+      const label = btn.querySelector('[data-label]') || btn;
+      const original = label.textContent;
+      btn.dataset.busy = '1';
+      label.textContent = 'Adding…';
+      try {
+        const res = await fetch('/api/cart/items', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ slug: btn.dataset.addToCart, quantity: 1 }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || 'Could not add to cart');
+        paintCart(data.cart.count);
+        btn.dataset.added = '1';
+        label.textContent = '✓ Added — Go to Cart';
+      } catch (err) {
+        label.textContent = (err && err.message) || 'Could not add to cart';
+        setTimeout(() => {
+          label.textContent = original;
+        }, 2500);
+      } finally {
+        delete btn.dataset.busy;
+      }
+    });
+
     // Close automatically when resized to desktop (>= 1200px)
     window.addEventListener('resize', () => {
       if (window.innerWidth >= 1200 && drawer?.classList.contains('is-active')) {
@@ -567,6 +624,27 @@ const groups = [...new Set(svc.map((s) => s.group_name))];
   .icon-btn:hover {
     background: var(--paper);
     color: var(--accent);
+  }
+  .cart-btn {
+    position: relative;
+  }
+  .cart-badge {
+    position: absolute;
+    top: 2px;
+    right: 0;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: #fb641b;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 18px;
+    text-align: center;
+  }
+  .cart-badge[hidden] {
+    display: none;
   }
 
   .book {

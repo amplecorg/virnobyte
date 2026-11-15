@@ -204,7 +204,13 @@ const crumbs = [
 
           {/* Sticky Bottom Action CTA Buttons */}
           <div class="fk-detail-actions">
-            {p.price ? (
+            {p.price && p.in_stock ? (
+              <button type="button" class="fk-action-btn fk-btn-cart" data-add-to-cart={p.slug}>
+                <span data-label>🛒 Add to Cart</span>
+              </button>
+            ) : null}
+
+            {p.price && p.in_stock ? (
               <a class="fk-action-btn fk-btn-buy" href={`/checkout/${p.slug}`}>
                 <span>⚡ Buy Now</span>
               </a>
@@ -831,6 +837,19 @@ const crumbs = [
     font-size: 15px;
     font-weight: 800;
     box-shadow: 0 4px 12px rgba(251, 100, 27, 0.35);
+  }
+  .fk-btn-cart {
+    border: 0;
+    cursor: pointer;
+    font-family: inherit;
+    background: #ff9f00;
+    color: #ffffff;
+    font-weight: 800;
+    box-shadow: 0 4px 12px rgba(255, 159, 0, 0.35);
+  }
+  .fk-btn-cart:hover {
+    background: #f09400;
+    transform: translateY(-1px);
   }
   .fk-btn-buy:hover {
     background: #e5530a;

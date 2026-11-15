@@ -1,12 +1,10 @@
 import { t as sequence, ut as defineMiddleware } from "./chunks/sequence_BTIhAKFo.mjs";
-import { l as userFromCookies } from "./chunks/auth_aUnzSDsO.mjs";
-import { t as generatePageMarkdown } from "./chunks/agent-markdown_DJcUOBC6.mjs";
+import { l as userFromCookies } from "./chunks/auth_CSZwb3EQ.mjs";
+import { t as generatePageMarkdown } from "./chunks/agent-markdown_C7gwmP4c.mjs";
 //#region src/middleware.ts
 var LEGACY = {
 	"/memberships": "/membership",
 	"/shop": "/products",
-	"/cart": "/membership",
-	"/checkout": "/membership",
 	"/my-account": "/account",
 	"/terms-conditions": "/terms-and-conditions",
 	"/terms-and-condition": "/terms-and-conditions",
@@ -26,6 +24,7 @@ var LEGACY = {
 	"/product/premium-it-partner": "/membership"
 };
 var PRIVATE = /^\/(admin|account|api)(\/|$)/;
+var SHOPPER = /^\/(cart|checkout|order-success)(\/|$)/;
 var onRequest$1 = defineMiddleware(async (ctx, next) => {
 	const url = ctx.url;
 	const pathname = new URL(ctx.request.url).pathname;
@@ -37,7 +36,7 @@ var onRequest$1 = defineMiddleware(async (ctx, next) => {
 		if (target !== pathname) return ctx.redirect(target + url.search, 301);
 	}
 	const accept = ctx.request.headers.get("accept") || "";
-	if ((accept.includes("text/markdown") || accept.includes("text/x-markdown") || url.searchParams.get("format") === "markdown") && ctx.request.method === "GET" && !PRIVATE.test(pathname)) {
+	if ((accept.includes("text/markdown") || accept.includes("text/x-markdown") || url.searchParams.get("format") === "markdown") && ctx.request.method === "GET" && !PRIVATE.test(pathname) && !SHOPPER.test(pathname)) {
 		const md = generatePageMarkdown(pathname, url.origin);
 		if (md) return new Response(md, {
 			status: 200,
@@ -69,7 +68,7 @@ var onRequest$1 = defineMiddleware(async (ctx, next) => {
 	h.set("Referrer-Policy", "strict-origin-when-cross-origin");
 	h.set("X-Frame-Options", "SAMEORIGIN");
 	h.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
-	if (PRIVATE.test(pathname)) {
+	if (PRIVATE.test(pathname) || SHOPPER.test(pathname)) {
 		h.set("Cache-Control", "private, no-store");
 		h.set("X-Robots-Tag", "noindex, nofollow");
 	} else if (!h.has("Cache-Control") && (h.get("content-type") ?? "").includes("text/html")) h.set("Cache-Control", user ? "private, no-cache" : "public, max-age=0, s-maxage=60, stale-while-revalidate=600");

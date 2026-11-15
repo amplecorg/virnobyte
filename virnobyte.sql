@@ -410,8 +410,82 @@ CREATE TABLE IF NOT EXISTS `orders` (
   `notes` text DEFAULT '',
   `created_at` varchar(50) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` varchar(50) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `user_id` int(11) DEFAULT NULL,
+  `cart_id` int(11) DEFAULT NULL,
+  `items_count` int(11) NOT NULL DEFAULT 1,
+  `subtotal` int(11) NOT NULL DEFAULT 0,
+  `gateway` varchar(50) NOT NULL DEFAULT '',
+  `gateway_order_id` varchar(100) NOT NULL DEFAULT '',
+  `gateway_payment_id` varchar(100) NOT NULL DEFAULT '',
+  `paid_at` varchar(50) DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uniq_orders_order_id` (`order_id`)
+  UNIQUE KEY `uniq_orders_order_id` (`order_id`),
+  KEY `idx_orders_user` (`user_id`),
+  KEY `idx_orders_gateway_order` (`gateway_order_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+-- Table structure for table `order_items` (price snapshot of every line in an order)
+--
+
+CREATE TABLE IF NOT EXISTS `order_items` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `order_id` int(11) NOT NULL,
+  `product_id` int(11) DEFAULT NULL,
+  `product_slug` varchar(100) NOT NULL,
+  `product_name` varchar(255) NOT NULL,
+  `image` varchar(255) NOT NULL DEFAULT '',
+  `quantity` int(11) NOT NULL DEFAULT 1,
+  `unit_price` int(11) NOT NULL,
+  `mrp` int(11) NOT NULL DEFAULT 0,
+  `line_total` int(11) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_order_items_order` (`order_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+-- Table structure for table `carts` (one per browser; user_id set after sign-in)
+--
+
+CREATE TABLE IF NOT EXISTS `carts` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `token` varchar(64) NOT NULL,
+  `user_id` int(11) DEFAULT NULL,
+  `created_at` varchar(50) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` varchar(50) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_carts_token` (`token`),
+  KEY `idx_carts_user` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+-- Table structure for table `cart_items`
+--
+
+CREATE TABLE IF NOT EXISTS `cart_items` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `cart_id` int(11) NOT NULL,
+  `product_id` int(11) NOT NULL,
+  `quantity` int(11) NOT NULL DEFAULT 1,
+  `added_at` varchar(50) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_cart_items_cart_product` (`cart_id`, `product_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+-- Table structure for table `payment_events` (gateway webhook log, de-duplicated by event id)
+--
+
+CREATE TABLE IF NOT EXISTS `payment_events` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `provider` varchar(50) NOT NULL,
+  `event_id` varchar(150) NOT NULL,
+  `event_type` varchar(100) NOT NULL DEFAULT '',
+  `order_ref` varchar(100) NOT NULL DEFAULT '',
+  `payload` mediumtext,
+  `created_at` varchar(50) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_payment_events` (`provider`, `event_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------

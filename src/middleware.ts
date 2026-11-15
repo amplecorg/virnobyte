@@ -6,8 +6,6 @@ import { generatePageMarkdown } from './lib/agent-markdown';
 const LEGACY: Record<string, string> = {
   '/memberships': '/membership',
   '/shop': '/products',
-  '/cart': '/membership',
-  '/checkout': '/membership',
   '/my-account': '/account',
   '/terms-conditions': '/terms-and-conditions',
   '/terms-and-condition': '/terms-and-conditions',
@@ -28,6 +26,8 @@ const LEGACY: Record<string, string> = {
 };
 
 const PRIVATE = /^\/(admin|account|api)(\/|$)/;
+// Per-shopper pages: must never be stored by a shared cache or indexed.
+const SHOPPER = /^\/(cart|checkout|order-success)(\/|$)/;
 
 export const onRequest = defineMiddleware(async (ctx, next) => {
   const url = ctx.url;
@@ -52,7 +52,7 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
     accept.includes('text/x-markdown') ||
     url.searchParams.get('format') === 'markdown';
 
-  if (wantsMarkdown && ctx.request.method === 'GET' && !PRIVATE.test(pathname)) {
+  if (wantsMarkdown && ctx.request.method === 'GET' && !PRIVATE.test(pathname) && !SHOPPER.test(pathname)) {
     const md = generatePageMarkdown(pathname, url.origin);
     if (md) {
       return new Response(md, {
@@ -95,7 +95,7 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
   h.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   h.set('X-Frame-Options', 'SAMEORIGIN');
   h.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-  if (PRIVATE.test(pathname)) {
+  if (PRIVATE.test(pathname) || SHOPPER.test(pathname)) {
     h.set('Cache-Control', 'private, no-store');
     h.set('X-Robots-Tag', 'noindex, nofollow');
   } else if (!h.has('Cache-Control') && (h.get('content-type') ?? '').includes('text/html')) {

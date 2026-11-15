@@ -42,6 +42,11 @@ export const DEFAULT_SETTINGS = {
     ],
     heroImage: 'virnobyte-inverter-installation',
     heroAlt: 'Technician repairing a circuit board with a screwdriver at the Virnobyte workbench',
+    // Optional background video over the hero photo. Empty = photo only. Encode with `npm run hero-video`.
+    // Current clip: Pexels video 6755154 by Tima Miroshnichenko (free Pexels licence, stock footage).
+    heroVideo: '/video/hero-1080.mp4',
+    heroVideo4k: '/video/hero-2160.mp4',
+    heroVideoMobile: '/video/hero-720.mp4',
   },
   coins: {
     name: 'Virno Coins',
@@ -86,7 +91,12 @@ export const DEFAULT_SETTINGS = {
   announcement: { text: '', href: '' },
   payments: {
     enabled: true,
-    gateway: 'cashfree',
+    // 'razorpay' | 'cashfree' | 'offline' (Cash on Delivery only)
+    gateway: 'razorpay',
+    // Keys may be left empty here and supplied as RAZORPAY_* environment variables instead.
+    razorpayKeyId: '',
+    razorpayKeySecret: '',
+    razorpayWebhookSecret: '',
     cashfreeEnv: 'TEST',
     cashfreeAppId: '',
     cashfreeSecretKey: '',
