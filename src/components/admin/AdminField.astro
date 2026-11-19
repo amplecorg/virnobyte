@@ -86,6 +86,30 @@ if (f.type === 'image' || f.type === 'images') {
   {(f.type === 'number' || f.type === 'money') && <input id={id} name={f.name} type="number" inputmode="numeric" value={value} step="1" />}
   {f.type === 'date' && <input id={id} name={f.name} type="date" value={value.slice(0, 10)} />}
   {
+    f.type === 'markdown' && (
+      <div class="md-editor-toolbar" data-md-toolbar={id}>
+        <div class="md-toolbar-header">
+          <span class="md-badge">HTML &amp; Markdown Enabled</span>
+          <span class="md-hint">Paste raw HTML code directly or click a starter template:</span>
+        </div>
+        <div class="md-snippets">
+          <button type="button" class="md-snippet-btn" data-snippet="table-html" title="Insert styled HTML table with borders, header, and prices">
+            📊 + HTML Table
+          </button>
+          <button type="button" class="md-snippet-btn" data-snippet="box-bg" title="Insert styled container with background color and padding">
+            🎨 + Background Card
+          </button>
+          <button type="button" class="md-snippet-btn" data-snippet="center" title="Insert centered text block">
+            ↔️ + Center Align
+          </button>
+          <button type="button" class="md-snippet-btn" data-snippet="table-md" title="Insert markdown table format">
+            📋 + Markdown Table
+          </button>
+        </div>
+      </div>
+    )
+  }
+  {
     (f.type === 'textarea' || f.type === 'markdown' || f.type === 'list' || f.type === 'faqs' || f.type === 'kv') && (
       <textarea
         id={id}
@@ -93,7 +117,13 @@ if (f.type === 'image' || f.type === 'images') {
         rows={f.rows ?? (f.type === 'faqs' ? 10 : f.type === 'list' ? 6 : 4)}
         class={f.type !== 'textarea' ? 'mono' : undefined}
         data-max={f.max}
-        placeholder={f.type === 'faqs' ? 'Q: Question?\nA: Answer.\n\nQ: Next question?\nA: Answer.' : undefined}
+        placeholder={
+          f.type === 'faqs'
+            ? 'Q: Question?\nA: Answer.\n\nQ: Next question?\nA: Answer.'
+            : f.type === 'markdown'
+              ? 'Enter article content... You can paste raw HTML code (<table style="...">, <div style="background-color: #...">, etc.) or write standard Markdown (## headings, **bold**, lists).'
+              : undefined
+        }
       >{value}</textarea>
     )
   }
@@ -470,6 +500,69 @@ if (f.type === 'image' || f.type === 'images') {
     flex: 1;
     max-width: 320px;
   }
+
+  /* Markdown & HTML Editor Toolbar */
+  .md-editor-toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: #0f172a;
+    padding: 10px 14px;
+    border-radius: var(--radius-m, 6px) var(--radius-m, 6px) 0 0;
+    border: 1px solid #334155;
+    border-bottom: none;
+    color: #f8fafc;
+  }
+  .md-toolbar-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .md-badge {
+    background: #2563eb;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+  .md-hint {
+    font-size: 12px;
+    color: #94a3b8;
+  }
+  .md-snippets {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .md-snippet-btn {
+    appearance: none;
+    background: #1e293b;
+    color: #e2e8f0;
+    border: 1px solid #334155;
+    padding: 5px 11px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .md-snippet-btn:hover {
+    background: #334155;
+    color: #ffffff;
+    border-color: #64748b;
+  }
+  .md-editor-toolbar + textarea {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
 </style>
 
 <script>
@@ -764,5 +857,79 @@ if (f.type === 'image' || f.type === 'images') {
 
     // Initialize gallery item events
     bindGalleryActions();
+  });
+
+  // Markdown & HTML Editor Snippets Insertion
+  document.querySelectorAll<HTMLElement>('[data-md-toolbar]').forEach((bar) => {
+    if (bar.dataset.bound) return;
+    bar.dataset.bound = '1';
+    const targetId = bar.dataset.mdToolbar;
+    if (!targetId) return;
+    const textarea = document.getElementById(targetId) as HTMLTextAreaElement | null;
+    if (!textarea) return;
+
+    const snippets: Record<string, string> = {
+      'table-html': `<table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+  <thead>
+    <tr style="background-color: #0b2545; color: #ffffff;">
+      <th style="padding: 12px 14px; border: 1px solid #cbd5e1; text-align: left;">Service / Component</th>
+      <th style="padding: 12px 14px; border: 1px solid #cbd5e1; text-align: center;">Timeline</th>
+      <th style="padding: 12px 14px; border: 1px solid #cbd5e1; text-align: right;">Estimated Price</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style="background-color: #ffffff;">
+      <td style="padding: 12px 14px; border: 1px solid #cbd5e1;">Hardware Diagnosis & Estimate</td>
+      <td style="padding: 12px 14px; border: 1px solid #cbd5e1; text-align: center;">Same Day</td>
+      <td style="padding: 12px 14px; border: 1px solid #cbd5e1; text-align: right; font-weight: bold; color: #166534;">Free with repair</td>
+    </tr>
+    <tr style="background-color: #f8fafc;">
+      <td style="padding: 12px 14px; border: 1px solid #cbd5e1;">512GB NVMe SSD Upgrade (Installed)</td>
+      <td style="padding: 12px 14px; border: 1px solid #cbd5e1; text-align: center;">1 - 2 Hours</td>
+      <td style="padding: 12px 14px; border: 1px solid #cbd5e1; text-align: right; font-weight: bold; color: #166534;">₹2,499</td>
+    </tr>
+  </tbody>
+</table>\n`,
+
+      'box-bg': `<div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-left: 5px solid #16a34a; padding: 18px 20px; border-radius: 8px; margin: 20px 0;">
+  <h4 style="margin: 0 0 8px 0; color: #166534; font-size: 1.1rem;">💡 Workshop Tip from Virnobyte</h4>
+  <p style="margin: 0; color: #14532d; font-size: 0.95rem; line-height: 1.6;">Add your highlighted advice, special guarantee, or important background takeaway here.</p>
+</div>\n`,
+
+      'center': `<div style="text-align: center; margin: 24px 0; padding: 18px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+  <h3 style="margin: 0 0 8px 0; color: #0b2545;">Centered Announcement or Highlight</h3>
+  <p style="margin: 0; color: #475569;">You can customize background color, alignment, borders, and typography.</p>
+</div>\n`,
+
+      'table-md': `| Service Type | Turnaround Time | Price |
+| :--- | :---: | ---: |
+| Diagnostic Check | 1 Hour | ₹250 |
+| SSD Upgrade (512GB) | Same Day | ₹2,999 |
+| Motherboard Repair | 2 Days | ₹1,800 |\n`
+    };
+
+    bar.querySelectorAll<HTMLButtonElement>('[data-snippet]').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const type = btn.dataset.snippet;
+        const code = type && snippets[type];
+        if (!code) return;
+
+        const start = textarea.selectionStart ?? textarea.value.length;
+        const end = textarea.selectionEnd ?? textarea.value.length;
+        const before = textarea.value.slice(0, start);
+        const after = textarea.value.slice(end);
+
+        const prefix = before.length && !before.endsWith('\n\n') ? (before.endsWith('\n') ? '\n' : '\n\n') : '';
+        const insertText = prefix + code;
+
+        textarea.value = before + insertText + after;
+        const newPos = start + insertText.length;
+        textarea.selectionStart = newPos;
+        textarea.selectionEnd = newPos;
+        textarea.focus();
+        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+    });
   });
 </script>

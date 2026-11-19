@@ -129,7 +129,14 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { name: 'slug', label: 'Article web address (URL)', type: 'slug', required: true, half: true, help: 'Short link name, e.g. ssd-vs-hdd becomes /blog/ssd-vs-hdd.' },
       { name: 'author', label: 'Author / Team Name', type: 'text', half: true, help: 'e.g. "Virnobyte Team" or "Senior Hardware Engineer"' },
       { name: 'description', label: 'Meta description & intro summary', type: 'textarea', rows: 3, required: true, max: 200, help: 'Displayed under the headline and in Google search snippet.' },
-      { name: 'body', label: 'Article content (Markdown)', type: 'markdown', rows: 24, required: true, help: 'Full article body. Use ## for section headings, **bold** text, lists, and images.' },
+      {
+        name: 'body',
+        label: 'Article content (HTML or Markdown)',
+        type: 'markdown',
+        rows: 24,
+        required: true,
+        help: 'Full article body. You can simply paste HTML code (tables <table>, background colors, text alignment) or write Markdown (## headings, **bold**, lists). Both work together seamlessly.',
+      },
       { name: 'related', label: 'Related service links', type: 'list', help: 'One service web address name per line (e.g. laptop-repair). Shown as links under the article.' },
       { name: 'image', label: 'Cover image', type: 'image', section: 'Cover Image & Size Customization' },
       {

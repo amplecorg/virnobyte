@@ -53,7 +53,7 @@ for (const [h, crf, maxrate] of RUNGS) {
       '-y', '-ss', start, '-t', seconds, '-i', input,
       '-an',
       '-vf', `scale=-2:${Math.min(h, srcH)}:flags=lanczos${fpsFilter}`,
-      '-c:v', 'libx264', '-preset', 'slow', '-profile:v', 'high', '-pix_fmt', 'yuv420p',
+      '-c:v', 'libx264', '-preset', 'fast', '-profile:v', 'high', '-pix_fmt', 'yuv420p',
       '-crf', String(crf), '-maxrate', maxrate, '-bufsize', maxrate,
       '-movflags', '+faststart',
       out,

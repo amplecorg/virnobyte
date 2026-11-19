@@ -43,7 +43,7 @@ export const DEFAULT_SETTINGS = {
     heroImage: 'virnobyte-inverter-installation',
     heroAlt: 'Technician repairing a circuit board with a screwdriver at the Virnobyte workbench',
     // Optional background video over the hero photo. Empty = photo only. Encode with `npm run hero-video`.
-    // Current clip: Pexels video 6755154 by Tima Miroshnichenko (free Pexels licence, stock footage).
+    // Current clip: Pexels video 1085656 (Blue Network Cables & Server Switch with LED status lights, 4K UHD, free Pexels licence).
     heroVideo: '/video/hero-1080.mp4',
     heroVideo4k: '/video/hero-2160.mp4',
     heroVideoMobile: '/video/hero-720.mp4',

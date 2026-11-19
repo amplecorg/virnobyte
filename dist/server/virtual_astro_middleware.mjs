@@ -1,6 +1,6 @@
 import { t as sequence, ut as defineMiddleware } from "./chunks/sequence_BTIhAKFo.mjs";
 import { l as userFromCookies } from "./chunks/auth_CSZwb3EQ.mjs";
-import { t as generatePageMarkdown } from "./chunks/agent-markdown_C7gwmP4c.mjs";
+import { t as generatePageMarkdown } from "./chunks/agent-markdown_ETW5kQLD.mjs";
 //#region src/middleware.ts
 var LEGACY = {
 	"/memberships": "/membership",
