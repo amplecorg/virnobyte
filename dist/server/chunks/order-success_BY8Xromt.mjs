@@ -7,7 +7,7 @@ import { a as inr } from "./format_6aaLy6w7.mjs";
 import { t as $$Base } from "./Base_BQ2Y903t.mjs";
 import { o as getCart } from "./cart_DNQqdeQo.mjs";
 import { o as orderItems } from "./orders_wTHzsAQs.mjs";
-import { t as reconcileOrder } from "./checkout_CpKcN7aN.mjs";
+import { t as reconcileOrder } from "./checkout_U2KjswQm.mjs";
 //#region src/pages/order-success.astro
 var order_success_exports = /* @__PURE__ */ __exportAll({
 	default: () => $$OrderSuccess,

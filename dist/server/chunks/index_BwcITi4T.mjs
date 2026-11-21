@@ -1,6 +1,6 @@
 import { t as __exportAll } from "./rolldown-runtime_8H4AJuhK.mjs";
 import { i as clearCart, o as getCart } from "./cart_DNQqdeQo.mjs";
-import { n as json, t as isSecure } from "./http_DX-26bXz.mjs";
+import { n as isSecure, r as json } from "./http_B1Mo43QL.mjs";
 //#region src/pages/api/cart/index.ts
 var cart_exports = /* @__PURE__ */ __exportAll({
 	DELETE: () => DELETE,

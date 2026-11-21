@@ -3,8 +3,8 @@ import { a as rateLimit } from "./auth_CSZwb3EQ.mjs";
 import { y as product } from "./data_DdRaT7LY.mjs";
 import { l as viewOf, o as getCart, r as buildLine, u as getPaymentConfig } from "./cart_DNQqdeQo.mjs";
 import { c as validateCustomer, n as createOrder } from "./orders_wTHzsAQs.mjs";
-import { n as json, r as readJson, t as isSecure } from "./http_DX-26bXz.mjs";
-import { n as startOnlinePayment } from "./checkout_CpKcN7aN.mjs";
+import { i as readJson, n as isSecure, r as json, t as getPublicOrigin } from "./http_B1Mo43QL.mjs";
+import { n as startOnlinePayment } from "./checkout_U2KjswQm.mjs";
 //#region src/pages/api/checkout/create.ts
 var create_exports = /* @__PURE__ */ __exportAll({ POST: () => POST });
 /**
@@ -79,7 +79,7 @@ var POST = async (ctx) => {
 				redirectUrl
 			});
 		}
-		const started = await startOnlinePayment(order, ctx.url.origin);
+		const started = await startOnlinePayment(order, getPublicOrigin(ctx));
 		if (!started.ok) return json({
 			ok: false,
 			error: started.error,

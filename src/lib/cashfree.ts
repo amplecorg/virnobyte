@@ -46,6 +46,15 @@ export async function createCashfreeOrder(params: CreateOrderParams): Promise<Ca
     ? params.customerEmail
     : `customer_${params.orderId.toLowerCase().replace(/[^a-z0-9]/g, '')}@virnobyte.com`;
 
+  // Cashfree requires order_meta.return_url to strictly be HTTPS.
+  let returnUrl = (params.returnUrl || '').trim();
+  if (returnUrl.startsWith('http://localhost') || returnUrl.startsWith('http://127.0.0.1')) {
+    const fallbackSite = (process.env.PUBLIC_SITE_URL || 'https://virnobyte.com').trim().replace(/\/+$/, '');
+    returnUrl = returnUrl.replace(/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?/, fallbackSite);
+  } else if (returnUrl.startsWith('http://')) {
+    returnUrl = 'https://' + returnUrl.slice(7);
+  }
+
   const payload = {
     order_id: params.orderId,
     order_amount: Math.round(params.amount),
@@ -57,7 +66,7 @@ export async function createCashfreeOrder(params: CreateOrderParams): Promise<Ca
       customer_phone: cleanPhone,
     },
     order_meta: {
-      return_url: params.returnUrl,
+      return_url: returnUrl,
     },
     order_note: params.note || 'Virnobyte Order',
   };

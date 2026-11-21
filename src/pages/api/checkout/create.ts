@@ -3,7 +3,7 @@ import { rateLimit } from '@/lib/auth';
 import { product } from '@/lib/data';
 import { buildLine, getCart, viewOf } from '@/lib/commerce/cart';
 import { startOnlinePayment } from '@/lib/commerce/checkout';
-import { isSecure, json, readJson } from '@/lib/commerce/http';
+import { getPublicOrigin, isSecure, json, readJson } from '@/lib/commerce/http';
 import { createOrder, validateCustomer } from '@/lib/commerce/orders';
 import { getPaymentConfig } from '@/lib/commerce/payments';
 
@@ -69,7 +69,7 @@ export const POST: APIRoute = async (ctx) => {
       return json({ ok: true, orderId: order.order_id, paymentMethod: 'cod', redirectUrl });
     }
 
-    const started = await startOnlinePayment(order, ctx.url.origin);
+    const started = await startOnlinePayment(order, getPublicOrigin(ctx));
     if (!started.ok) return json({ ok: false, error: started.error, orderId: order.order_id }, 502);
     return json({ ok: true, orderId: order.order_id, paymentMethod: 'online', payment: started.intent, redirectUrl });
   } catch (err: any) {

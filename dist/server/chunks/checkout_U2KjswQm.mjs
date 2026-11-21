@@ -26,6 +26,11 @@ async function createCashfreeOrder(params) {
 	const rawDigits = params.customerPhone.replace(/\D/g, "");
 	const cleanPhone = rawDigits.length >= 10 ? rawDigits.slice(-10) : "9999999999";
 	const cleanEmail = params.customerEmail && params.customerEmail.includes("@") ? params.customerEmail : `customer_${params.orderId.toLowerCase().replace(/[^a-z0-9]/g, "")}@virnobyte.com`;
+	let returnUrl = (params.returnUrl || "").trim();
+	if (returnUrl.startsWith("http://localhost") || returnUrl.startsWith("http://127.0.0.1")) {
+		const fallbackSite = (process.env.PUBLIC_SITE_URL || "https://virnobyte.com").trim().replace(/\/+$/, "");
+		returnUrl = returnUrl.replace(/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?/, fallbackSite);
+	} else if (returnUrl.startsWith("http://")) returnUrl = "https://" + returnUrl.slice(7);
 	const payload = {
 		order_id: params.orderId,
 		order_amount: Math.round(params.amount),
@@ -36,7 +41,7 @@ async function createCashfreeOrder(params) {
 			customer_email: cleanEmail,
 			customer_phone: cleanPhone
 		},
-		order_meta: { return_url: params.returnUrl },
+		order_meta: { return_url: returnUrl },
 		order_note: params.note || "Virnobyte Order"
 	};
 	try {

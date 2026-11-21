@@ -1,7 +1,7 @@
 import { t as __exportAll } from "./rolldown-runtime_8H4AJuhK.mjs";
 import { a as rateLimit } from "./auth_CSZwb3EQ.mjs";
-import { n as json, r as readJson } from "./http_DX-26bXz.mjs";
-import { n as startOnlinePayment, t as reconcileOrder } from "./checkout_CpKcN7aN.mjs";
+import { i as readJson, r as json, t as getPublicOrigin } from "./http_B1Mo43QL.mjs";
+import { n as startOnlinePayment, t as reconcileOrder } from "./checkout_U2KjswQm.mjs";
 //#region src/pages/api/checkout/retry.ts
 var retry_exports = /* @__PURE__ */ __exportAll({ POST: () => POST });
 /** POST /api/checkout/retry { orderId } — "Complete payment" for an order still awaiting payment. */
@@ -36,7 +36,7 @@ var POST = async (ctx) => {
 		ok: false,
 		error: "This order can no longer be paid online. Please contact us."
 	}, 400);
-	const started = await startOnlinePayment(order, ctx.url.origin);
+	const started = await startOnlinePayment(order, getPublicOrigin(ctx));
 	if (!started.ok) return json({
 		ok: false,
 		error: started.error
