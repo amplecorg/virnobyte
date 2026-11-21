@@ -2,6 +2,7 @@ import { t as __exportAll } from "./rolldown-runtime_8H4AJuhK.mjs";
 import { A as renderTemplate, N as addAttribute, T as Fragment, V as createAstro, j as maybeRenderHead, w as renderComponent } from "./sequence_BTIhAKFo.mjs";
 import { t as createComponent } from "./compiler_B6nf2Usq.mjs";
 import { n as renderScript, t as $$Icon } from "./Icon_CCv9Ixst.mjs";
+import { l as userFromCookies } from "./auth_CSZwb3EQ.mjs";
 import { t as contactInfo } from "./settings_D-p7f3sg.mjs";
 import { b as products } from "./data_DdRaT7LY.mjs";
 import { a as inr } from "./format_6aaLy6w7.mjs";
@@ -19,6 +20,7 @@ createAstro("https://virnobyte.com");
 var $$Products = createComponent(($$result, $$props, $$slots) => {
 	const Astro = $$result.createAstro($$props, $$slots);
 	Astro.self = $$Products;
+	const user = Astro.locals.user || userFromCookies(Astro.cookies);
 	const c = contactInfo();
 	const items = products();
 	const crumbs = [{
@@ -87,7 +89,7 @@ var $$Products = createComponent(($$result, $$props, $$slots) => {
 			"size": 14,
 			"data-astro-cid-rcy7iuhi": true
 		})} <span data-astro-cid-rcy7iuhi>${p.diagnostic_setup}</span> </span>`} </div>`} </div>  <div class="fk-col-price" data-astro-cid-rcy7iuhi> <div class="fk-price-block" data-astro-cid-rcy7iuhi> <div class="fk-price-main" data-astro-cid-rcy7iuhi> ${p.price ? renderTemplate`<span class="fk-current-price" data-astro-cid-rcy7iuhi>${inr(p.price)}</span>` : renderTemplate`<span class="fk-ask-price" data-astro-cid-rcy7iuhi>Ask for Price</span>`} ${p.mrp && p.price && p.mrp > p.price && renderTemplate`<span class="fk-mrp-price" data-astro-cid-rcy7iuhi>${inr(p.mrp)}</span>`} ${discount && renderTemplate`<span class="fk-discount-green" data-astro-cid-rcy7iuhi>${discount}% off</span>`} </div> <div class="fk-special-tag" data-astro-cid-rcy7iuhi> <span data-astro-cid-rcy7iuhi>Special Price</span> </div> ${p.offer_tag && renderTemplate`<p class="fk-offer-text" data-astro-cid-rcy7iuhi>
-🏷️ <strong data-astro-cid-rcy7iuhi>${p.offer_tag}</strong> </p>`} ${(p.delivery_text || p.delivery_sub) && renderTemplate`<div class="fk-delivery-text" data-astro-cid-rcy7iuhi> <strong data-astro-cid-rcy7iuhi>${p.delivery_text || "Free Delivery"}</strong> ${p.delivery_sub && renderTemplate`<span data-astro-cid-rcy7iuhi>${p.delivery_sub}</span>`} </div>`} </div> <div class="fk-actions-block" data-astro-cid-rcy7iuhi> ${p.price && p.in_stock ? renderTemplate`<button type="button" class="fk-btn-addcart"${addAttribute(p.slug, "data-add-to-cart")} data-astro-cid-rcy7iuhi> <span data-label data-astro-cid-rcy7iuhi>🛒 Add to Cart</span> </button>` : null} ${p.price && p.in_stock ? renderTemplate`<a${addAttribute(`/checkout/${p.slug}`, "href")} class="fk-btn-buynow" data-astro-cid-rcy7iuhi> <span data-astro-cid-rcy7iuhi>⚡ Buy Now</span> </a>` : null} <a${addAttribute(`/products/${p.slug}`, "href")} class="fk-btn-details" data-astro-cid-rcy7iuhi> <span data-astro-cid-rcy7iuhi>View Full Specs &amp; Photos →</span> </a> </div> </div> </article>`;
+🏷️ <strong data-astro-cid-rcy7iuhi>${p.offer_tag}</strong> </p>`} ${(p.delivery_text || p.delivery_sub) && renderTemplate`<div class="fk-delivery-text" data-astro-cid-rcy7iuhi> <strong data-astro-cid-rcy7iuhi>${p.delivery_text || "Free Delivery"}</strong> ${p.delivery_sub && renderTemplate`<span data-astro-cid-rcy7iuhi>${p.delivery_sub}</span>`} </div>`} </div> <div class="fk-actions-block" data-astro-cid-rcy7iuhi> ${p.price && p.in_stock ? renderTemplate`<button type="button" class="fk-btn-addcart"${addAttribute(p.slug, "data-add-to-cart")} data-astro-cid-rcy7iuhi> <span data-label data-astro-cid-rcy7iuhi>🛒 Add to Cart</span> </button>` : null} ${p.price && p.in_stock ? renderTemplate`<a${addAttribute(user ? `/checkout/${p.slug}` : `/account/login?next=${encodeURIComponent(`/checkout/${p.slug}`)}`, "href")} class="fk-btn-buynow" data-astro-cid-rcy7iuhi> <span data-astro-cid-rcy7iuhi>⚡ Buy Now</span> </a>` : null} <a${addAttribute(`/products/${p.slug}`, "href")} class="fk-btn-details" data-astro-cid-rcy7iuhi> <span data-astro-cid-rcy7iuhi>View Full Specs &amp; Photos →</span> </a> </div> </div> </article>`;
 	})} </div>  <div id="fk-no-results" class="fk-no-results" style="display: none;" data-astro-cid-rcy7iuhi> <div class="fk-no-results-box" data-astro-cid-rcy7iuhi> ${renderComponent($$result, "Icon", $$Icon, {
 		"name": "search",
 		"size": 40,

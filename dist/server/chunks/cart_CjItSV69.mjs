@@ -2,6 +2,7 @@ import { t as __exportAll } from "./rolldown-runtime_8H4AJuhK.mjs";
 import { A as renderTemplate, N as addAttribute, V as createAstro, j as maybeRenderHead, w as renderComponent } from "./sequence_BTIhAKFo.mjs";
 import { t as createComponent } from "./compiler_B6nf2Usq.mjs";
 import { n as renderScript } from "./Icon_CCv9Ixst.mjs";
+import { l as userFromCookies } from "./auth_CSZwb3EQ.mjs";
 import { a as inr } from "./format_6aaLy6w7.mjs";
 import { t as $$Base } from "./Base_BQ2Y903t.mjs";
 import { o as getCart, u as getPaymentConfig } from "./cart_DNQqdeQo.mjs";
@@ -15,7 +16,7 @@ createAstro("https://virnobyte.com");
 var $$Cart = createComponent(($$result, $$props, $$slots) => {
 	const Astro = $$result.createAstro($$props, $$slots);
 	Astro.self = $$Cart;
-	const user = Astro.locals.user;
+	const user = Astro.locals.user || userFromCookies(Astro.cookies);
 	const secure = Astro.url.protocol === "https:" || Astro.request.headers.get("x-forwarded-proto") === "https";
 	const cart = getCart(Astro.cookies, user, secure);
 	const { lines, totals } = cart;

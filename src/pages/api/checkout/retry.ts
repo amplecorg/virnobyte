@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { rateLimit } from '@/lib/auth';
+import { rateLimit, userFromCookies } from '@/lib/auth';
 import { reconcileOrder, startOnlinePayment } from '@/lib/commerce/checkout';
 import { getPublicOrigin, json, readJson } from '@/lib/commerce/http';
 
@@ -8,7 +8,7 @@ export const POST: APIRoute = async (ctx) => {
   if (!rateLimit(`retry:${ctx.clientAddress}`, 12, 10 * 60_000)) {
     return json({ ok: false, error: 'Too many attempts. Please wait a few minutes and try again.' }, 429);
   }
-  const user = ctx.locals.user;
+  const user = ctx.locals.user || userFromCookies(ctx.cookies);
   if (!user) {
     return json({ ok: false, error: 'Please sign in to complete payment.', requiresLogin: true }, 401);
   }

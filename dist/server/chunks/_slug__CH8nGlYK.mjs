@@ -2,6 +2,7 @@ import { t as __exportAll } from "./rolldown-runtime_8H4AJuhK.mjs";
 import { A as renderTemplate, N as addAttribute, V as createAstro, j as maybeRenderHead, w as renderComponent } from "./sequence_BTIhAKFo.mjs";
 import { t as createComponent } from "./compiler_B6nf2Usq.mjs";
 import { n as renderScript, t as $$Icon } from "./Icon_CCv9Ixst.mjs";
+import { l as userFromCookies } from "./auth_CSZwb3EQ.mjs";
 import { t as contactInfo } from "./settings_D-p7f3sg.mjs";
 import { b as products, y as product } from "./data_DdRaT7LY.mjs";
 import { a as inr } from "./format_6aaLy6w7.mjs";
@@ -18,6 +19,7 @@ createAstro("https://virnobyte.com");
 var $$Slug = createComponent(($$result, $$props, $$slots) => {
 	const Astro = $$result.createAstro($$props, $$slots);
 	Astro.self = $$Slug;
+	const user = Astro.locals.user || userFromCookies(Astro.cookies);
 	const { slug } = Astro.params;
 	const p = product(slug);
 	if (!p) return Astro.redirect("/products", 302);
@@ -131,7 +133,7 @@ var $$Slug = createComponent(($$result, $$props, $$slots) => {
 		"name": "search",
 		"size": 13,
 		"data-astro-cid-cezwlk7t": true
-	})} <span data-astro-cid-cezwlk7t>Hover to inspect • Click for full screen</span> </div> </div>  ${hasMultiple && renderTemplate`<div class="fk-detail-thumbs" id="fk-detail-thumbs" aria-label="Product thumbnails" data-astro-cid-cezwlk7t> ${photoUrls.map((url, idx) => renderTemplate`<button type="button"${addAttribute(["fk-detail-thumb-btn", { active: idx === 0 }], "class:list")}${addAttribute(idx, "data-index")}${addAttribute(`View photo ${idx + 1}`, "aria-label")} data-astro-cid-cezwlk7t> <img${addAttribute(url, "src")} alt="" loading="lazy" data-astro-cid-cezwlk7t> </button>`)} </div>`} </div>  <div class="fk-detail-actions" data-astro-cid-cezwlk7t> ${p.price && p.in_stock ? renderTemplate`<button type="button" class="fk-action-btn fk-btn-cart"${addAttribute(p.slug, "data-add-to-cart")} data-astro-cid-cezwlk7t> <span data-label data-astro-cid-cezwlk7t>🛒 Add to Cart</span> </button>` : null} ${p.price && p.in_stock ? renderTemplate`<a class="fk-action-btn fk-btn-buy"${addAttribute(`/checkout/${p.slug}`, "href")} data-astro-cid-cezwlk7t> <span data-astro-cid-cezwlk7t>⚡ Buy Now</span> </a>` : null} <a class="fk-action-btn fk-btn-call"${addAttribute(c.tel, "href")} data-astro-cid-cezwlk7t> ${renderComponent($$result, "Icon", $$Icon, {
+	})} <span data-astro-cid-cezwlk7t>Hover to inspect • Click for full screen</span> </div> </div>  ${hasMultiple && renderTemplate`<div class="fk-detail-thumbs" id="fk-detail-thumbs" aria-label="Product thumbnails" data-astro-cid-cezwlk7t> ${photoUrls.map((url, idx) => renderTemplate`<button type="button"${addAttribute(["fk-detail-thumb-btn", { active: idx === 0 }], "class:list")}${addAttribute(idx, "data-index")}${addAttribute(`View photo ${idx + 1}`, "aria-label")} data-astro-cid-cezwlk7t> <img${addAttribute(url, "src")} alt="" loading="lazy" data-astro-cid-cezwlk7t> </button>`)} </div>`} </div>  <div class="fk-detail-actions" data-astro-cid-cezwlk7t> ${p.price && p.in_stock ? renderTemplate`<button type="button" class="fk-action-btn fk-btn-cart"${addAttribute(p.slug, "data-add-to-cart")} data-astro-cid-cezwlk7t> <span data-label data-astro-cid-cezwlk7t>🛒 Add to Cart</span> </button>` : null} ${p.price && p.in_stock ? renderTemplate`<a class="fk-action-btn fk-btn-buy"${addAttribute(user ? `/checkout/${p.slug}` : `/account/login?next=${encodeURIComponent(`/checkout/${p.slug}`)}`, "href")} data-astro-cid-cezwlk7t> <span data-astro-cid-cezwlk7t>⚡ Buy Now</span> </a>` : null} <a class="fk-action-btn fk-btn-call"${addAttribute(c.tel, "href")} data-astro-cid-cezwlk7t> ${renderComponent($$result, "Icon", $$Icon, {
 		"name": "phone",
 		"size": 18,
 		"data-astro-cid-cezwlk7t": true

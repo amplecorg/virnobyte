@@ -4,8 +4,9 @@ import { inr } from '@/lib/format';
 import { getCart } from '@/lib/commerce/cart';
 import { getPaymentConfig } from '@/lib/commerce/payments';
 import { MAX_QTY } from '@/lib/commerce/pricing';
+import { userFromCookies } from '@/lib/auth';
 
-const user = Astro.locals.user;
+const user = Astro.locals.user || userFromCookies(Astro.cookies);
 const secure = Astro.url.protocol === 'https:' || Astro.request.headers.get('x-forwarded-proto') === 'https';
 const cart = getCart(Astro.cookies, user, secure);
 const { lines, totals } = cart;

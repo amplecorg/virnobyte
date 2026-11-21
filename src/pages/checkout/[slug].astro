@@ -4,8 +4,9 @@ import Base from '@/layouts/Base.astro';
 import CheckoutView from '@/components/shop/CheckoutView.astro';
 import { product } from '@/lib/data';
 import { buildLine, viewOf } from '@/lib/commerce/cart';
+import { userFromCookies } from '@/lib/auth';
 
-const user = Astro.locals.user;
+const user = Astro.locals.user || userFromCookies(Astro.cookies);
 if (!user) {
   return Astro.redirect(`/account/login?next=${encodeURIComponent(Astro.url.pathname + Astro.url.search)}`, 302);
 }

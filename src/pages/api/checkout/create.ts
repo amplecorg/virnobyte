@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { rateLimit } from '@/lib/auth';
+import { rateLimit, userFromCookies } from '@/lib/auth';
 import { product } from '@/lib/data';
 import { buildLine, getCart, viewOf } from '@/lib/commerce/cart';
 import { startOnlinePayment } from '@/lib/commerce/checkout';
@@ -21,7 +21,7 @@ export const POST: APIRoute = async (ctx) => {
   }
 
   try {
-    const user = ctx.locals.user;
+    const user = ctx.locals.user || userFromCookies(ctx.cookies);
     if (!user) {
       return json({ ok: false, error: 'Please sign in to place your order.', requiresLogin: true }, 401);
     }

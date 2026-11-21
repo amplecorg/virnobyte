@@ -7,6 +7,9 @@ import { contactInfo } from '@/lib/settings';
 import { inr } from '@/lib/format';
 import { resolveImage } from '@/lib/images';
 import { productNode, breadcrumbs } from '@/lib/schema';
+import { userFromCookies } from '@/lib/auth';
+
+const user = Astro.locals.user || userFromCookies(Astro.cookies);
 
 const { slug } = Astro.params;
 const p = product(slug as string) as Product | undefined;
@@ -211,7 +214,7 @@ const crumbs = [
             ) : null}
 
             {p.price && p.in_stock ? (
-              <a class="fk-action-btn fk-btn-buy" href={`/checkout/${p.slug}`}>
+              <a class="fk-action-btn fk-btn-buy" href={user ? `/checkout/${p.slug}` : `/account/login?next=${encodeURIComponent(`/checkout/${p.slug}`)}`}>
                 <span>⚡ Buy Now</span>
               </a>
             ) : null}

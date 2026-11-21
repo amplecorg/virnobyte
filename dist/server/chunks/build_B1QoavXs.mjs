@@ -1,6 +1,6 @@
 import { t as __exportAll } from "./rolldown-runtime_8H4AJuhK.mjs";
 import { i as get, s as run } from "./db_DdeOHGNv.mjs";
-import { a as rateLimit } from "./auth_CSZwb3EQ.mjs";
+import { a as rateLimit, l as userFromCookies } from "./auth_CSZwb3EQ.mjs";
 import { n as getSettings } from "./settings_D-p7f3sg.mjs";
 import { C as saveEnquiry } from "./data_DdRaT7LY.mjs";
 import { a as inr } from "./format_6aaLy6w7.mjs";
@@ -41,7 +41,7 @@ var GET = ({ url }) => {
 	if (!row) return json({ error: "Build not found." }, 404);
 	return json({ selection: JSON.parse(row.parts) });
 };
-var POST = async ({ request, clientAddress, locals }) => {
+var POST = async ({ request, clientAddress, locals, cookies }) => {
 	if (!rateLimit(`pc:${clientAddress}`, 20, 6e5)) return json({ error: "Too many requests. Please call or WhatsApp us." }, 429);
 	let body;
 	try {
@@ -51,6 +51,12 @@ var POST = async ({ request, clientAddress, locals }) => {
 	}
 	const intent = ["quote", "order"].includes(body?.intent) ? body.intent : "save";
 	const selection = clean(body?.selection);
+	if (intent === "order") {
+		if (!(locals.user || userFromCookies(cookies))) return json({
+			error: "Please sign in to place an order for this custom PC build.",
+			requiresLogin: true
+		}, 401);
+	}
 	const parts = catalog();
 	const r = resolve(selection, new Map(parts.map((p) => [p.id, p])));
 	const issues = checkBuild(r);

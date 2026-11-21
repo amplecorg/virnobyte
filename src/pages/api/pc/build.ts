@@ -5,7 +5,7 @@ import { catalog } from '@/lib/pc/catalog';
 import { checkBuild, missing, price, resolve, status, summary, type Selection } from '@/lib/pc/engine';
 import { getSettings } from '@/lib/settings';
 import { saveEnquiry } from '@/lib/data';
-import { rateLimit } from '@/lib/auth';
+import { rateLimit, userFromCookies } from '@/lib/auth';
 import { inr } from '@/lib/format';
 
 const PHONE = /^[+]?[0-9 ()-]{10,16}$/;
@@ -29,7 +29,7 @@ export const GET: APIRoute = ({ url }) => {
   return json({ selection: JSON.parse(row.parts) });
 };
 
-export const POST: APIRoute = async ({ request, clientAddress, locals }) => {
+export const POST: APIRoute = async ({ request, clientAddress, locals, cookies }) => {
   if (!rateLimit(`pc:${clientAddress}`, 20, 10 * 60_000)) return json({ error: 'Too many requests. Please call or WhatsApp us.' }, 429);
   let body: any;
   try {
@@ -39,6 +39,14 @@ export const POST: APIRoute = async ({ request, clientAddress, locals }) => {
   }
   const intent: 'save' | 'quote' | 'order' = ['quote', 'order'].includes(body?.intent) ? body.intent : 'save';
   const selection = clean(body?.selection);
+
+  // If ordering a PC build, user must be signed in
+  if (intent === 'order') {
+    const user = locals.user || userFromCookies(cookies);
+    if (!user) {
+      return json({ error: 'Please sign in to place an order for this custom PC build.', requiresLogin: true }, 401);
+    }
+  }
 
   // Re-derive everything from the database: client prices are never trusted.
   const parts = catalog();

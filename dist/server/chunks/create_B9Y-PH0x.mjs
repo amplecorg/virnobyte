@@ -1,5 +1,5 @@
 import { t as __exportAll } from "./rolldown-runtime_8H4AJuhK.mjs";
-import { a as rateLimit } from "./auth_CSZwb3EQ.mjs";
+import { a as rateLimit, l as userFromCookies } from "./auth_CSZwb3EQ.mjs";
 import { y as product } from "./data_DdRaT7LY.mjs";
 import { l as viewOf, o as getCart, r as buildLine, u as getPaymentConfig } from "./cart_DNQqdeQo.mjs";
 import { c as validateCustomer, n as createOrder } from "./orders_wTHzsAQs.mjs";
@@ -21,7 +21,7 @@ var POST = async (ctx) => {
 		error: "Too many attempts. Please wait a few minutes and try again."
 	}, 429);
 	try {
-		const user = ctx.locals.user;
+		const user = ctx.locals.user || userFromCookies(ctx.cookies);
 		if (!user) return json({
 			ok: false,
 			error: "Please sign in to place your order.",

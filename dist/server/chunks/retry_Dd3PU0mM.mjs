@@ -1,5 +1,5 @@
 import { t as __exportAll } from "./rolldown-runtime_8H4AJuhK.mjs";
-import { a as rateLimit } from "./auth_CSZwb3EQ.mjs";
+import { a as rateLimit, l as userFromCookies } from "./auth_CSZwb3EQ.mjs";
 import { i as readJson, r as json, t as getPublicOrigin } from "./http_B1Mo43QL.mjs";
 import { n as startOnlinePayment, t as reconcileOrder } from "./checkout_U2KjswQm.mjs";
 //#region src/pages/api/checkout/retry.ts
@@ -10,7 +10,7 @@ var POST = async (ctx) => {
 		ok: false,
 		error: "Too many attempts. Please wait a few minutes and try again."
 	}, 429);
-	const user = ctx.locals.user;
+	const user = ctx.locals.user || userFromCookies(ctx.cookies);
 	if (!user) return json({
 		ok: false,
 		error: "Please sign in to complete payment.",

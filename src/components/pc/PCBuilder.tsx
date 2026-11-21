@@ -114,7 +114,13 @@ export default function PCBuilder({ parts, presets, pricing, note, initial, what
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Something went wrong. Please call us.');
+      if (!res.ok) {
+        if (data.requiresLogin) {
+          window.location.href = `/account/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+          return;
+        }
+        throw new Error(data.error || 'Something went wrong. Please call us.');
+      }
       const link = `${location.origin}${data.url}`;
       history.replaceState(null, '', data.url);
       if (intent === 'save') {

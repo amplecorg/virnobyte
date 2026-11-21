@@ -6,6 +6,7 @@
 import { inr } from '@/lib/format';
 import { getPaymentConfig } from '@/lib/commerce/payments';
 import type { Line, Totals } from '@/lib/commerce/pricing';
+import { userFromCookies } from '@/lib/auth';
 
 interface Props {
   lines: Line[];
@@ -17,7 +18,7 @@ interface Props {
 
 const { lines, totals, mode, slug = '' } = Astro.props;
 const cfg = getPaymentConfig();
-const user = Astro.locals.user;
+const user = Astro.locals.user || userFromCookies(Astro.cookies);
 const buyable = lines.filter((l) => l.available);
 const canOrder = cfg.enabled && buyable.length > 0 && (cfg.onlineAvailable || cfg.codAvailable);
 const gatewayName = cfg.gateway === 'cashfree' ? 'Cashfree' : 'Razorpay';
@@ -93,7 +94,37 @@ const itemsLabel = `${totals.itemCount} ITEM${totals.itemCount === 1 ? '' : 'S'}
         </div>
 
         {
-          !canOrder ? (
+          !user ? (
+            <div class="fk-step-card fk-auth-required-card">
+              <div class="fk-step-head active" style="background: #fb641b;">
+                <span class="fk-step-num">!</span>
+                <span class="fk-step-title">SIGN IN REQUIRED TO PLACE ORDER</span>
+              </div>
+              <div class="fk-step-body" style="text-align: center; padding: 36px 20px;">
+                <div style="font-size: 2.8rem; margin-bottom: 12px;">🔒</div>
+                <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 8px; color: #212121;">
+                  Please sign in to place your order
+                </h3>
+                <p style="color: #666; font-size: 0.95rem; max-width: 480px; margin: 0 auto 24px; line-height: 1.5;">
+                  To ensure safe delivery, warranty registration, and doorstep technician tracking, every order must be placed from a verified account.
+                </p>
+                <div style="display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;">
+                  <a
+                    href={`/account/login?next=${encodeURIComponent(Astro.url.pathname + Astro.url.search)}`}
+                    class="fk-btn-auth-signin"
+                  >
+                    Sign In to Place Order
+                  </a>
+                  <a
+                    href={`/account/register?next=${encodeURIComponent(Astro.url.pathname + Astro.url.search)}`}
+                    class="fk-btn-auth-register"
+                  >
+                    Create Free Account
+                  </a>
+                </div>
+              </div>
+            </div>
+          ) : !canOrder ? (
             <div class="fk-step-card">
               <div class="fk-step-body">
                 <p class="fk-form-error" style="display:block">
@@ -474,6 +505,43 @@ const itemsLabel = `${totals.itemCount} ITEM${totals.itemCount === 1 ? '' : 'S'}
   }
 
   /* Step Cards */
+  .fk-auth-required-card {
+    border: 2px dashed #fb641b;
+    border-radius: 8px;
+    background: #fffbf8;
+  }
+  .fk-btn-auth-signin {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #fb641b;
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 0.95rem;
+    padding: 12px 28px;
+    border-radius: 4px;
+    text-decoration: none;
+    transition: background-color 0.15s ease;
+  }
+  .fk-btn-auth-signin:hover {
+    background: #e65100;
+  }
+  .fk-btn-auth-register {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #2874f0;
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 0.95rem;
+    padding: 12px 28px;
+    border-radius: 4px;
+    text-decoration: none;
+    transition: background-color 0.15s ease;
+  }
+  .fk-btn-auth-register:hover {
+    background: #1e5ec6;
+  }
   .fk-step-card {
     background: #ffffff;
     border-radius: 8px;

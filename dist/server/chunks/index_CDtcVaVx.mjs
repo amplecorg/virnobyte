@@ -1,9 +1,10 @@
 import { t as __exportAll } from "./rolldown-runtime_8H4AJuhK.mjs";
 import { A as renderTemplate, V as createAstro, w as renderComponent } from "./sequence_BTIhAKFo.mjs";
 import { t as createComponent } from "./compiler_B6nf2Usq.mjs";
+import { l as userFromCookies } from "./auth_CSZwb3EQ.mjs";
 import { t as $$Base } from "./Base_BQ2Y903t.mjs";
 import { o as getCart } from "./cart_DNQqdeQo.mjs";
-import { t as $$CheckoutView } from "./CheckoutView_BOGkJcgl.mjs";
+import { t as $$CheckoutView } from "./CheckoutView_D9-PDl5T.mjs";
 //#region src/pages/checkout/index.astro
 var checkout_exports = /* @__PURE__ */ __exportAll({
 	default: () => $$Index,
@@ -14,7 +15,7 @@ createAstro("https://virnobyte.com");
 var $$Index = createComponent(($$result, $$props, $$slots) => {
 	const Astro = $$result.createAstro($$props, $$slots);
 	Astro.self = $$Index;
-	const user = Astro.locals.user;
+	const user = Astro.locals.user || userFromCookies(Astro.cookies);
 	if (!user) return Astro.redirect(`/account/login?next=${encodeURIComponent(Astro.url.pathname + Astro.url.search)}`, 302);
 	const prod = Astro.url.searchParams.get("product") || Astro.url.searchParams.get("slug");
 	if (prod) return Astro.redirect(`/checkout/${encodeURIComponent(prod)}`, 302);
