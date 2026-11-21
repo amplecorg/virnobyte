@@ -1,10 +1,10 @@
 import { t as __exportAll } from "./rolldown-runtime_8H4AJuhK.mjs";
 import { a as rateLimit } from "./auth_CSZwb3EQ.mjs";
 import { y as product } from "./data_DdRaT7LY.mjs";
-import { l as viewOf, o as getCart, r as buildLine, u as getPaymentConfig } from "./cart_Dct9yH5N.mjs";
-import { c as validateCustomer, n as createOrder } from "./orders_CNCs21Gy.mjs";
+import { l as viewOf, o as getCart, r as buildLine, u as getPaymentConfig } from "./cart_DNQqdeQo.mjs";
+import { c as validateCustomer, n as createOrder } from "./orders_wTHzsAQs.mjs";
 import { n as json, r as readJson, t as isSecure } from "./http_DX-26bXz.mjs";
-import { n as startOnlinePayment } from "./checkout_C8Sn-466.mjs";
+import { n as startOnlinePayment } from "./checkout_CpKcN7aN.mjs";
 //#region src/pages/api/checkout/create.ts
 var create_exports = /* @__PURE__ */ __exportAll({ POST: () => POST });
 /**
@@ -21,6 +21,12 @@ var POST = async (ctx) => {
 		error: "Too many attempts. Please wait a few minutes and try again."
 	}, 429);
 	try {
+		const user = ctx.locals.user;
+		if (!user) return json({
+			ok: false,
+			error: "Please sign in to place your order.",
+			requiresLogin: true
+		}, 401);
 		const body = await readJson(ctx.request);
 		const cfg = getPaymentConfig();
 		if (!cfg.enabled) return json({
@@ -49,7 +55,7 @@ var POST = async (ctx) => {
 				error: "This product is no longer available."
 			}, 404);
 			view = viewOf(null, [buildLine(p, Number(body.quantity) || 1)]);
-		} else view = getCart(ctx.cookies, ctx.locals.user, isSecure(ctx));
+		} else view = getCart(ctx.cookies, user, isSecure(ctx));
 		if (!view.totals.itemCount) return json({
 			ok: false,
 			error: view.lines[0]?.unavailableReason || "Your cart is empty."
@@ -60,12 +66,12 @@ var POST = async (ctx) => {
 			customer: checked.customer,
 			paymentMethod: method,
 			gateway: cfg.gateway,
-			userId: ctx.locals.user?.id ?? null,
+			userId: user.id,
 			cartId: view.cartId
 		});
 		const redirectUrl = `/order-success?order_id=${encodeURIComponent(order.order_id)}`;
 		if (method === "cod") {
-			if (view.cartId) getCart(ctx.cookies, ctx.locals.user, isSecure(ctx));
+			if (view.cartId) getCart(ctx.cookies, user, isSecure(ctx));
 			return json({
 				ok: true,
 				orderId: order.order_id,

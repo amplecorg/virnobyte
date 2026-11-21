@@ -62,6 +62,9 @@ var onRequest$1 = defineMiddleware(async (ctx, next) => {
 	if (pathname === "/account" || pathname.startsWith("/account/") && !/^\/account\/(login|register|forgot-password|reset-password)$/.test(pathname)) {
 		if (!user) return ctx.redirect(`/account/login?next=${encodeURIComponent(pathname + url.search)}`);
 	}
+	if (pathname === "/checkout" || pathname.startsWith("/checkout/")) {
+		if (!user) return ctx.redirect(`/account/login?next=${encodeURIComponent(pathname + url.search)}`);
+	}
 	const res = await next();
 	const h = res.headers;
 	h.set("X-Content-Type-Options", "nosniff");

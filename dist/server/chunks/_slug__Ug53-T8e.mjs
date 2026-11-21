@@ -3,8 +3,8 @@ import { A as renderTemplate, V as createAstro, w as renderComponent } from "./s
 import { t as createComponent } from "./compiler_B6nf2Usq.mjs";
 import { y as product } from "./data_DdRaT7LY.mjs";
 import { t as $$Base } from "./Base_BQ2Y903t.mjs";
-import { l as viewOf, r as buildLine } from "./cart_Dct9yH5N.mjs";
-import { t as $$CheckoutView } from "./CheckoutView_BBwb_Tdj.mjs";
+import { l as viewOf, r as buildLine } from "./cart_DNQqdeQo.mjs";
+import { t as $$CheckoutView } from "./CheckoutView_BOGkJcgl.mjs";
 //#region src/pages/checkout/[slug].astro
 var _slug__exports = /* @__PURE__ */ __exportAll({
 	default: () => $$Slug,
@@ -15,6 +15,7 @@ createAstro("https://virnobyte.com");
 var $$Slug = createComponent(($$result, $$props, $$slots) => {
 	const Astro = $$result.createAstro($$props, $$slots);
 	Astro.self = $$Slug;
+	if (!Astro.locals.user) return Astro.redirect(`/account/login?next=${encodeURIComponent(Astro.url.pathname + Astro.url.search)}`, 302);
 	const p = product(String(Astro.params.slug || ""));
 	if (!p) return Astro.redirect("/products", 302);
 	const view = viewOf(null, [buildLine(p, Number(Astro.url.searchParams.get("qty")) || 1)]);

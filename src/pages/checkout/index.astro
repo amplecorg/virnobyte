@@ -4,11 +4,16 @@ import Base from '@/layouts/Base.astro';
 import CheckoutView from '@/components/shop/CheckoutView.astro';
 import { getCart } from '@/lib/commerce/cart';
 
+const user = Astro.locals.user;
+if (!user) {
+  return Astro.redirect(`/account/login?next=${encodeURIComponent(Astro.url.pathname + Astro.url.search)}`, 302);
+}
+
 const prod = Astro.url.searchParams.get('product') || Astro.url.searchParams.get('slug');
 if (prod) return Astro.redirect(`/checkout/${encodeURIComponent(prod)}`, 302);
 
 const secure = Astro.url.protocol === 'https:' || Astro.request.headers.get('x-forwarded-proto') === 'https';
-const view = getCart(Astro.cookies, Astro.locals.user, secure);
+const view = getCart(Astro.cookies, user, secure);
 if (!view.totals.itemCount) return Astro.redirect('/cart', 302);
 ---
 

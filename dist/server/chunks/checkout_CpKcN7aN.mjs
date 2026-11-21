@@ -1,8 +1,8 @@
 import { r as db } from "./db_DdeOHGNv.mjs";
 import { n as getSettings } from "./settings_D-p7f3sg.mjs";
-import { u as getPaymentConfig } from "./cart_Dct9yH5N.mjs";
-import { a as markOrderPaid, r as getOrder, t as attachGatewayOrder } from "./orders_CNCs21Gy.mjs";
-import { n as fetchRazorpayOrderState, t as createRazorpayOrder } from "./razorpay_DydPNL8y.mjs";
+import { u as getPaymentConfig } from "./cart_DNQqdeQo.mjs";
+import { a as markOrderPaid, r as getOrder, t as attachGatewayOrder } from "./orders_wTHzsAQs.mjs";
+import { n as fetchRazorpayOrderState, t as createRazorpayOrder } from "./razorpay_CewV_aLl.mjs";
 //#region src/lib/cashfree.ts
 /** Cashfree credentials come from the shared payment config (admin settings, then env). */
 function cashfreeApi() {
@@ -52,11 +52,12 @@ async function createCashfreeOrder(params) {
 		});
 		const data = await res.json();
 		if (!res.ok || !data.payment_session_id) {
-			console.error("Cashfree Create Order Error:", data);
+			console.error("[Cashfree] Create Order Error:", res.status, data);
+			const errorMsg = data.type === "authentication_error" || typeof data.message === "string" && data.message.toLowerCase().includes("authentication") ? "Payment gateway error: Cashfree authentication failed. Please verify your Cashfree App ID, Secret Key & Environment (Test/Prod) in Admin Settings, or choose Cash on Delivery." : data.message || "Failed to initialize payment with Cashfree.";
 			return {
 				success: false,
 				orderId: params.orderId,
-				error: data.message || "Failed to initialize payment with Cashfree."
+				error: errorMsg
 			};
 		}
 		return {

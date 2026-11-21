@@ -5,9 +5,9 @@ import { n as renderScript, t as $$Icon } from "./Icon_CCv9Ixst.mjs";
 import { t as contactInfo } from "./settings_D-p7f3sg.mjs";
 import { a as inr } from "./format_6aaLy6w7.mjs";
 import { t as $$Base } from "./Base_BQ2Y903t.mjs";
-import { o as getCart } from "./cart_Dct9yH5N.mjs";
-import { o as orderItems } from "./orders_CNCs21Gy.mjs";
-import { t as reconcileOrder } from "./checkout_C8Sn-466.mjs";
+import { o as getCart } from "./cart_DNQqdeQo.mjs";
+import { o as orderItems } from "./orders_wTHzsAQs.mjs";
+import { t as reconcileOrder } from "./checkout_CpKcN7aN.mjs";
 //#region src/pages/order-success.astro
 var order_success_exports = /* @__PURE__ */ __exportAll({
 	default: () => $$OrderSuccess,
@@ -22,6 +22,8 @@ var $$OrderSuccess = createComponent(async ($$result, $$props, $$slots) => {
 	if (!orderId) return Astro.redirect("/products", 302);
 	const order = await reconcileOrder(orderId).catch(() => void 0);
 	if (!order) return Astro.redirect("/products", 302);
+	const user = Astro.locals.user;
+	if (order.user_id && (!user || user.id !== order.user_id && user.role !== "admin")) return Astro.redirect(`/account/login?next=${encodeURIComponent(Astro.url.pathname + Astro.url.search)}`, 302);
 	const items = orderItems(order.id);
 	const c = contactInfo();
 	const isPaid = order.payment_status === "PAID";

@@ -34,11 +34,14 @@ var $$Login = createComponent(async ($$result, $$props, $$slots) => {
 			}
 		}
 	}
+	const isCheckout = safeNext && safeNext.startsWith("/checkout");
 	return renderTemplate`${renderComponent($$result, "Auth", $$Auth, {
 		"title": "Sign in | Virnobyte",
-		"heading": "Sign in to your account",
-		"lede": "See your membership card, coin balance and service history."
-	}, { "default": ($$result) => renderTemplate`${reset === "1" && renderTemplate`${maybeRenderHead($$result)}<p class="alert alert--ok" role="status">
+		"heading": isCheckout ? "Sign in to place your order" : "Sign in to your account",
+		"lede": isCheckout ? "Please sign in to proceed to checkout and track your order." : "See your membership card, coin balance and service history."
+	}, { "default": ($$result) => renderTemplate`${isCheckout && renderTemplate`${maybeRenderHead($$result)}<div style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; padding: 12px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 0.9rem;">
+🛒 <strong>Sign in required:</strong> Please sign in or create an account to complete your purchase.
+</div>`}${reset === "1" && renderTemplate`<p class="alert alert--ok" role="status">
 Your password has been reset successfully. Please sign in with your new password.
 </p>`}${error && renderTemplate`<p class="alert alert--error" role="alert">${error}</p>`}<form method="post"> ${renderComponent($$result, "Field", $$Field, {
 		"label": "Email",
@@ -53,7 +56,7 @@ Your password has been reset successfully. Please sign in with your new password
 		"type": "password",
 		"required": true,
 		"autocomplete": "current-password"
-	})} <div style="display: flex; justify-content: flex-end; margin-top: -0.5rem; margin-bottom: 0.25rem;"> <a href="/account/forgot-password" class="small muted">Forgot password?</a> </div> <button class="btn btn--block" type="submit">Sign in</button> </form> <p class="small muted">
+	})} <div style="display: flex; justify-content: flex-end; margin-top: -0.5rem; margin-bottom: 0.25rem;"> <a href="/account/forgot-password" class="small muted">Forgot password?</a> </div> <button class="btn btn--block" type="submit">${isCheckout ? "Sign in & Continue to Checkout" : "Sign in"}</button> </form> <p class="small muted">
 New here? <a${addAttribute(`/account/register${safeNext ? `?next=${encodeURIComponent(safeNext)}` : ""}`, "href")}>Create an account</a>.
 </p> ` })}`;
 }, "C:/Programming section/virnobyte/src/pages/account/login.astro", void 0);

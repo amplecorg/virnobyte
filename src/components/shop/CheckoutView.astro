@@ -40,6 +40,16 @@ const itemsLabel = `${totals.itemCount} ITEM${totals.itemCount === 1 ? '' : 'S'}
 
     <div class="fk-checkout-grid">
       <div class="fk-checkout-main">
+        {user && (
+          <div class="fk-user-pill-bar">
+            <div class="fk-user-pill-info">
+              <span class="fk-user-pill-tag">✓ SIGNED IN</span>
+              <span class="fk-user-pill-name">Ordering as <strong>{user.name}</strong> ({user.phone || user.email})</span>
+            </div>
+            <a href="/account" class="fk-user-pill-link" target="_blank" rel="noopener">My Account</a>
+          </div>
+        )}
+
         {/* STEP 1: Order summary */}
         <div class="fk-step-card">
           <div class="fk-step-head active">
@@ -345,6 +355,10 @@ const itemsLabel = `${totals.itemCount} ITEM${totals.itemCount === 1 ? '' : 'S'}
           body: JSON.stringify(Object.fromEntries(new FormData(form).entries())),
         });
         const data = await res.json();
+        if (res.status === 401 || data.requiresLogin) {
+          window.location.href = `/account/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+          return;
+        }
         if (!res.ok || !data.ok) return fail(data.error || 'We could not place your order. Please check your details and try again.');
 
         if (data.paymentMethod === 'cod' || !data.payment) {
@@ -416,6 +430,47 @@ const itemsLabel = `${totals.itemCount} ITEM${totals.itemCount === 1 ? '' : 'S'}
     grid-template-columns: 1fr 360px;
     gap: 20px;
     align-items: start;
+  }
+
+  /* Signed-in User Pill Bar */
+  .fk-user-pill-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 8px;
+    padding: 12px 18px;
+    margin-bottom: 16px;
+    font-size: 0.9rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  }
+  .fk-user-pill-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .fk-user-pill-tag {
+    background: #16a34a;
+    color: #ffffff;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    padding: 3px 8px;
+    border-radius: 4px;
+  }
+  .fk-user-pill-name {
+    color: #1e293b;
+  }
+  .fk-user-pill-link {
+    color: #2563eb;
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-decoration: none;
+  }
+  .fk-user-pill-link:hover {
+    text-decoration: underline;
   }
 
   /* Step Cards */

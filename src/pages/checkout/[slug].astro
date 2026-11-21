@@ -5,6 +5,11 @@ import CheckoutView from '@/components/shop/CheckoutView.astro';
 import { product } from '@/lib/data';
 import { buildLine, viewOf } from '@/lib/commerce/cart';
 
+const user = Astro.locals.user;
+if (!user) {
+  return Astro.redirect(`/account/login?next=${encodeURIComponent(Astro.url.pathname + Astro.url.search)}`, 302);
+}
+
 const p = product(String(Astro.params.slug || ''));
 if (!p) return Astro.redirect('/products', 302);
 

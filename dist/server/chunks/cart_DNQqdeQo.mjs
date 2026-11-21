@@ -9,18 +9,18 @@ function getPaymentConfig() {
 	const p = getSettings().payments || {};
 	const pick = (setting, envName) => String(setting || "").trim() || env(envName);
 	const razorpay = {
-		keyId: pick(p.razorpayKeyId, "RAZORPAY_KEY_ID"),
-		keySecret: pick(p.razorpayKeySecret, "RAZORPAY_KEY_SECRET"),
-		webhookSecret: pick(p.razorpayWebhookSecret, "RAZORPAY_WEBHOOK_SECRET"),
+		keyId: pick(p.razorpayKeyId, "RAZORPAY_KEY_ID").trim(),
+		keySecret: pick(p.razorpayKeySecret, "RAZORPAY_KEY_SECRET").trim(),
+		webhookSecret: pick(p.razorpayWebhookSecret, "RAZORPAY_WEBHOOK_SECRET").trim(),
 		configured: false,
 		testMode: false
 	};
 	razorpay.configured = Boolean(razorpay.keyId && razorpay.keySecret);
 	razorpay.testMode = razorpay.keyId.startsWith("rzp_test_");
 	const cashfree = {
-		appId: pick(p.cashfreeAppId, "CASHFREE_APP_ID"),
-		secretKey: pick(p.cashfreeSecretKey, "CASHFREE_SECRET_KEY"),
-		env: String(p.cashfreeEnv || env("CASHFREE_ENV") || "TEST").toUpperCase() === "PROD" ? "PROD" : "TEST",
+		appId: pick(p.cashfreeAppId, "CASHFREE_APP_ID").trim(),
+		secretKey: pick(p.cashfreeSecretKey, "CASHFREE_SECRET_KEY").trim(),
+		env: String(p.cashfreeEnv || env("CASHFREE_ENV") || "TEST").toUpperCase().trim() === "PROD" ? "PROD" : "TEST",
 		configured: false
 	};
 	cashfree.configured = Boolean(cashfree.appId && cashfree.secretKey);

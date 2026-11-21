@@ -89,6 +89,11 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
     if (!user) return ctx.redirect(`/account/login?next=${encodeURIComponent(pathname + url.search)}`);
   }
 
+  // Without login the user should not be able to place an order or access checkout
+  if (pathname === '/checkout' || pathname.startsWith('/checkout/')) {
+    if (!user) return ctx.redirect(`/account/login?next=${encodeURIComponent(pathname + url.search)}`);
+  }
+
   const res = await next();
   const h = res.headers;
   h.set('X-Content-Type-Options', 'nosniff');

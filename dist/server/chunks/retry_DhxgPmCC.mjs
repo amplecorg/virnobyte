@@ -1,7 +1,7 @@
 import { t as __exportAll } from "./rolldown-runtime_8H4AJuhK.mjs";
 import { a as rateLimit } from "./auth_CSZwb3EQ.mjs";
 import { n as json, r as readJson } from "./http_DX-26bXz.mjs";
-import { n as startOnlinePayment, t as reconcileOrder } from "./checkout_C8Sn-466.mjs";
+import { n as startOnlinePayment, t as reconcileOrder } from "./checkout_CpKcN7aN.mjs";
 //#region src/pages/api/checkout/retry.ts
 var retry_exports = /* @__PURE__ */ __exportAll({ POST: () => POST });
 /** POST /api/checkout/retry { orderId } — "Complete payment" for an order still awaiting payment. */
@@ -10,12 +10,22 @@ var POST = async (ctx) => {
 		ok: false,
 		error: "Too many attempts. Please wait a few minutes and try again."
 	}, 429);
+	const user = ctx.locals.user;
+	if (!user) return json({
+		ok: false,
+		error: "Please sign in to complete payment.",
+		requiresLogin: true
+	}, 401);
 	const body = await readJson(ctx.request);
 	const order = await reconcileOrder(String(body.orderId || ""));
 	if (!order) return json({
 		ok: false,
 		error: "Order not found."
 	}, 404);
+	if (order.user_id && user.id !== order.user_id && user.role !== "admin") return json({
+		ok: false,
+		error: "Access denied."
+	}, 403);
 	const redirectUrl = `/order-success?order_id=${encodeURIComponent(order.order_id)}`;
 	if (order.payment_status === "PAID") return json({
 		ok: true,

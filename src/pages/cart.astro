@@ -5,8 +5,9 @@ import { getCart } from '@/lib/commerce/cart';
 import { getPaymentConfig } from '@/lib/commerce/payments';
 import { MAX_QTY } from '@/lib/commerce/pricing';
 
+const user = Astro.locals.user;
 const secure = Astro.url.protocol === 'https:' || Astro.request.headers.get('x-forwarded-proto') === 'https';
-const cart = getCart(Astro.cookies, Astro.locals.user, secure);
+const cart = getCart(Astro.cookies, user, secure);
 const { lines, totals } = cart;
 const cfg = getPaymentConfig();
 const toFreeDelivery = totals.deliveryFee > 0 ? cfg.minFreeDelivery - totals.subtotal : 0;
@@ -74,7 +75,14 @@ const toFreeDelivery = totals.deliveryFee > 0 ? cfg.minFreeDelivery - totals.sub
 
                 <div class="vc-place">
                   {totals.itemCount > 0 ? (
-                    <a class="vc-btn-primary" href="/checkout">PLACE ORDER</a>
+                    user ? (
+                      <a class="vc-btn-primary" href="/checkout">PLACE ORDER</a>
+                    ) : (
+                      <div class="vc-place-login-wrap">
+                        <a class="vc-btn-primary" href="/account/login?next=/checkout">SIGN IN TO PLACE ORDER</a>
+                        <span class="vc-auth-notice">🔒 Sign in required to order</span>
+                      </div>
+                    )
                   ) : (
                     <span class="vc-btn-primary vc-btn-disabled">PLACE ORDER</span>
                   )}
@@ -347,6 +355,17 @@ const toFreeDelivery = totals.deliveryFee > 0 ? cfg.minFreeDelivery - totals.sub
     background: #fff;
     border-radius: 0 0 8px 8px;
     box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.08);
+  }
+  .vc-place-login-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+  }
+  .vc-auth-notice {
+    font-size: 12px;
+    color: #616161;
+    font-weight: 500;
   }
   .vc-btn-primary {
     display: inline-flex;

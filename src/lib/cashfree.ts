@@ -77,11 +77,15 @@ export async function createCashfreeOrder(params: CreateOrderParams): Promise<Ca
     const data = (await res.json()) as any;
 
     if (!res.ok || !data.payment_session_id) {
-      console.error('Cashfree Create Order Error:', data);
+      console.error('[Cashfree] Create Order Error:', res.status, data);
+      const isAuthErr = data.type === 'authentication_error' || (typeof data.message === 'string' && data.message.toLowerCase().includes('authentication'));
+      const errorMsg = isAuthErr
+        ? 'Payment gateway error: Cashfree authentication failed. Please verify your Cashfree App ID, Secret Key & Environment (Test/Prod) in Admin Settings, or choose Cash on Delivery.'
+        : (data.message || 'Failed to initialize payment with Cashfree.');
       return {
         success: false,
         orderId: params.orderId,
-        error: data.message || 'Failed to initialize payment with Cashfree.',
+        error: errorMsg,
       };
     }
 
