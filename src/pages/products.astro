@@ -1,13 +1,13 @@
 ---
+import { getImage } from 'astro:assets';
 import Base from '@/layouts/Base.astro';
-import PageHero from '@/components/PageHero.astro';
+import Breadcrumbs from '@/components/Breadcrumbs.astro';
 import Icon from '@/components/Icon.astro';
 import CtaBand from '@/components/CtaBand.astro';
 import { products, type Product } from '@/lib/data';
 import { contactInfo } from '@/lib/settings';
 import { breadcrumbs, itemList } from '@/lib/schema';
-import { inr } from '@/lib/format';
-import { resolveImage } from '@/lib/images';
+import { resolveImage, PHOTOS } from '@/lib/images';
 import { userFromCookies } from '@/lib/auth';
 
 const user = Astro.locals.user || userFromCookies(Astro.cookies);
@@ -18,32 +18,84 @@ const crumbs = [
   { name: 'Products', href: '/products' },
 ];
 
-// Helper to pre-resolve image URLs for clean client-side swapping
-function getPhotoUrls(images: string[]) {
-  if (!images || !images.length) return [];
-  return images.map((imgKey) => {
-    const res = resolveImage(imgKey);
-    return res.kind === 'upload' ? res.src : res.meta.src;
-  });
+// ── Image helpers ────────────────────────────────────────────────
+// Library photos are optimised to WebP at card size; uploads are already WebP cut-outs.
+type CardImg = { src: string; kind: 'photo' | 'cutout' };
+async function img(key: string | undefined, width = 720): Promise<CardImg | null> {
+  if (!key) return null;
+  const r = resolveImage(key);
+  if (r.kind === 'upload') return { src: r.src, kind: 'cutout' };
+  const out = await getImage({ src: r.meta, width: Math.min(width, r.meta.width), format: 'webp', quality: 78 });
+  return { src: out.src, kind: 'photo' };
 }
+const imagesOf = (p: Product) => (Array.isArray(p.images) && p.images.length ? p.images : p.image ? [p.image] : []).filter(Boolean);
 
-// Parse multiline summary into neat Flipkart-style specifications
-function parseSpecs(summary: string) {
-  if (!summary) return [];
-  return summary
+// ── Formatting ───────────────────────────────────────────────────
+const inr = (v: number | null | undefined) =>
+  v === null || v === undefined || Number.isNaN(v) ? '' : '₹' + Math.round(v).toLocaleString('en-IN');
+const discountOf = (p: Product) => (p.price && p.mrp && p.mrp > p.price ? Math.round(((p.mrp - p.price) / p.mrp) * 100) : 0);
+const ratingOf = (p: Product) => {
+  const n = parseFloat(p.rating);
+  return Number.isFinite(n) && n > 0 ? Math.min(5, n) : 0;
+};
+const ratingCountOf = (p: Product) => {
+  const m = (p.rating_count || '').match(/\d[\d,]*/);
+  return m ? m[0] : '';
+};
+const bulletsOf = (p: Product, n = 3) =>
+  (p.summary || '')
     .split('\n')
-    .map((s) => s.trim().replace(/^[•\-\*]\s*/, ''))
-    .filter(Boolean);
-}
+    .map((l) => l.replace(/^[•\-\s]+/, '').trim())
+    .filter(Boolean)
+    .slice(0, n);
+const buyHref = (slug: string) =>
+  user ? `/checkout/${slug}` : `/account/login?next=${encodeURIComponent(`/checkout/${slug}`)}`;
 
-// Calculate discount percentage
-function getDiscount(price: number | null, mrp: number | null) {
-  if (!price || !mrp || mrp <= price) return null;
-  return Math.round(((mrp - price) / mrp) * 100);
-}
+// ── Cards ────────────────────────────────────────────────────────
+const cards = await Promise.all(
+  items.map(async (p) => {
+    const list = imagesOf(p);
+    const [a, b] = await Promise.all([img(list[0]), img(list[1])]);
+    return {
+      p,
+      main: a ?? (await img('virnobyte-hardware-solutions')),
+      alt: b,
+      discount: discountOf(p),
+      rating: ratingOf(p),
+      ratingCount: ratingCountOf(p),
+      bullets: bulletsOf(p),
+      buyable: !!(p.price && p.in_stock),
+    };
+  }),
+);
 
-// Get categories for quick filter pills
-const categories = ['All', ...new Set(items.map((p) => p.category as string))];
+// ── Categories (from the live catalogue, so nothing links to an empty shelf) ──
+const catNames = [...new Set(items.map((p) => p.category).filter(Boolean))];
+const categories = await Promise.all(
+  catNames.map(async (name) => {
+    const inCat = cards.filter((x) => x.p.category === name);
+    const cover = inCat.find((x) => x.main)?.main ?? null;
+    return { name, count: inCat.length, cover };
+  }),
+);
+categories.sort((a, b) => b.count - a.count);
+
+// ── Hero: the featured PC plus the deepest current deal ──
+const featured = cards.find((x) => x.p.category === 'Desktops' && x.p.price) ?? cards.find((x) => x.p.price) ?? cards[0];
+const bestDeal = [...cards].filter((x) => x !== featured && x.discount).sort((a, b) => b.discount - a.discount)[0];
+const heroImg = featured
+  ? await img(imagesOf(featured.p)[0], 1600)
+  : null;
+const builderImg = await getImage({ src: PHOTOS['virnobyte-build-08-rgb-gaming-pc'], width: 900, format: 'webp', quality: 75 });
+
+const prices = items.map((p) => p.price || 0).filter(Boolean);
+const PRICE_BANDS = [
+  { id: 'all', label: 'Any price', min: 0, max: Infinity },
+  { id: 'u5', label: 'Under ₹5,000', min: 0, max: 5000 },
+  { id: '5-20', label: '₹5,000 – ₹20,000', min: 5000, max: 20000 },
+  { id: '20-50', label: '₹20,000 – ₹50,000', min: 20000, max: 50000 },
+  { id: 'o50', label: 'Above ₹50,000', min: 50000, max: Infinity },
+].map((b) => ({ ...b, count: b.id === 'all' ? items.length : prices.filter((v) => v >= b.min && v < b.max).length }));
 ---
 
 <Base
@@ -56,285 +108,336 @@ const categories = ['All', ...new Set(items.map((p) => p.category as string))];
     itemList(Astro.site!, 'Virnobyte Certified Hardware Catalog', items.map((it) => ({ name: it.name, url: `/products/${it.slug}`, description: it.summary })))
   ]}
 >
-  <PageHero
-    crumbs={crumbs}
-    eyebrow="Virnobyte Assured Tech Store"
-    title="IT Hardware & Certified Products"
-    lede={`Browse our verified laptops, custom gaming & office PCs, CCTV security kits, SSDs and networking gear. Tested by engineers, backed by local warranty and doorstep setup across ${c.locality} & Pune.`}
-  />
-
-  <section class="section fk-store-section">
-    <div class="wrap">
-      {/* ── Flipkart Toolbar: Search, Category Pills & Sort ── */}
-      <div class="fk-toolbar">
-        <div class="fk-search-box" style="position: relative; display: flex; align-items: center; width: 100%;">
-          <span class="fk-search-icon-wrap" aria-hidden="true" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); display: inline-flex; align-items: center; justify-content: center; pointer-events: none; z-index: 2; width: 18px; height: 18px; color: #878787;">
-            <Icon name="search" size={18} />
-          </span>
-          <input
-            type="search"
-            id="fk-product-search"
-            placeholder="Search laptops, SSDs, CCTV kits, desktop PCs..."
-            aria-label="Search products"
-          />
-          <button type="button" id="fk-search-clear" class="fk-search-clear" aria-label="Clear search" style="display:none;">✕</button>
+  <div class="store">
+    <!-- ── Hero ───────────────────────────────────────────── -->
+    <section class="st-hero">
+      <div class="wrap">
+        <div class="st-crumbs"><Breadcrumbs items={crumbs} /></div>
+        <div class="st-hero-grid">
+          {
+            featured && (
+              <a class="st-feature" href={`/products/${featured.p.slug}`}>
+                <div class="st-feature-copy">
+                  <span class="st-kicker">Featured build</span>
+                  <h1>
+                    The Virnobyte store
+                    <span>{featured.p.name}</span>
+                  </h1>
+                  <ul class="st-feature-specs">
+                    {featured.bullets.slice(0, 3).map((b) => (
+                      <li>{b}</li>
+                    ))}
+                  </ul>
+                  <div class="st-feature-price">
+                    <strong>{inr(featured.p.price)}</strong>
+                    {featured.discount > 0 && (
+                      <>
+                        <s>{inr(featured.p.mrp)}</s>
+                        <span class="st-save">{featured.discount}% off</span>
+                      </>
+                    )}
+                  </div>
+                  <span class="st-feature-cta">
+                    Shop now <Icon name="arrow" size={18} />
+                  </span>
+                </div>
+                {heroImg && (
+                  <div class="st-feature-media">
+                    <img src={heroImg.src} alt="" loading="eager" fetchpriority="high" decoding="async" />
+                  </div>
+                )}
+              </a>
+            )
+          }
+          <div class="st-promos">
+            {
+              bestDeal && (
+                <a class="st-promo st-promo--deal" href={`/products/${bestDeal.p.slug}`}>
+                  <div>
+                    <span class="st-kicker">Deal of the week</span>
+                    <h2>{bestDeal.p.name}</h2>
+                    <p class="st-promo-price">
+                      <strong>{inr(bestDeal.p.price)}</strong> <span class="st-save">-{bestDeal.discount}%</span>
+                    </p>
+                  </div>
+                  {bestDeal.main && (
+                    <img
+                      src={bestDeal.main.src}
+                      alt=""
+                      class:list={['st-promo-img', bestDeal.main.kind]}
+                      loading="eager"
+                      decoding="async"
+                    />
+                  )}
+                </a>
+              )
+            }
+            <a class="st-promo st-promo--build" href="/custom-pc-builder">
+              <img src={builderImg.src} alt="" class="st-promo-bg" loading="eager" decoding="async" />
+              <div>
+                <span class="st-kicker">PC Builder</span>
+                <h2>Design your own PC</h2>
+                <p>Pick every part. We assemble, stress-test and deliver.</p>
+              </div>
+              <span class="st-round"><Icon name="arrow" size={18} /></span>
+            </a>
+          </div>
         </div>
 
-        <div class="fk-filter-pills" role="tablist" aria-label="Filter by category">
+        <ul class="st-perks">
+          <li><Icon name="shield" size={18} /> <span><strong>Genuine hardware</strong> with invoice</span></li>
+          <li><Icon name="clock" size={18} /> <span><strong>7-day</strong> replacement</span></li>
+          <li><Icon name="wrench" size={18} /> <span><strong>Free setup</strong> in {c.locality} &amp; Pune</span></li>
+          <li><Icon name="receipt" size={18} /> <span><strong>Secure checkout</strong> &amp; GST bill</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ── Category tiles ─────────────────────────────────── -->
+    <section class="st-cats wrap" aria-labelledby="st-cats-h">
+      <h2 id="st-cats-h" class="st-section-title">Shop by category</h2>
+      <div class="st-cat-row" role="list">
+        <button type="button" class="st-cat on" data-cat-tile="" role="listitem" aria-pressed="true">
+          <span class="st-cat-media st-cat-media--all"><Icon name="dashboard" size={26} /></span>
+          <span class="st-cat-name">Everything</span>
+          <span class="st-cat-count">{items.length} items</span>
+        </button>
+        {
+          categories.map((cat) => (
+            <button type="button" class="st-cat" data-cat-tile={cat.name} role="listitem" aria-pressed="false">
+              <span class:list={['st-cat-media', cat.cover?.kind]}>
+                {cat.cover && <img src={cat.cover.src} alt="" loading="lazy" decoding="async" />}
+              </span>
+              <span class="st-cat-name">{cat.name}</span>
+              <span class="st-cat-count">
+                {cat.count} item{cat.count === 1 ? '' : 's'}
+              </span>
+            </button>
+          ))
+        }
+      </div>
+    </section>
+
+    <!-- ── Catalogue ──────────────────────────────────────── -->
+    <section class="st-catalog wrap" aria-labelledby="st-title">
+      <aside class="st-filters" id="st-filters" aria-label="Filters" data-filters>
+        <div class="st-filters-head">
+          <h2>Filters</h2>
+          <button type="button" class="st-link" data-reset>Clear all</button>
+          <button type="button" class="st-close" data-filters-close aria-label="Close filters"><Icon name="close" size={20} /></button>
+        </div>
+
+        <fieldset class="st-fs">
+          <legend>Category</legend>
           {
-            categories.map((cat, i) => (
-              <button
-                type="button"
-                class:list={['fk-pill', { active: i === 0 }]}
-                data-filter-cat={cat}
-                role="tab"
-                aria-selected={i === 0 ? 'true' : 'false'}
-              >
-                {cat}
-                {cat === 'All' ? ` (${items.length})` : ''}
-              </button>
+            categories.map((cat) => (
+              <label class="st-check">
+                <input type="checkbox" name="cat" value={cat.name} />
+                <span class="st-box" />
+                <span class="st-check-label">{cat.name}</span>
+                <span class="st-check-count">{cat.count}</span>
+              </label>
             ))
           }
-        </div>
+        </fieldset>
 
-        <div class="fk-sort-bar">
-          <span class="fk-sort-label">Sort By:</span>
-          <div class="fk-sort-options">
-            <button type="button" class="fk-sort-btn active" data-sort="relevance">Popularity</button>
-            <button type="button" class="fk-sort-btn" data-sort="price-low">Price — Low to High</button>
-            <button type="button" class="fk-sort-btn" data-sort="price-high">Price — High to Low</button>
-            <button type="button" class="fk-sort-btn" data-sort="discount">Biggest Discount</button>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Unified Flipkart Product Listing (No Category Headings) ── */}
-      <div class="fk-products-container" id="fk-products-container">
-        <div class="fk-products-list" id="fk-products-list">
+        <fieldset class="st-fs">
+          <legend>Price</legend>
           {
-            items.map((p) => {
-              const rawList = Array.isArray(p.images) && p.images.length ? p.images : (p.image ? [p.image] : []);
-              const resolvedPhotos = getPhotoUrls(rawList);
-              const photoUrls = resolvedPhotos.length ? resolvedPhotos : ['/virnobyte-circuit-board.webp'];
-              const hasMultiple = photoUrls.length > 1;
-              const specs = parseSpecs(p.summary);
-              const discount = getDiscount(p.price, p.mrp);
-
-              return (
-                <article
-                  class="fk-card"
-                  data-product-card
-                  data-name={p.name.toLowerCase()}
-                  data-category={p.category}
-                  data-price={p.price || 0}
-                  data-discount={discount || 0}
-                  data-id={p.id}
-                >
-                  {/* Column 1: Media Gallery & Badges */}
-                  <div class="fk-col-media">
-                    <div
-                      class="fk-media-box"
-                      data-prod-gallery
-                      data-photos={JSON.stringify(photoUrls)}
-                      data-name={p.name}
-                    >
-                      <a href={`/products/${p.slug}`} class="fk-img-anchor" aria-label={`View ${p.name}`}>
-                        <img
-                          src={photoUrls[0]}
-                          alt={p.name}
-                          class="fk-main-img"
-                          loading="lazy"
-                          decoding="async"
-                        />
-                      </a>
-
-                      {discount && (
-                        <div class="fk-discount-badge">
-                          <span>↓ {discount}% OFF</span>
-                        </div>
-                      )}
-
-                      {p.badge && (
-                        <div class="fk-assured-badge" title={`Virnobyte ${p.badge} - 100% Genuine & Tested`}>
-                          <span class="fk-assured-tick">✓</span>
-                          <span class="fk-assured-text">{p.badge}</span>
-                        </div>
-                      )}
-
-                      {hasMultiple && (
-                        <>
-                          <button type="button" class="fk-nav-btn fk-prev-btn" aria-label="Previous photo">‹</button>
-                          <button type="button" class="fk-nav-btn fk-next-btn" aria-label="Next photo">›</button>
-                          <span class="fk-counter-badge">
-                            <span class="active-num">1</span>/{photoUrls.length}
-                          </span>
-                        </>
-                      )}
-
-                      <button type="button" class="fk-wishlist-btn" aria-label="Save to wishlist" title="Wishlist">
-                        ♥
-                      </button>
-                    </div>
-
-                    {/* Thumbnail Strip */}
-                    {hasMultiple && (
-                      <div class="fk-thumb-strip" aria-label="Product photos">
-                        {photoUrls.slice(0, 6).map((url, idx) => (
-                          <button
-                            type="button"
-                            class:list={['fk-thumb-btn', { active: idx === 0 }]}
-                            data-index={idx}
-                            aria-label={`View photo ${idx + 1}`}
-                          >
-                            <img src={url} alt="" loading="lazy" />
-                          </button>
-                        ))}
-                        {photoUrls.length > 6 && (
-                          <a href={`/products/${p.slug}`} class="fk-thumb-more" title="View all photos">
-                            +{photoUrls.length - 6}
-                          </a>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Column 2: Product Title, Rating & Sorted Specs Summary */}
-                  <div class="fk-col-info">
-                    <div class="fk-badges-row">
-                      <span class:list={['fk-condition-tag', { refurbished: p.condition === 'Refurbished' }]}>
-                        {p.condition === 'Refurbished' ? 'Certified Refurbished (Grade A++)' : 'Brand New Sealed'}
-                      </span>
-                      {p.in_stock ? (
-                        <span class="fk-stock-tag in-stock">In Stock • Fast Dispatch</span>
-                      ) : (
-                        <span class="fk-stock-tag on-order">On Order</span>
-                      )}
-                    </div>
-
-                    <h2 class="fk-title">
-                      <a href={`/products/${p.slug}`}>{p.name}</a>
-                    </h2>
-
-                    <div class="fk-rating-row">
-                      <div class="fk-rating-pill">
-                        <span>{p.rating || '4.5'}</span>
-                        <span class="fk-star">★</span>
-                      </div>
-                      <span class="fk-rating-count">{p.rating_count || '128 Ratings & 42 Reviews'}</span>
-                    </div>
-
-                    {/* Sorted Specifications Bullet List */}
-                    <ul class="fk-specs-list">
-                      {specs.length > 0 ? (
-                        specs.map((spec) => (
-                          <li>
-                            <span class="fk-bullet">•</span>
-                            <span class="fk-spec-item">{spec}</span>
-                          </li>
-                        ))
-                      ) : (
-                        <li>
-                          <span class="fk-bullet">•</span>
-                          <span class="fk-spec-item">{p.summary || 'Certified genuine hardware inspected by Virnobyte technicians.'}</span>
-                        </li>
-                      )}
-                    </ul>
-
-                    {(p.warranty || p.replacement_policy || p.diagnostic_setup) && (
-                      <div class="fk-trust-row">
-                        {p.warranty && (
-                          <span class="fk-trust-item">
-                            <Icon name="shield" size={14} />
-                            <span>{p.warranty}</span>
-                          </span>
-                        )}
-                        {p.replacement_policy && (
-                          <span class="fk-trust-item">
-                            <Icon name="clock" size={14} />
-                            <span>{p.replacement_policy}</span>
-                          </span>
-                        )}
-                        {p.diagnostic_setup && (
-                          <span class="fk-trust-item">
-                            <Icon name="wrench" size={14} />
-                            <span>{p.diagnostic_setup}</span>
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Column 3: Flipkart Price Block & Fast Order CTA */}
-                  <div class="fk-col-price">
-                    <div class="fk-price-block">
-                      <div class="fk-price-main">
-                        {p.price ? (
-                          <span class="fk-current-price">{inr(p.price)}</span>
-                        ) : (
-                          <span class="fk-ask-price">Ask for Price</span>
-                        )}
-                        {p.mrp && p.price && p.mrp > p.price && (
-                          <span class="fk-mrp-price">{inr(p.mrp)}</span>
-                        )}
-                        {discount && (
-                          <span class="fk-discount-green">{discount}% off</span>
-                        )}
-                      </div>
-
-                      <div class="fk-special-tag">
-                        <span>Special Price</span>
-                      </div>
-
-                      {p.offer_tag && (
-                        <p class="fk-offer-text">
-                          🏷️ <strong>{p.offer_tag}</strong>
-                        </p>
-                      )}
-
-                      {(p.delivery_text || p.delivery_sub) && (
-                        <div class="fk-delivery-text">
-                          <strong>{p.delivery_text || 'Free Delivery'}</strong>
-                          {p.delivery_sub && <span>{p.delivery_sub}</span>}
-                        </div>
-                      )}
-                    </div>
-
-                    <div class="fk-actions-block">
-                      {p.price && p.in_stock ? (
-                        <button type="button" class="fk-btn-addcart" data-add-to-cart={p.slug}>
-                          <span data-label>🛒 Add to Cart</span>
-                        </button>
-                      ) : null}
-
-                      {p.price && p.in_stock ? (
-                        <a href={user ? `/checkout/${p.slug}` : `/account/login?next=${encodeURIComponent(`/checkout/${p.slug}`)}`} class="fk-btn-buynow">
-                          <span>⚡ Buy Now</span>
-                        </a>
-                      ) : null}
-
-                      <a href={`/products/${p.slug}`} class="fk-btn-details">
-                        <span>View Full Specs &amp; Photos →</span>
-                      </a>
-                    </div>
-                  </div>
-                </article>
-              );
-            })
+            PRICE_BANDS.map((b, i) => (
+              <label class="st-check st-radio">
+                <input type="radio" name="price" value={b.id} data-min={b.min} data-max={b.max === Infinity ? '' : b.max} checked={i === 0} />
+                <span class="st-box" />
+                <span class="st-check-label">{b.label}</span>
+                <span class="st-check-count">{b.count}</span>
+              </label>
+            ))
           }
-        </div>
+        </fieldset>
 
-        {/* Empty Search Result Fallback */}
-        <div id="fk-no-results" class="fk-no-results" style="display: none;">
-          <div class="fk-no-results-box">
-            <Icon name="search" size={40} />
-            <h3>No products found</h3>
-            <p>Try searching with another keyword or select "All" from the category filters.</p>
-            <button type="button" class="btn btn--ghost" id="fk-reset-filters">Reset Filters</button>
+        <fieldset class="st-fs">
+          <legend>Availability &amp; offers</legend>
+          <label class="st-switch">
+            <input type="checkbox" name="stock" />
+            <span class="st-track"><span /></span>
+            In stock only
+          </label>
+          <label class="st-switch">
+            <input type="checkbox" name="deal" />
+            <span class="st-track"><span /></span>
+            30% off or more
+          </label>
+          <label class="st-switch">
+            <input type="checkbox" name="refurb" />
+            <span class="st-track"><span /></span>
+            Certified refurbished
+          </label>
+        </fieldset>
+
+        <div class="st-help">
+          <Icon name="message" size={20} />
+          <div>
+            <strong>Not sure what to buy?</strong>
+            <p>Tell us your budget — an engineer will suggest the right part.</p>
+            <a href={c.whatsapp ?? '/contact'} rel="noopener">Ask on WhatsApp</a>
           </div>
         </div>
+
+        <button type="button" class="st-apply" data-filters-close>Show <span data-count-inline>{items.length}</span> products</button>
+      </aside>
+      <div class="st-scrim" data-filters-close></div>
+
+      <div class="st-main">
+        <div class="st-toolbar" data-toolbar>
+          <div class="st-search">
+            <Icon name="search" size={18} />
+            <input type="search" id="st-q" placeholder="Search laptops, SSDs, CCTV kits…" aria-label="Search products" autocomplete="off" />
+            <kbd aria-hidden="true">/</kbd>
+          </div>
+          <button type="button" class="st-filter-btn" data-filters-open aria-controls="st-filters">
+            <Icon name="settings" size={17} /> Filters <span class="st-badge" data-active-n hidden>0</span>
+          </button>
+          <label class="st-sort">
+            <span>Sort</span>
+            <select id="st-sort" aria-label="Sort products">
+              <option value="featured">Featured</option>
+              <option value="price-low">Price: low to high</option>
+              <option value="price-high">Price: high to low</option>
+              <option value="discount">Biggest discount</option>
+              <option value="rating">Top rated</option>
+            </select>
+          </label>
+          <div class="st-view" role="group" aria-label="Layout">
+            <button type="button" class="on" data-view="grid" aria-pressed="true" aria-label="Grid view">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>
+            </button>
+            <button type="button" data-view="list" aria-pressed="false" aria-label="List view">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="6" height="6" rx="1.5" /><rect x="3" y="14" width="6" height="6" rx="1.5" /><path d="M13 6h8M13 9h5M13 16h8M13 19h5" /></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="st-meta">
+          <h2 id="st-title" data-title>All products</h2>
+          <p><span data-count>{items.length}</span> results</p>
+          <div class="st-chips" data-chips></div>
+        </div>
+
+        <ul class="st-grid" data-grid>
+          {
+            cards.map((x, i) => (
+              <li
+                class="st-card"
+                data-card
+                data-name={`${x.p.name} ${x.p.category} ${x.bullets.join(' ')}`.toLowerCase()}
+                data-cat={x.p.category}
+                data-price={x.p.price || 0}
+                data-discount={x.discount}
+                data-rating={x.rating}
+                data-stock={x.p.in_stock ? 1 : 0}
+                data-cond={(x.p.condition || '').toLowerCase()}
+                data-order={i}
+              >
+                <a href={`/products/${x.p.slug}`} class="st-card-media" aria-label={x.p.name}>
+                  {x.main && (
+                    <img
+                      src={x.main.src}
+                      alt={x.p.name}
+                      class:list={['st-img', x.main.kind]}
+                      loading={i < 4 ? 'eager' : 'lazy'}
+                      decoding="async"
+                    />
+                  )}
+                  {x.alt && <img src={x.alt.src} alt="" class:list={['st-img st-img--alt', x.alt.kind]} loading="lazy" decoding="async" />}
+                  <span class="st-tags">
+                    {x.discount > 0 && <span class="st-tag st-tag--off">-{x.discount}%</span>}
+                    {x.p.condition === 'Refurbished' && <span class="st-tag st-tag--refurb">Refurbished</span>}
+                    {x.p.badge && x.p.badge !== 'Assured' && <span class="st-tag">{x.p.badge}</span>}
+                  </span>
+                </a>
+
+                <div class="st-card-body">
+                  <p class="st-card-cat">
+                    {x.p.category}
+                    {x.p.badge === 'Assured' && (
+                      <span class="st-assured" title="Tested and certified by Virnobyte">
+                        <Icon name="shield" size={12} /> Assured
+                      </span>
+                    )}
+                  </p>
+                  <h3 class="st-card-title">
+                    <a href={`/products/${x.p.slug}`}>{x.p.name}</a>
+                  </h3>
+                  {x.rating > 0 && (
+                    <p class="st-rating" aria-label={`Rated ${x.rating} out of 5`}>
+                      <span class="st-stars" style={`--rating:${x.rating}`} aria-hidden="true" />
+                      <span>{x.rating.toFixed(1)}</span>
+                      {x.ratingCount && <span class="st-muted">({x.ratingCount})</span>}
+                    </p>
+                  )}
+                  {x.bullets.length > 0 && (
+                    <ul class="st-bullets">
+                      {x.bullets.map((b) => (
+                        <li>{b}</li>
+                      ))}
+                    </ul>
+                  )}
+                  <div class="st-price">
+                    {x.p.price ? (
+                      <>
+                        <strong>{inr(x.p.price)}</strong>
+                        {x.discount > 0 && <s>{inr(x.p.mrp)}</s>}
+                        {x.discount > 0 && x.p.mrp && x.p.price && <span class="st-saving">Save {inr(x.p.mrp - x.p.price)}</span>}
+                      </>
+                    ) : (
+                      <strong class="st-ask">Price on request</strong>
+                    )}
+                  </div>
+                  <p class:list={['st-stock', { out: !x.p.in_stock }]}>
+                    <span class="st-dot" />
+                    {x.p.in_stock ? x.p.delivery_text || 'In stock' : 'Out of stock'}
+                    {x.p.warranty && <span class="st-muted"> · {x.p.warranty}</span>}
+                  </p>
+                  <div class="st-actions">
+                    {x.buyable ? (
+                      <>
+                        <button type="button" class="st-btn st-btn--cart" data-add-to-cart={x.p.slug}>
+                          <Icon name="cart" size={17} />
+                          <span data-label>Add to cart</span>
+                        </button>
+                        <a class="st-btn st-btn--buy" href={buyHref(x.p.slug)}>
+                          Buy now
+                        </a>
+                      </>
+                    ) : (
+                      <a class="st-btn st-btn--cart" href={x.p.price ? `/products/${x.p.slug}` : '/contact'}>
+                        {x.p.price ? 'View details' : 'Ask for price'}
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </li>
+            ))
+          }
+        </ul>
+
+        <div class="st-empty" data-empty hidden>
+          <Icon name="search" size={34} />
+          <h3>No products match</h3>
+          <p>Try a different word, or clear the filters to see everything.</p>
+          <button type="button" class="st-btn st-btn--cart" data-reset>Clear filters</button>
+        </div>
+
+        <a class="st-builder-band" href="/custom-pc-builder">
+          <div>
+            <span class="st-kicker">Can’t find the exact spec?</span>
+            <h2>Build a PC around your work, game or budget</h2>
+          </div>
+          <span class="st-round st-round--light"><Icon name="arrow" size={20} /></span>
+        </a>
       </div>
-    </div>
-  </section>
+    </section>
+  </div>
 
   <CtaBand
     heading="Need a customized system or special IT hardware?"
@@ -342,882 +445,1423 @@ const categories = ['All', ...new Set(items.map((p) => p.category as string))];
   />
 </Base>
 
+<script>
+  const $ = <T extends Element = HTMLElement>(s: string, r: ParentNode = document) => r.querySelector<T>(s);
+  const $$ = <T extends Element = HTMLElement>(s: string, r: ParentNode = document) => [...r.querySelectorAll<T>(s)];
+
+  const grid = $('[data-grid]')!;
+  const cards = $$('[data-card]', grid);
+  const q = $<HTMLInputElement>('#st-q')!;
+  const sort = $<HTMLSelectElement>('#st-sort')!;
+  const panel = $('[data-filters]')!;
+  const catBoxes = $$<HTMLInputElement>('input[name="cat"]', panel);
+  const priceRadios = $$<HTMLInputElement>('input[name="price"]', panel);
+  const stock = $<HTMLInputElement>('input[name="stock"]', panel)!;
+  const deal = $<HTMLInputElement>('input[name="deal"]', panel)!;
+  const refurb = $<HTMLInputElement>('input[name="refurb"]', panel)!;
+  const tiles = $$<HTMLButtonElement>('[data-cat-tile]');
+  const chips = $('[data-chips]')!;
+  const countEls = [$('[data-count]'), $('[data-count-inline]')];
+  const activeN = $('[data-active-n]')!;
+  const title = $('[data-title]')!;
+  const empty = $('[data-empty]')!;
+
+  const state = () => {
+    const cats = catBoxes.filter((b) => b.checked).map((b) => b.value);
+    const band = priceRadios.find((r) => r.checked)!;
+    return {
+      q: q.value.trim().toLowerCase(),
+      cats,
+      band,
+      min: Number(band.dataset.min) || 0,
+      max: band.dataset.max ? Number(band.dataset.max) : Infinity,
+      stock: stock.checked,
+      deal: deal.checked,
+      refurb: refurb.checked,
+      sort: sort.value,
+    };
+  };
+
+  const chip = (label: string, clear: () => void) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'st-chip';
+    b.innerHTML = `<span></span><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 6l12 12M18 6L6 18"/></svg>`;
+    b.querySelector('span')!.textContent = label;
+    b.setAttribute('aria-label', `Remove filter: ${label}`);
+    b.addEventListener('click', () => {
+      clear();
+      apply();
+    });
+    chips.appendChild(b);
+  };
+
+  function apply(push = true) {
+    const s = state();
+    let n = 0;
+    for (const c of cards) {
+      const d = c.dataset;
+      const price = Number(d.price) || 0;
+      const ok =
+        (!s.q || (d.name || '').includes(s.q)) &&
+        (!s.cats.length || s.cats.includes(d.cat || '')) &&
+        (s.band.value === 'all' || (price >= s.min && price < s.max && price > 0)) &&
+        (!s.stock || d.stock === '1') &&
+        (!s.deal || Number(d.discount) >= 30) &&
+        (!s.refurb || d.cond === 'refurbished');
+      c.hidden = !ok;
+      if (ok) n++;
+    }
+
+    const by: Record<string, (a: HTMLElement, b: HTMLElement) => number> = {
+      featured: (a, b) => Number(a.dataset.order) - Number(b.dataset.order),
+      'price-low': (a, b) => (Number(a.dataset.price) || 1e12) - (Number(b.dataset.price) || 1e12),
+      'price-high': (a, b) => Number(b.dataset.price) - Number(a.dataset.price),
+      discount: (a, b) => Number(b.dataset.discount) - Number(a.dataset.discount),
+      rating: (a, b) => Number(b.dataset.rating) - Number(a.dataset.rating),
+    };
+    [...cards].sort(by[s.sort] || by.featured).forEach((c) => grid.appendChild(c));
+
+    countEls.forEach((el) => el && (el.textContent = String(n)));
+    empty.hidden = n > 0;
+    title.textContent = s.q ? `Results for “${q.value.trim()}”` : s.cats.length === 1 ? s.cats[0] : 'All products';
+
+    // Category tiles mirror the checkbox state.
+    tiles.forEach((t) => {
+      const v = t.dataset.catTile || '';
+      const on = v ? s.cats.length === 1 && s.cats[0] === v : s.cats.length === 0;
+      t.classList.toggle('on', on);
+      t.setAttribute('aria-pressed', String(on));
+    });
+
+    // Active-filter chips
+    chips.textContent = '';
+    s.cats.forEach((cat) => chip(cat, () => (catBoxes.find((b) => b.value === cat)!.checked = false)));
+    if (s.band.value !== 'all') chip(s.band.nextElementSibling?.nextElementSibling?.textContent || 'Price', () => (priceRadios[0].checked = true));
+    if (s.stock) chip('In stock', () => (stock.checked = false));
+    if (s.deal) chip('30%+ off', () => (deal.checked = false));
+    if (s.refurb) chip('Refurbished', () => (refurb.checked = false));
+    const active = s.cats.length + (s.band.value !== 'all' ? 1 : 0) + +s.stock + +s.deal + +s.refurb;
+    activeN.textContent = String(active);
+    activeN.hidden = !active;
+
+    if (push) {
+      const u = new URL(location.href);
+      u.search = '';
+      if (s.q) u.searchParams.set('q', q.value.trim());
+      s.cats.forEach((cat) => u.searchParams.append('cat', cat));
+      if (s.band.value !== 'all') u.searchParams.set('price', s.band.value);
+      if (s.sort !== 'featured') u.searchParams.set('sort', s.sort);
+      history.replaceState(null, '', u);
+    }
+  }
+
+  function reset() {
+    q.value = '';
+    catBoxes.forEach((b) => (b.checked = false));
+    priceRadios[0].checked = true;
+    stock.checked = deal.checked = refurb.checked = false;
+    sort.value = 'featured';
+    apply();
+  }
+
+  // Restore from the URL (e.g. /products?cat=Desktops from the home page).
+  const params = new URL(location.href).searchParams;
+  q.value = params.get('q') || '';
+  const want = params.getAll('cat').map((v) => v.toLowerCase());
+  catBoxes.forEach((b) => (b.checked = want.includes(b.value.toLowerCase())));
+  const band = priceRadios.find((r) => r.value === params.get('price'));
+  if (band) band.checked = true;
+  if (params.get('sort')) sort.value = params.get('sort')!;
+  apply(false);
+
+  let t: number | undefined;
+  q.addEventListener('input', () => {
+    clearTimeout(t);
+    t = window.setTimeout(apply, 120);
+  });
+  sort.addEventListener('change', () => apply());
+  panel.addEventListener('change', () => apply());
+  $$('[data-reset]').forEach((b) => b.addEventListener('click', reset));
+
+  tiles.forEach((tile) =>
+    tile.addEventListener('click', () => {
+      const v = tile.dataset.catTile || '';
+      catBoxes.forEach((b) => (b.checked = b.value === v));
+      apply();
+      $('[data-toolbar]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }),
+  );
+
+  // "/" focuses search, like most modern stores.
+  document.addEventListener('keydown', (e) => {
+    if (e.key === '/' && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement)) {
+      e.preventDefault();
+      q.focus();
+    }
+  });
+
+  // Grid / list view, remembered per visitor.
+  const viewBtns = $$<HTMLButtonElement>('[data-view]');
+  const setView = (v: string) => {
+    grid.classList.toggle('is-list', v === 'list');
+    viewBtns.forEach((b) => {
+      const on = b.dataset.view === v;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-pressed', String(on));
+    });
+    try {
+      localStorage.setItem('vb_store_view', v);
+    } catch {}
+  };
+  viewBtns.forEach((b) => b.addEventListener('click', () => setView(b.dataset.view || 'grid')));
+  try {
+    const saved = localStorage.getItem('vb_store_view');
+    if (saved) setView(saved);
+  } catch {}
+
+  // Mobile filter drawer
+  const open = () => {
+    document.documentElement.classList.add('st-drawer-open');
+    panel.querySelector<HTMLElement>('input')?.focus();
+  };
+  const close = () => document.documentElement.classList.remove('st-drawer-open');
+  $$('[data-filters-open]').forEach((b) => b.addEventListener('click', open));
+  $$('[data-filters-close]').forEach((b) => b.addEventListener('click', close));
+  document.addEventListener('keydown', (e) => e.key === 'Escape' && close());
+</script>
+
 <style>
-  .fk-store-section {
-    padding-top: var(--space-5);
-    padding-bottom: var(--space-9);
-    background: #f1f3f6; /* Classic Flipkart background tone */
+  .store {
+    --st-bg: #f3f5f9;
+    --st-card: #ffffff;
+    --st-line: #e3e8ef;
+    --st-ink: #0b1220;
+    --st-ink-2: #475467;
+    --st-mut: #667085;
+    --st-blue: #2563eb;
+    --st-blue-2: #1d4ed8;
+    --st-green: #067647;
+    --st-red: #d92d20;
+    --st-r: 18px;
+    background: var(--st-bg);
+    color: var(--st-ink);
+    padding-bottom: var(--space-8);
   }
 
-  /* ── Flipkart Toolbar: Search, Pills & Sort ───────────────── */
-  .fk-toolbar {
-    background: #ffffff;
-    border-radius: 8px;
-    padding: 16px 20px;
-    margin-bottom: 20px;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
-    display: flex;
-    flex-direction: column;
+  /* ── Hero ─────────────────────────────────────── */
+  .st-hero {
+    padding: 14px 0 0;
+  }
+  .st-crumbs {
+    margin-bottom: 14px;
+  }
+  .st-hero-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr);
+    gap: 16px;
+  }
+  .st-feature {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+    align-items: center;
+    min-height: 420px;
+    border-radius: 28px;
+    overflow: hidden;
+    color: #fff;
+    text-decoration: none;
+    background:
+      radial-gradient(120% 90% at 85% 40%, rgb(37 99 235 / 0.45), transparent 55%),
+      radial-gradient(80% 60% at 10% 100%, rgb(124 58 237 / 0.35), transparent 60%),
+      linear-gradient(160deg, #0a1022, #05070f);
+    isolation: isolate;
+  }
+  .st-feature-copy {
+    position: relative;
+    z-index: 2;
+    padding: clamp(24px, 3.5vw, 48px);
+    display: grid;
     gap: 14px;
+    align-content: center;
   }
-
-  .fk-search-box {
-    position: relative;
-    width: 100%;
-    display: flex;
-    align-items: center;
-  }
-  .fk-search-icon-wrap {
-    position: absolute;
-    left: 14px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #878787;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    pointer-events: none;
-    z-index: 2;
-    width: 18px;
-    height: 18px;
-  }
-  .fk-search-icon-wrap :global(svg) {
-    display: block;
-    width: 100%;
-    height: 100%;
-    color: inherit;
-    stroke: currentColor;
-  }
-  .fk-search-box input {
-    width: 100%;
-    padding: 12px 38px 12px 42px;
-    border-radius: 6px;
-    border: 1px solid #dcdcdc;
-    font-size: 15px;
-    background: #f9f9f9;
-    color: #212121;
-    transition: all 0.2s ease;
-    box-sizing: border-box;
-    line-height: 1.4;
-  }
-  .fk-search-box input:focus {
-    background: #ffffff;
-    border-color: #2874f0;
-    box-shadow: 0 0 0 3px rgba(40, 116, 240, 0.15);
-    outline: none;
-  }
-  .fk-search-clear {
-    position: absolute;
-    right: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: #e0e0e0;
-    color: #616161;
-    border: none;
-    border-radius: 50%;
-    width: 22px;
-    height: 22px;
-    font-size: 12px;
+  .st-kicker {
+    display: inline-block;
+    font-size: 0.72rem;
     font-weight: 700;
-    display: grid;
-    place-items: center;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    padding: 0;
-    z-index: 2;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #93b4ff;
   }
-  .fk-search-clear:hover {
-    background: #bdbdbd;
-    color: #212121;
-  }
-
-  .fk-filter-pills {
-    display: flex;
-    gap: 8px;
-    overflow-x: auto;
-    padding-bottom: 4px;
-    scrollbar-width: thin;
-  }
-  .fk-pill {
-    padding: 7px 16px;
-    border-radius: 999px;
-    border: 1px solid #dcdcdc;
-    background: #ffffff;
-    color: #212121;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: all 0.18s ease;
-  }
-  .fk-pill:hover {
-    border-color: #2874f0;
-    color: #2874f0;
-  }
-  .fk-pill.active {
-    background: #2874f0;
-    color: #ffffff;
-    border-color: #2874f0;
-    box-shadow: 0 2px 6px rgba(40, 116, 240, 0.3);
-  }
-
-  .fk-sort-bar {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    border-top: 1px solid #f0f0f0;
-    padding-top: 12px;
-    flex-wrap: wrap;
-  }
-  .fk-sort-label {
-    font-size: 13px;
-    font-weight: 700;
-    color: #212121;
-  }
-  .fk-sort-options {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-  }
-  .fk-sort-btn {
-    border: none;
-    background: none;
-    font-size: 13px;
-    color: #878787;
-    font-weight: 500;
-    padding: 4px 10px;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: color 0.15s, background 0.15s;
-  }
-  .fk-sort-btn:hover {
-    color: #2874f0;
-  }
-  .fk-sort-btn.active {
-    color: #2874f0;
-    font-weight: 700;
-    border-bottom: 2px solid #2874f0;
-    border-radius: 0;
-  }
-
-  /* ── Flipkart Card Container ───────────────────────────────── */
-  .fk-products-list {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  .fk-card {
-    background: #ffffff;
-    border-radius: 8px;
-    border: 1px solid #e0e0e0;
-    display: grid;
-    grid-template-columns: 280px 1fr 260px;
-    gap: 24px;
-    padding: 22px;
-    transition: box-shadow 0.25s ease, transform 0.25s ease, border-color 0.25s ease;
-    box-sizing: border-box;
-  }
-  .fk-card:hover {
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12);
-    border-color: #c4d7f5;
-    transform: translateY(-2px);
-  }
-
-  /* ── Column 1: Media & Gallery ─────────────────────────────── */
-  .fk-col-media {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    align-items: center;
-  }
-  .fk-media-box {
-    position: relative;
-    width: 100%;
-    aspect-ratio: 4 / 3;
-    background: #fbfbfb;
-    border-radius: 6px;
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid #f0f0f0;
-  }
-  .fk-img-anchor {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-  }
-  .fk-main-img {
-    max-width: 95%;
-    max-height: 95%;
-    object-fit: contain;
-    transition: transform 0.25s cubic-bezier(0.2, 0, 0.2, 1), opacity 0.2s ease;
-  }
-  .fk-media-box:hover .fk-main-img {
-    transform: scale(1.08);
-  }
-
-  .fk-discount-badge {
-    position: absolute;
-    top: 8px;
-    left: 8px;
-    background: #388e3c;
-    color: #ffffff;
-    font-size: 11px;
-    font-weight: 700;
-    padding: 2px 7px;
-    border-radius: 4px;
-    z-index: 2;
-  }
-  .fk-assured-badge {
-    position: absolute;
-    bottom: 8px;
-    left: 8px;
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
-    background: #0284c7;
-    color: #ffffff;
-    font-size: 10px;
-    font-weight: 800;
-    padding: 2px 6px;
-    border-radius: 3px;
-    letter-spacing: 0.04em;
-    z-index: 2;
-  }
-  .fk-assured-tick {
-    font-size: 10px;
-  }
-  .fk-wishlist-btn {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    background: #ffffff;
-    border: 1px solid #e0e0e0;
-    color: #c2c2c2;
-    font-size: 16px;
-    display: grid;
-    place-items: center;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    z-index: 2;
-  }
-  .fk-wishlist-btn:hover,
-  .fk-wishlist-btn.active {
-    color: #ff4343;
-    border-color: #ff4343;
-    background: #fff0f0;
-  }
-  .fk-counter-badge {
-    position: absolute;
-    bottom: 8px;
-    right: 8px;
-    background: rgba(0, 0, 0, 0.65);
-    color: #ffffff;
-    font-size: 10px;
-    font-weight: 700;
-    padding: 2px 6px;
-    border-radius: 999px;
-    z-index: 2;
-  }
-
-  .fk-nav-btn {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.9);
-    border: 1px solid #dcdcdc;
-    font-size: 18px;
-    line-height: 1;
-    display: grid;
-    place-items: center;
-    color: #212121;
-    cursor: pointer;
-    opacity: 0;
-    transition: opacity 0.2s, background-color 0.15s;
-    z-index: 3;
-  }
-  .fk-media-box:hover .fk-nav-btn {
-    opacity: 1;
-  }
-  .fk-nav-btn:hover {
-    background: #2874f0;
-    color: #ffffff;
-    border-color: #2874f0;
-  }
-  .fk-prev-btn { left: 6px; }
-  .fk-next-btn { right: 6px; }
-
-  /* Thumbnails */
-  .fk-thumb-strip {
-    display: flex;
-    gap: 6px;
-    width: 100%;
-    overflow-x: auto;
-    padding-bottom: 2px;
-  }
-  .fk-thumb-btn {
-    flex: 0 0 40px;
-    height: 34px;
-    border-radius: 4px;
-    border: 1.5px solid #e0e0e0;
-    background: #ffffff;
-    padding: 0;
-    cursor: pointer;
-    overflow: hidden;
-    opacity: 0.7;
-    transition: all 0.15s ease;
-  }
-  .fk-thumb-btn:hover,
-  .fk-thumb-btn.active {
-    opacity: 1;
-    border-color: #2874f0;
-    box-shadow: 0 2px 5px rgba(40, 116, 240, 0.25);
-  }
-  .fk-thumb-btn img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-  }
-  .fk-thumb-more {
-    flex: 0 0 34px;
-    height: 34px;
-    border-radius: 4px;
-    background: #f0f0f0;
-    color: #878787;
-    font-size: 11px;
-    font-weight: 700;
-    display: grid;
-    place-items: center;
-    text-decoration: none;
-  }
-
-  /* ── Column 2: Product Info & Sorted Specs ─────────────────── */
-  .fk-col-info {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-  .fk-badges-row {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    flex-wrap: wrap;
-  }
-  .fk-condition-tag {
-    font-size: 11px;
-    font-weight: 700;
-    padding: 3px 8px;
-    border-radius: 4px;
-    background: #e8f5e9;
-    color: #2e7d32;
-  }
-  .fk-condition-tag.refurbished {
-    background: #e0f2fe;
-    color: #0369a1;
-  }
-  .fk-stock-tag {
-    font-size: 11px;
-    font-weight: 600;
-    color: #388e3c;
-  }
-  .fk-stock-tag.on-order {
-    color: #d97706;
-  }
-
-  .fk-title {
+  .st-feature h1 {
     margin: 0;
-    font-size: 1.15rem;
-    font-weight: 700;
-    line-height: 1.35;
-  }
-  .fk-title a {
-    color: #212121;
-    text-decoration: none;
-    transition: color 0.15s ease;
-  }
-  .fk-title a:hover {
-    color: #2874f0;
-  }
-
-  .fk-rating-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 4px;
-  }
-  .fk-rating-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
-    background: #388e3c;
-    color: #ffffff;
-    font-size: 12px;
-    font-weight: 700;
-    padding: 2px 7px;
-    border-radius: 4px;
-  }
-  .fk-star {
-    font-size: 11px;
-  }
-  .fk-rating-count {
-    font-size: 13px;
-    color: #878787;
-    font-weight: 500;
-  }
-
-  /* Flipkart Specification Bullet List */
-  .fk-specs-list {
-    list-style: none;
-    margin: 6px 0 12px 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-  }
-  .fk-specs-list li {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    font-size: 13.5px;
-    color: #212121;
-    line-height: 1.45;
-  }
-  .fk-bullet {
-    color: #878787;
-    font-size: 16px;
-    line-height: 1;
-    flex-shrink: 0;
-  }
-  .fk-spec-item {
-    color: #333333;
-  }
-
-  .fk-trust-row {
-    display: flex;
-    gap: 16px;
-    flex-wrap: wrap;
-    margin-top: auto;
-    padding-top: 10px;
-    border-top: 1px solid #f0f0f0;
-  }
-  .fk-trust-item {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 12px;
-    color: #616161;
+    font-size: clamp(1.1rem, 0.9rem + 0.6vw, 1.35rem);
     font-weight: 600;
+    color: #aebcd3;
+    letter-spacing: -0.01em;
+    line-height: 1.3;
   }
-
-  /* ── Column 3: Price & Action Block ────────────────────────── */
-  .fk-col-price {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    border-left: 1px solid #f0f0f0;
-    padding-left: 20px;
+  .st-feature h1 span {
+    display: block;
+    margin-top: 6px;
+    font-size: clamp(1.6rem, 1.1rem + 1.9vw, 2.7rem);
+    font-weight: 800;
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+    color: #fff;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
-  .fk-price-block {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+  .st-feature-specs {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 6px;
+    font-size: 0.88rem;
+    color: #c8d3e6;
   }
-  .fk-price-main {
+  .st-feature-specs li {
+    padding-left: 18px;
+    position: relative;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .st-feature-specs li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.55em;
+    width: 8px;
+    height: 2px;
+    background: #60a5fa;
+  }
+  .st-feature-price {
     display: flex;
     align-items: baseline;
-    gap: 8px;
     flex-wrap: wrap;
+    gap: 10px;
   }
-  .fk-current-price {
-    font-size: 1.65rem;
+  .st-feature-price strong {
+    font-size: clamp(1.6rem, 1.2rem + 1.4vw, 2.4rem);
     font-weight: 800;
-    color: #212121;
+    letter-spacing: -0.02em;
   }
-  .fk-ask-price {
-    font-size: 1.35rem;
+  .st-feature-price s {
+    color: #8696b0;
+  }
+  .st-save {
+    font-size: 0.78rem;
     font-weight: 700;
-    color: #2874f0;
+    color: #052e16;
+    background: #4ade80;
+    padding: 3px 9px;
+    border-radius: 999px;
   }
-  .fk-mrp-price {
-    font-size: 14px;
-    color: #878787;
-    text-decoration: line-through;
-  }
-  .fk-discount-green {
-    font-size: 13.5px;
-    color: #388e3c;
-    font-weight: 700;
-  }
-
-  .fk-special-tag {
-    margin-top: 2px;
-  }
-  .fk-special-tag span {
-    font-size: 11px;
-    font-weight: 700;
-    color: #388e3c;
-    background: #e8f5e9;
-    padding: 2px 6px;
-    border-radius: 3px;
-  }
-
-  .fk-offer-text {
-    margin: 6px 0 0 0;
-    font-size: 12.5px;
-    color: #0284c7;
-  }
-  .fk-delivery-text {
-    margin-top: 8px;
-    display: flex;
-    flex-direction: column;
-    font-size: 12.5px;
-    color: #212121;
-  }
-  .fk-delivery-text strong {
-    color: #388e3c;
-  }
-  .fk-delivery-text span {
-    color: #878787;
-    font-size: 11.5px;
-  }
-
-  .fk-actions-block {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-top: 16px;
-  }
-  .fk-btn-buynow {
-    display: flex;
+  .st-feature-cta {
+    justify-self: start;
+    display: inline-flex;
     align-items: center;
-    justify-content: center;
     gap: 8px;
-    background: #fb641b;
-    color: #ffffff;
-    font-size: 13.5px;
-    font-weight: 800;
-    text-decoration: none;
-    padding: 10px 14px;
-    border-radius: 6px;
-    box-shadow: 0 2px 8px rgba(251, 100, 27, 0.35);
-    transition: all 0.2s ease;
+    margin-top: 4px;
+    padding: 12px 22px;
+    border-radius: 999px;
+    background: #fff;
+    color: #0b1220;
+    font-weight: 700;
+    transition: gap 0.25s, background 0.25s;
   }
-  .fk-btn-addcart {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
+  .st-feature:hover .st-feature-cta {
+    gap: 14px;
+    background: #dbe7ff;
+  }
+  .st-feature-media {
+    position: relative;
+    align-self: stretch;
+  }
+  .st-feature-media img {
+    position: absolute;
+    inset: 0;
     width: 100%;
-    border: 0;
-    cursor: pointer;
-    background: #ff9f00;
-    color: #ffffff;
-    font-family: inherit;
-    font-size: 13.5px;
-    font-weight: 800;
-    padding: 10px 14px;
-    border-radius: 6px;
-    box-shadow: 0 2px 8px rgba(255, 159, 0, 0.35);
-    transition: all 0.2s ease;
+    height: 100%;
+    object-fit: cover;
+    -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 35%);
+    mask-image: linear-gradient(90deg, transparent 0%, #000 35%);
+    transition: transform 1.2s cubic-bezier(0.2, 0.7, 0.2, 1);
   }
-  .fk-btn-addcart:hover {
-    background: #f09400;
-    transform: translateY(-1px);
+  .st-feature:hover .st-feature-media img {
+    transform: scale(1.05);
   }
-  .fk-btn-buynow:hover {
-    background: #e5530a;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(251, 100, 27, 0.45);
+
+  .st-promos {
+    display: grid;
+    grid-template-rows: 1fr 1fr;
+    gap: 16px;
   }
-  .fk-btn-whatsapp {
+  .st-promo {
+    position: relative;
     display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 22px;
+    border-radius: 24px;
+    overflow: hidden;
+    text-decoration: none;
+    color: var(--st-ink);
+    isolation: isolate;
+    min-height: 190px;
+  }
+  .st-promo h2 {
+    margin: 6px 0 6px;
+    font-size: 1.15rem;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    max-width: 16ch;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .st-promo--deal {
+    background: linear-gradient(140deg, #fff7e6, #ffe3c2);
+  }
+  .st-promo--deal .st-kicker {
+    color: #b54708;
+  }
+  .st-promo-price strong {
+    font-size: 1.35rem;
+    font-weight: 800;
+  }
+  .st-promo-img {
+    position: absolute;
+    right: -6%;
+    bottom: -8%;
+    width: 52%;
+    height: 90%;
+    object-fit: contain;
+    z-index: -1;
+    transition: transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  .st-promo-img.photo {
+    right: 0;
+    bottom: 0;
+    width: 45%;
+    height: 100%;
+    object-fit: cover;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 45%);
+    mask-image: linear-gradient(90deg, transparent, #000 45%);
+  }
+  .st-promo:hover .st-promo-img {
+    transform: scale(1.06) rotate(-2deg);
+  }
+  .st-promo--build {
+    color: #fff;
+    background: #0a0f1f;
+  }
+  .st-promo--build .st-kicker {
+    color: #a5c4ff;
+  }
+  .st-promo--build p {
+    color: #c8d3e6;
+    font-size: 0.88rem;
+    max-width: 30ch;
+  }
+  .st-promo-bg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: -1;
+    opacity: 0.7;
+    transition: transform 0.8s ease, opacity 0.4s;
+  }
+  .st-promo--build::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: linear-gradient(90deg, rgb(5 8 18 / 0.92) 20%, rgb(5 8 18 / 0.3));
+  }
+  .st-promo--build:hover .st-promo-bg {
+    transform: scale(1.06);
+    opacity: 0.85;
+  }
+  .st-round {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: #fff;
+    color: #0b1220;
+    transition: transform 0.25s;
+  }
+  .st-promo:hover .st-round,
+  .st-builder-band:hover .st-round {
+    transform: translateX(4px) rotate(-45deg);
+  }
+
+  .st-perks {
+    list-style: none;
+    margin: 16px 0 0;
+    padding: 14px 20px;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    background: var(--st-card);
+    border: 1px solid var(--st-line);
+    border-radius: var(--st-r);
+  }
+  .st-perks li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.86rem;
+    color: var(--st-ink-2);
+  }
+  .st-perks li :global(svg) {
+    flex: none;
+    color: var(--st-blue);
+  }
+  .st-perks strong {
+    color: var(--st-ink);
+  }
+
+  /* ── Categories ───────────────────────────────── */
+  .st-cats {
+    margin-top: 36px;
+  }
+  .st-section-title {
+    font-size: clamp(1.2rem, 1rem + 0.6vw, 1.5rem);
+    letter-spacing: -0.02em;
+    margin-bottom: 14px;
+  }
+  .st-cat-row {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(132px, 1fr);
+    gap: 12px;
+    overflow-x: auto;
+    padding: 4px 2px 10px;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: thin;
+  }
+  .st-cat {
+    scroll-snap-align: start;
+    display: grid;
+    justify-items: center;
+    gap: 4px;
+    padding: 14px 10px 12px;
+    border-radius: var(--st-r);
+    border: 1px solid var(--st-line);
+    background: var(--st-card);
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+  }
+  .st-cat:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 24px rgb(16 24 40 / 0.08);
+  }
+  .st-cat.on {
+    border-color: var(--st-blue);
+    box-shadow: 0 0 0 3px rgb(37 99 235 / 0.15);
+  }
+  .st-cat-media {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: #eef2f8;
+    display: grid;
+    place-items: center;
+    margin-bottom: 6px;
+  }
+  .st-cat-media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .st-cat-media.cutout img {
+    object-fit: contain;
+    padding: 10px;
+    background: #fff;
+  }
+  .st-cat-media--all {
+    color: #fff;
+    background: linear-gradient(135deg, #2563eb, #7c3aed);
+  }
+  .st-cat-name {
+    font-weight: 700;
+    font-size: 0.9rem;
+    text-align: center;
+  }
+  .st-cat-count {
+    font-size: 0.75rem;
+    color: var(--st-mut);
+  }
+
+  /* ── Catalogue layout ─────────────────────────── */
+  .st-catalog {
+    margin-top: 28px;
+    display: grid;
+    grid-template-columns: 264px minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+  }
+  .st-filters {
+    position: sticky;
+    top: calc(var(--header-h) + 16px);
+    max-height: calc(100svh - var(--header-h) - 32px);
+    overflow-y: auto;
+    background: var(--st-card);
+    border: 1px solid var(--st-line);
+    border-radius: var(--st-r);
+    padding: 18px;
+    display: grid;
+    gap: 18px;
+    scrollbar-width: thin;
+  }
+  .st-filters-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .st-filters-head h2 {
+    font-size: 1.05rem;
+    margin: 0;
+  }
+  .st-link {
+    background: none;
+    border: 0;
+    padding: 0;
+    color: var(--st-blue);
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .st-close,
+  .st-apply,
+  .st-scrim {
+    display: none;
+  }
+  .st-fs {
+    border: 0;
+    border-top: 1px solid var(--st-line);
+    margin: 0;
+    padding: 16px 0 0;
+    display: grid;
+    gap: 4px;
+  }
+  .st-fs legend {
+    float: left;
+    width: 100%;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--st-mut);
+    margin-bottom: 8px;
+  }
+  .st-check {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 8px;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+  .st-check:hover {
+    background: #f4f7fb;
+  }
+  .st-check input,
+  .st-switch input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .st-box {
+    width: 18px;
+    height: 18px;
+    border-radius: 6px;
+    border: 1.5px solid #c3ccd8;
+    background: #fff;
+    display: grid;
+    place-items: center;
+    transition: all 0.15s;
+  }
+  .st-radio .st-box {
+    border-radius: 50%;
+  }
+  .st-check input:checked + .st-box {
+    background: var(--st-blue);
+    border-color: var(--st-blue);
+    box-shadow: inset 0 0 0 3px #fff;
+  }
+  .st-check input:focus-visible + .st-box,
+  .st-switch input:focus-visible + .st-track {
+    outline: 2px solid var(--st-blue);
+    outline-offset: 2px;
+  }
+  .st-check-count {
+    font-size: 0.75rem;
+    color: var(--st-mut);
+    background: #f1f4f9;
+    padding: 1px 8px;
+    border-radius: 999px;
+  }
+  .st-switch {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 8px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    border-radius: 10px;
+  }
+  .st-switch:hover {
+    background: #f4f7fb;
+  }
+  .st-track {
+    flex: none;
+    width: 34px;
+    height: 20px;
+    border-radius: 999px;
+    background: #d0d7e2;
+    padding: 2px;
+    transition: background 0.2s;
+  }
+  .st-track span {
+    display: block;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.2);
+    transition: transform 0.2s;
+  }
+  .st-switch input:checked + .st-track {
+    background: var(--st-blue);
+  }
+  .st-switch input:checked + .st-track span {
+    transform: translateX(14px);
+  }
+  .st-help {
+    display: flex;
+    gap: 10px;
+    padding: 14px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #eef4ff, #f5f0ff);
+    font-size: 0.85rem;
+  }
+  .st-help :global(svg) {
+    flex: none;
+    color: var(--st-blue);
+  }
+  .st-help p {
+    margin: 4px 0 6px;
+    color: var(--st-ink-2);
+  }
+  .st-help a {
+    font-weight: 700;
+    color: var(--st-blue);
+  }
+
+  /* ── Toolbar ──────────────────────────────────── */
+  .st-toolbar {
+    position: sticky;
+    top: var(--header-h);
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    margin: -10px -10px 0;
+    background: rgb(243 245 249 / 0.85);
+    backdrop-filter: blur(12px) saturate(1.4);
+    border-radius: 0 0 var(--st-r) var(--st-r);
+    scroll-margin-top: var(--header-h);
+  }
+  .st-search {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .st-search :global(svg) {
+    position: absolute;
+    left: 14px;
+    color: var(--st-mut);
+    pointer-events: none;
+  }
+  .st-search input {
+    width: 100%;
+    height: 46px;
+    padding: 0 44px 0 42px;
+    border-radius: 999px;
+    border: 1px solid var(--st-line);
+    background: #fff;
+    font: inherit;
+    font-size: 0.95rem;
+    color: var(--st-ink);
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .st-search input:focus {
+    outline: none;
+    border-color: var(--st-blue);
+    box-shadow: 0 0 0 4px rgb(37 99 235 / 0.14);
+  }
+  .st-search kbd {
+    position: absolute;
+    right: 14px;
+    font: inherit;
+    font-size: 0.75rem;
+    color: var(--st-mut);
+    border: 1px solid var(--st-line);
+    border-bottom-width: 2px;
+    border-radius: 6px;
+    padding: 0 6px;
+  }
+  .st-filter-btn,
+  .st-sort,
+  .st-view {
+    height: 46px;
+    border: 1px solid var(--st-line);
+    background: #fff;
+    border-radius: 999px;
+  }
+  .st-filter-btn {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    padding: 0 16px;
+    font: inherit;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--st-ink);
+    cursor: pointer;
+  }
+  .st-badge {
+    min-width: 20px;
+    height: 20px;
+    border-radius: 999px;
+    background: var(--st-blue);
+    color: #fff;
+    font-size: 0.72rem;
+    display: grid;
+    place-items: center;
+    padding: 0 6px;
+  }
+  .st-badge[hidden] {
+    display: none;
+  }
+  .st-sort {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 6px 0 16px;
+    font-size: 0.85rem;
+    color: var(--st-mut);
+  }
+  .st-sort select {
+    border: 0;
+    background: transparent;
+    font: inherit;
+    font-weight: 600;
+    color: var(--st-ink);
+    padding: 8px 4px;
+    cursor: pointer;
+  }
+  .st-sort select:focus-visible {
+    outline: 2px solid var(--st-blue);
+    border-radius: 6px;
+  }
+  .st-view {
+    display: flex;
+    padding: 4px;
+    gap: 2px;
+  }
+  .st-view button {
+    width: 36px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--st-mut);
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+  }
+  .st-view button.on {
+    background: var(--st-ink);
+    color: #fff;
+  }
+
+  .st-meta {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 6px 12px;
+    margin: 18px 0 16px;
+  }
+  .st-meta h2 {
+    margin: 0;
+    font-size: clamp(1.25rem, 1.05rem + 0.6vw, 1.6rem);
+    letter-spacing: -0.02em;
+  }
+  .st-meta p {
+    margin: 0;
+    color: var(--st-mut);
+    font-size: 0.9rem;
+  }
+  .st-chips {
+    flex-basis: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .st-chips:empty {
+    display: none;
+  }
+  .st-chips :global(.st-chip) {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px 5px 12px;
+    border-radius: 999px;
+    border: 1px solid #bfd3fe;
+    background: #eef4ff;
+    color: var(--st-blue-2);
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .st-chips :global(.st-chip:hover) {
+    background: #dde9ff;
+  }
+
+  /* ── Product grid ─────────────────────────────── */
+  .st-grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 236px), 1fr));
+    gap: 16px;
+  }
+  .st-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    background: var(--st-card);
+    border: 1px solid var(--st-line);
+    border-radius: 22px;
+    padding: 10px;
+    transition: transform 0.3s cubic-bezier(0.2, 0.7, 0.2, 1), box-shadow 0.3s, border-color 0.3s;
+  }
+  .st-card[hidden] {
+    display: none;
+  }
+  .st-card:hover {
+    transform: translateY(-4px);
+    border-color: #d0d9e6;
+    box-shadow: 0 18px 40px -12px rgb(16 24 40 / 0.18);
+  }
+  .st-card-media {
+    position: relative;
+    display: block;
+    aspect-ratio: 1;
+    border-radius: 16px;
+    overflow: hidden;
+    background: linear-gradient(160deg, #f6f8fb, #eaeef5);
+  }
+  .st-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    transition: opacity 0.45s ease, transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  .st-img.photo {
+    object-fit: cover;
+  }
+  .st-img.cutout {
+    object-fit: contain;
+    padding: 12%;
+    mix-blend-mode: multiply;
+  }
+  .st-img--alt {
+    opacity: 0;
+  }
+  .st-card:hover .st-img {
+    transform: scale(1.05);
+  }
+  .st-card:hover .st-img--alt {
+    opacity: 1;
+  }
+  .st-card:hover .st-card-media:has(.st-img--alt) .st-img:not(.st-img--alt) {
+    opacity: 0;
+  }
+  .st-tags {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .st-tag {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    padding: 4px 9px;
+    border-radius: 999px;
+    background: #0b1220;
+    color: #fff;
+  }
+  .st-tag--off {
+    background: var(--st-red);
+  }
+  .st-tag--refurb {
+    background: #fff;
+    color: #0b1220;
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.12);
+  }
+
+  .st-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+    padding: 12px 6px 4px;
+  }
+  .st-card-cat {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    margin: 0;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--st-mut);
+  }
+  .st-assured {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    color: var(--st-blue);
+    letter-spacing: 0.02em;
+    text-transform: none;
+  }
+  .st-card-title {
+    margin: 0;
+    font-size: 0.98rem;
+    font-weight: 650;
+    line-height: 1.35;
+    letter-spacing: -0.01em;
+  }
+  .st-card-title a {
+    color: var(--st-ink);
+    text-decoration: none;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .st-card-title a::after {
+    /* whole card is clickable, buttons sit above */
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+  }
+  .st-card-title a:hover {
+    color: var(--st-blue);
+  }
+  .st-rating {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    font-size: 0.82rem;
+    font-weight: 600;
+  }
+  .st-stars {
+    --pct: calc(var(--rating) / 5 * 100%);
+    width: 76px;
+    height: 14px;
+    background: linear-gradient(90deg, #f59e0b var(--pct), #d7dde6 var(--pct));
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 76 14'%3E%3Cg%3E%3Cpath id='s' d='M7 0l2.1 4.4 4.9.6-3.6 3.4.9 4.8L7 10.9 2.7 13.2l.9-4.8L0 5l4.9-.6z'/%3E%3Cuse href='%23s' x='15.5'/%3E%3Cuse href='%23s' x='31'/%3E%3Cuse href='%23s' x='46.5'/%3E%3Cuse href='%23s' x='62'/%3E%3C/g%3E%3C/svg%3E") no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 76 14'%3E%3Cg%3E%3Cpath id='s' d='M7 0l2.1 4.4 4.9.6-3.6 3.4.9 4.8L7 10.9 2.7 13.2l.9-4.8L0 5l4.9-.6z'/%3E%3Cuse href='%23s' x='15.5'/%3E%3Cuse href='%23s' x='31'/%3E%3Cuse href='%23s' x='46.5'/%3E%3Cuse href='%23s' x='62'/%3E%3C/g%3E%3C/svg%3E") no-repeat;
+  }
+  .st-muted {
+    color: var(--st-mut);
+    font-weight: 400;
+  }
+  .st-bullets {
+    display: none;
+  }
+  .st-price {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    margin-top: 4px;
+  }
+  .st-price strong {
+    font-size: 1.3rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+  .st-price s {
+    color: var(--st-mut);
+    font-size: 0.85rem;
+  }
+  .st-saving {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--st-green);
+  }
+  .st-ask {
+    font-size: 1rem !important;
+    color: var(--st-blue);
+  }
+  .st-stock {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--st-green);
+  }
+  .st-stock.out {
+    color: var(--st-red);
+  }
+  .st-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 18%, transparent);
+  }
+  .st-actions {
+    position: relative;
+    z-index: 1;
+    margin-top: auto;
+    padding-top: 10px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+  }
+  .st-actions > :only-child {
+    grid-column: 1 / -1;
+  }
+  .st-btn {
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
-    padding: 11px 14px;
-    border-radius: 6px;
-    background: #25d366;
-    color: #ffffff;
-    font-size: 13.5px;
+    height: 42px;
+    padding: 0 16px;
+    border-radius: 999px;
+    font: inherit;
+    font-size: 0.88rem;
     font-weight: 700;
     text-decoration: none;
-    transition: all 0.2s ease;
-    box-shadow: 0 2px 6px rgba(37, 211, 102, 0.35);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s, color 0.2s, border-color 0.2s, transform 0.15s;
   }
-  .fk-btn-whatsapp:hover {
-    background: #1eb855;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(37, 211, 102, 0.45);
+  .st-btn:active {
+    transform: scale(0.97);
   }
-  .fk-btn-details {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 9px 12px;
-    border-radius: 6px;
-    border: 1px solid #dcdcdc;
-    background: #ffffff;
-    color: #2874f0;
-    font-size: 13px;
-    font-weight: 600;
-    text-decoration: none;
-    transition: all 0.15s ease;
+  .st-btn--cart {
+    border: 0;
+    background: var(--st-ink);
+    color: #fff;
   }
-  .fk-btn-details:hover {
-    background: #f4f8ff;
-    border-color: #2874f0;
+  .st-btn--cart:hover {
+    background: var(--st-blue);
+    color: #fff;
+  }
+  .st-btn--cart[data-added] {
+    background: var(--st-green);
+  }
+  .st-btn--buy {
+    border: 1.5px solid var(--st-line);
+    background: #fff;
+    color: var(--st-ink);
+  }
+  .st-btn--buy:hover {
+    border-color: var(--st-ink);
+    color: var(--st-ink);
   }
 
-  /* No Results Fallback */
-  .fk-no-results {
-    background: #ffffff;
-    border-radius: 8px;
-    padding: 48px 24px;
+  /* List view */
+  .st-grid.is-list {
+    grid-template-columns: 1fr;
+  }
+  .st-grid.is-list .st-card {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr);
+    gap: 8px 20px;
+  }
+  .st-grid.is-list .st-card-body {
+    padding: 8px 8px 8px 0;
+  }
+  .st-grid.is-list .st-card-title {
+    font-size: 1.1rem;
+  }
+  .st-grid.is-list .st-bullets {
+    display: grid;
+    gap: 3px;
+    list-style: none;
+    margin: 4px 0;
+    padding: 0;
+    font-size: 0.86rem;
+    color: var(--st-ink-2);
+  }
+  .st-grid.is-list .st-bullets li {
+    padding-left: 14px;
+    position: relative;
+  }
+  .st-grid.is-list .st-bullets li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.6em;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--st-blue);
+  }
+  .st-grid.is-list .st-actions {
+    grid-template-columns: auto auto;
+    justify-content: start;
+  }
+
+  .st-empty {
+    display: grid;
+    justify-items: center;
+    gap: 10px;
     text-align: center;
-    border: 1px solid #e0e0e0;
+    padding: 60px 20px;
+    color: var(--st-mut);
+    background: #fff;
+    border: 1px dashed var(--st-line);
+    border-radius: var(--st-r);
   }
-  .fk-no-results-box {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-    color: #878787;
+  .st-empty[hidden] {
+    display: none;
   }
-  .fk-no-results-box :global(svg) {
-    color: #9e9e9e;
-    stroke: currentColor;
-    display: block;
-    margin-bottom: 4px;
-  }
-  .fk-no-results-box h3 {
+  .st-empty h3 {
     margin: 0;
-    color: #212121;
+    color: var(--st-ink);
   }
 
-  /* ── Responsive Mobile & Tablet Layout ──────────────────────── */
-  @media (max-width: 960px) {
-    .fk-card {
-      grid-template-columns: 240px 1fr;
-    }
-    .fk-col-price {
-      grid-column: 1 / -1;
-      border-left: none;
-      border-top: 1px solid #f0f0f0;
-      padding-left: 0;
-      padding-top: 14px;
-      flex-direction: row;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .fk-actions-block {
-      margin-top: 0;
-      flex-direction: row;
-    }
+  .st-builder-band {
+    margin-top: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 26px 28px;
+    border-radius: 24px;
+    text-decoration: none;
+    color: #fff;
+    background:
+      radial-gradient(70% 140% at 100% 0%, rgb(124 58 237 / 0.55), transparent 60%),
+      linear-gradient(120deg, #0b1734, #1e3a8a);
+  }
+  .st-builder-band h2 {
+    margin: 6px 0 0;
+    font-size: clamp(1.15rem, 1rem + 0.7vw, 1.6rem);
+    letter-spacing: -0.02em;
+    color: #fff;
+  }
+  .st-round--light {
+    background: #fff;
   }
 
-  @media (max-width: 680px) {
-    .fk-card {
+  /* ── Responsive ───────────────────────────────── */
+  @media (max-width: 1180px) {
+    .st-hero-grid {
       grid-template-columns: 1fr;
-      padding: 16px;
-      gap: 16px;
     }
-    .fk-col-price {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 12px;
+    .st-promos {
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: none;
     }
-    .fk-actions-block {
-      width: 100%;
-      flex-direction: column;
+  }
+  @media (max-width: 1024px) {
+    .st-catalog {
+      grid-template-columns: 1fr;
     }
-    .fk-sort-bar {
-      flex-direction: column;
-      align-items: flex-start;
+    .st-filter-btn {
+      display: inline-flex;
+    }
+    .st-filters {
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      z-index: 1001;
+      width: min(360px, 88vw);
+      max-height: none;
+      border-radius: 0 22px 22px 0;
+      transform: translateX(-105%);
+      transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1);
+      align-content: start;
+      padding-bottom: 90px;
+    }
+    .st-close {
+      display: grid;
+      place-items: center;
+      width: 36px;
+      height: 36px;
+      border: 0;
+      border-radius: 50%;
+      background: #f1f4f9;
+      cursor: pointer;
+      margin-left: 8px;
+    }
+    .st-filters-head .st-link {
+      margin-left: auto;
+    }
+    .st-apply {
+      display: block;
+      position: fixed;
+      left: 18px;
+      right: 18px;
+      bottom: 18px;
+      height: 48px;
+      border: 0;
+      border-radius: 999px;
+      background: var(--st-ink);
+      color: #fff;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .st-scrim {
+      display: block;
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      background: rgb(8 12 24 / 0.5);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    :global(.st-drawer-open) .st-filters {
+      transform: none;
+    }
+    :global(.st-drawer-open) .st-scrim {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    :global(.st-drawer-open) {
+      overflow: hidden;
+    }
+  }
+  @media (max-width: 760px) {
+    .st-feature {
+      grid-template-columns: 1fr;
+      min-height: 0;
+    }
+    .st-feature-media {
+      order: -1;
+      height: 220px;
+    }
+    .st-feature-media img {
+      -webkit-mask-image: linear-gradient(180deg, #000 55%, transparent);
+      mask-image: linear-gradient(180deg, #000 55%, transparent);
+    }
+    .st-feature-copy {
+      padding-top: 0;
+    }
+    .st-promos {
+      grid-template-columns: 1fr;
+    }
+    .st-perks {
+      grid-template-columns: 1fr 1fr;
+      padding: 14px;
+    }
+    .st-perks li {
+      font-size: 0.8rem;
+    }
+    .st-toolbar {
+      flex-wrap: wrap;
+    }
+    .st-search {
+      flex-basis: 100%;
+    }
+    .st-search kbd,
+    .st-view {
+      display: none;
+    }
+    .st-filter-btn,
+    .st-sort {
+      flex: 1;
+      justify-content: center;
+    }
+    .st-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .st-grid.is-list {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .st-grid.is-list .st-card {
+      display: flex;
+    }
+    .st-grid.is-list .st-bullets {
+      display: none;
+    }
+    .st-card {
+      border-radius: 18px;
+      padding: 8px;
+    }
+    .st-card-body {
+      padding: 10px 4px 2px;
+    }
+    .st-card-title {
+      font-size: 0.88rem;
+    }
+    .st-price strong {
+      font-size: 1.1rem;
+    }
+    .st-saving,
+    .st-stock .st-muted {
+      display: none;
+    }
+    .st-actions {
+      grid-template-columns: 1fr;
+    }
+    .st-btn {
+      height: 38px;
+      font-size: 0.8rem;
+      padding: 0 10px;
+    }
+    .st-builder-band {
+      padding: 20px;
     }
   }
 </style>
-
-<script>
-  // ── Flipkart Real-time Filter, Search & Sort Controller ──────
-  const searchInput = document.getElementById('fk-product-search') as HTMLInputElement | null;
-  const pillBtns = document.querySelectorAll<HTMLButtonElement>('.fk-pill');
-  const sortBtns = document.querySelectorAll<HTMLButtonElement>('.fk-sort-btn');
-  const cardsContainer = document.getElementById('fk-products-list');
-  const noResultsBox = document.getElementById('fk-no-results');
-  const resetBtn = document.getElementById('fk-reset-filters');
-
-  let activeCategory = 'All';
-  let searchQuery = '';
-  let activeSort = 'relevance';
-
-  const applyFiltersAndSort = () => {
-    if (!cardsContainer) return;
-    const cards = Array.from(cardsContainer.querySelectorAll<HTMLElement>('[data-product-card]'));
-    let visibleCount = 0;
-
-    cards.forEach((card) => {
-      const name = card.dataset.name || '';
-      const category = card.dataset.category || '';
-      const matchesCat = activeCategory === 'All' || category.toLowerCase() === activeCategory.toLowerCase();
-      const matchesSearch = !searchQuery || name.includes(searchQuery) || category.toLowerCase().includes(searchQuery);
-
-      if (matchesCat && matchesSearch) {
-        card.style.display = 'grid';
-        visibleCount++;
-      } else {
-        card.style.display = 'none';
-      }
-    });
-
-    // Sort visible cards
-    const visibleCards = cards.filter((c) => c.style.display !== 'none');
-    visibleCards.sort((a, b) => {
-      const priceA = Number(a.dataset.price) || 0;
-      const priceB = Number(b.dataset.price) || 0;
-      const discountA = Number(a.dataset.discount) || 0;
-      const discountB = Number(b.dataset.discount) || 0;
-      const idA = Number(a.dataset.id) || 0;
-      const idB = Number(b.dataset.id) || 0;
-
-      if (activeSort === 'price-low') return priceA - priceB;
-      if (activeSort === 'price-high') return priceB - priceA;
-      if (activeSort === 'discount') return discountB - discountA;
-      return idA - idB; // Default relevance
-    });
-
-    visibleCards.forEach((c) => cardsContainer.appendChild(c));
-
-    if (noResultsBox) {
-      noResultsBox.style.display = visibleCount === 0 ? 'block' : 'none';
-    }
-  };
-
-  const searchClear = document.getElementById('fk-search-clear');
-
-  // Search Listener
-  searchInput?.addEventListener('input', (e) => {
-    searchQuery = (e.target as HTMLInputElement).value.trim().toLowerCase();
-    if (searchClear) searchClear.style.display = searchQuery ? 'grid' : 'none';
-    applyFiltersAndSort();
-  });
-
-  searchClear?.addEventListener('click', () => {
-    if (searchInput) searchInput.value = '';
-    searchQuery = '';
-    if (searchClear) searchClear.style.display = 'none';
-    applyFiltersAndSort();
-    searchInput?.focus();
-  });
-
-  // Category Pills Listener
-  pillBtns.forEach((btn) => {
-    btn.addEventListener('click', () => {
-      pillBtns.forEach((p) => p.classList.remove('active'));
-      btn.classList.add('active');
-      activeCategory = btn.dataset.filterCat || 'All';
-      applyFiltersAndSort();
-    });
-  });
-
-  // Sort Options Listener
-  sortBtns.forEach((btn) => {
-    btn.addEventListener('click', () => {
-      sortBtns.forEach((s) => s.classList.remove('active'));
-      btn.classList.add('active');
-      activeSort = btn.dataset.sort || 'relevance';
-      applyFiltersAndSort();
-    });
-  });
-
-  // Reset Button
-  resetBtn?.addEventListener('click', () => {
-    if (searchInput) searchInput.value = '';
-    searchQuery = '';
-    activeCategory = 'All';
-    activeSort = 'relevance';
-    pillBtns.forEach((p, idx) => p.classList.toggle('active', idx === 0));
-    sortBtns.forEach((s, idx) => s.classList.toggle('active', idx === 0));
-    applyFiltersAndSort();
-  });
-
-  // ── Wishlist Toggle ─────────────────────────────────────────
-  document.querySelectorAll<HTMLButtonElement>('.fk-wishlist-btn').forEach((btn) => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      e.preventDefault();
-      btn.classList.toggle('active');
-    });
-  });
-
-  // ── Multi-photo Thumbnail Switcher on Hover & Click ─────────
-  document.querySelectorAll<HTMLElement>('[data-product-card]').forEach((card) => {
-    let photos: string[] = [];
-    const mediaBox = card.querySelector<HTMLElement>('[data-prod-gallery]');
-    try {
-      photos = JSON.parse(mediaBox?.dataset.photos || '[]');
-    } catch {
-      photos = [];
-    }
-    if (photos.length <= 1) return;
-
-    let currentIndex = 0;
-    const mainImg = card.querySelector<HTMLImageElement>('.fk-main-img');
-    const counter = card.querySelector<HTMLElement>('.fk-counter-badge .active-num');
-    const prevBtn = card.querySelector<HTMLButtonElement>('.fk-prev-btn');
-    const nextBtn = card.querySelector<HTMLButtonElement>('.fk-next-btn');
-    const thumbBtns = card.querySelectorAll<HTMLButtonElement>('.fk-thumb-btn');
-
-    const updatePhoto = (index: number) => {
-      currentIndex = (index + photos.length) % photos.length;
-      if (mainImg) {
-        mainImg.src = photos[currentIndex];
-      }
-      if (counter) {
-        counter.textContent = String(currentIndex + 1);
-      }
-      thumbBtns.forEach((b, idx) => {
-        b.classList.toggle('active', idx === currentIndex);
-      });
-    };
-
-    if (prevBtn) {
-      prevBtn.onclick = (e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        updatePhoto(currentIndex - 1);
-      };
-    }
-    if (nextBtn) {
-      nextBtn.onclick = (e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        updatePhoto(currentIndex + 1);
-      };
-    }
-
-    thumbBtns.forEach((b) => {
-      b.onclick = (e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        const idx = Number(b.dataset.index) || 0;
-        updatePhoto(idx);
-      };
-      b.onmouseenter = (e) => {
-        e.stopPropagation();
-        const idx = Number(b.dataset.index) || 0;
-        updatePhoto(idx);
-      };
-    });
-  });
-</script>

@@ -1,0 +1,406 @@
+---
+// Hero background: a looping, auto-playing PC assembly built from eight 4K photographs
+// (Unsplash licence). Each stage of the build wipes in over the last behind a glowing
+// "scan line", with a slow camera push, while a small assembly HUD tracks the step.
+// The finished rig powers on (RGB breathe + POST ✓) and the build starts again.
+import { Picture } from 'astro:assets';
+import { PHOTOS } from '@/lib/images';
+
+const BUILD_FRAMES = [
+  { key: 'virnobyte-build-01-motherboard', label: 'Preparing the motherboard', origin: '30% 40%' },
+  { key: 'virnobyte-build-02-cpu-install', label: 'Seating the processor', origin: '35% 55%' },
+  { key: 'virnobyte-build-03-cpu-cooler', label: 'Mounting the CPU cooler', origin: '50% 40%' },
+  { key: 'virnobyte-build-04-ram', label: 'Installing dual-channel RAM', origin: '60% 50%' },
+  { key: 'virnobyte-build-05-nvme-ssd', label: 'Fitting the NVMe SSD', origin: '55% 60%' },
+  { key: 'virnobyte-build-06-gpu', label: 'Installing the graphics card', origin: '45% 55%' },
+  { key: 'virnobyte-build-07-cable-management', label: 'Routing power & cables', origin: '40% 45%' },
+  { key: 'virnobyte-build-08-rgb-gaming-pc', label: 'Power on · POST ✓ System ready', origin: '50% 50%' },
+] as const;
+
+const N = BUILD_FRAMES.length;
+const widths = [768, 1080, 1440, 1920, 2560, 3840];
+---
+
+<div class="hb" data-hb aria-hidden="true">
+  <div class="hb-stage">
+  {
+    BUILD_FRAMES.map((f, i) => (
+      <div class:list={['hb-layer', { on: i === 0 }]} data-hb-layer data-dir={i % 2 ? 'left' : 'up'} data-label={f.label} style={`--o:${f.origin}`}>
+        <Picture
+          src={PHOTOS[f.key]}
+          alt=""
+          formats={['avif', 'webp']}
+          widths={widths.filter((w) => w <= PHOTOS[f.key].width)}
+          sizes="100vw"
+          loading={i === 0 ? 'eager' : 'lazy'}
+          fetchpriority={i === 0 ? 'high' : 'low'}
+          decoding={i === 0 ? 'sync' : 'async'}
+          class="hb-img"
+        />
+        <span class="hb-seam" />
+      </div>
+    ))
+  }
+  </div>
+  <div class="hb-grid"></div>
+
+  <!-- Assembly HUD -->
+  <div class="hb-hud">
+    <span class="hb-dot"></span>
+    <span class="hb-step" data-hb-num>01 / {String(N).padStart(2, '0')}</span>
+    <span class="hb-label" data-hb-label>{BUILD_FRAMES[0].label}</span>
+    <span class="hb-bars">
+      {BUILD_FRAMES.map((_, i) => <span class:list={['hb-bar', { on: i === 0 }]} data-hb-bar><i /></span>)}
+    </span>
+  </div>
+</div>
+
+<script>
+  const root = document.querySelector<HTMLElement>('[data-hb]');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  if (root) {
+    const layers = [...root.querySelectorAll<HTMLElement>('[data-hb-layer]')];
+    const bars = [...root.querySelectorAll<HTMLElement>('[data-hb-bar]')];
+    const num = root.querySelector<HTMLElement>('[data-hb-num]');
+    const label = root.querySelector<HTMLElement>('[data-hb-label]');
+    const N = layers.length;
+    const HOLD = 3200; // ms a finished stage is on screen
+    const WIPE = 1300; // ms for the next stage to sweep in
+    const FINAL_HOLD = 5200; // the powered-on rig stays longer
+
+    const show = (i: number) => {
+      if (num) num.textContent = `${String(i + 1).padStart(2, '0')} / ${String(N).padStart(2, '0')}`;
+      if (label) label.textContent = layers[i].dataset.label || '';
+      bars.forEach((b, k) => {
+        b.classList.toggle('done', k < i);
+        b.classList.toggle('on', k === i);
+      });
+      root.classList.toggle('booted', i === N - 1);
+    };
+
+    if (reduce) {
+      layers.forEach((l, k) => l.classList.toggle('on', k === N - 1));
+      show(N - 1);
+    } else {
+      let cur = 0;
+      let z = 1;
+      let timer: number | undefined;
+      let running = false;
+
+      const step = () => {
+        const next = (cur + 1) % N;
+        const el = layers[next];
+        el.style.zIndex = String(++z);
+        el.classList.remove('on', 'wipe');
+        void el.offsetWidth; // restart the transition
+        el.classList.add('wipe');
+        show(next);
+        const prev = layers[cur];
+        cur = next;
+        timer = window.setTimeout(() => {
+          prev.classList.remove('on', 'wipe');
+          el.classList.add('on');
+          el.classList.remove('wipe');
+          if (running) timer = window.setTimeout(step, cur === N - 1 ? FINAL_HOLD : HOLD);
+        }, WIPE);
+      };
+
+      const play = () => {
+        if (running) return;
+        running = true;
+        root.classList.add('playing');
+        timer = window.setTimeout(step, HOLD);
+      };
+      const pause = () => {
+        running = false;
+        root.classList.remove('playing');
+        clearTimeout(timer);
+      };
+
+      // Wait for the first frame (the LCP image) before starting, then run only while visible.
+      const first = layers[0].querySelector('img');
+      const ready = first && !first.complete ? new Promise((r) => first.addEventListener('load', r, { once: true })) : Promise.resolve();
+      ready.then(() => {
+        let visible = true;
+        new IntersectionObserver(([e]) => {
+          visible = e.isIntersecting;
+          visible && !document.hidden ? play() : pause();
+        }).observe(root);
+        document.addEventListener('visibilitychange', () => (visible && !document.hidden ? play() : pause()));
+      });
+      show(0);
+    }
+  }
+</script>
+
+<style>
+  .hb {
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+    overflow: hidden;
+    background: #05080f;
+    --cyan: #22d3ee;
+    --blue: #4f8cff;
+  }
+  .hb-stage {
+    position: absolute;
+    inset: 0;
+    isolation: isolate;
+  }
+  .hb-layer {
+    position: absolute;
+    inset: 0;
+    visibility: hidden;
+  }
+  .hb-layer.on,
+  .hb-layer.wipe {
+    visibility: visible;
+  }
+  .hb-layer :global(picture),
+  .hb-layer :global(.hb-img) {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  .hb-layer :global(.hb-img) {
+    object-fit: cover;
+    object-position: var(--o);
+    transform-origin: var(--o);
+    filter: saturate(1.1) contrast(1.05);
+  }
+
+  /* Wipe-in: a scan line sweeps across and the new stage is revealed behind it. */
+  .hb-layer[data-dir='up'].wipe {
+    animation: wipe-up 1.3s cubic-bezier(0.65, 0, 0.35, 1) both;
+  }
+  .hb-layer[data-dir='left'].wipe {
+    animation: wipe-left 1.3s cubic-bezier(0.65, 0, 0.35, 1) both;
+  }
+  @keyframes wipe-up {
+    from {
+      clip-path: inset(100% 0 0 0);
+    }
+    to {
+      clip-path: inset(0 0 0 0);
+    }
+  }
+  @keyframes wipe-left {
+    from {
+      clip-path: inset(0 0 0 100%);
+    }
+    to {
+      clip-path: inset(0 0 0 0);
+    }
+  }
+  .hb-seam {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    background: linear-gradient(90deg, transparent, var(--cyan) 15%, #fff 50%, var(--blue) 85%, transparent);
+    box-shadow:
+      0 0 18px 4px rgb(79 140 255 / 0.7),
+      0 0 70px 14px rgb(34 211 238 / 0.3);
+  }
+  .hb-layer[data-dir='up'] .hb-seam {
+    left: 0;
+    right: 0;
+    height: 2px;
+    top: 100%;
+  }
+  .hb-layer[data-dir='left'] .hb-seam {
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    left: 100%;
+    background: linear-gradient(180deg, transparent, var(--cyan) 15%, #fff 50%, var(--blue) 85%, transparent);
+  }
+  .hb-layer[data-dir='up'].wipe .hb-seam {
+    animation: seam-up 1.3s cubic-bezier(0.65, 0, 0.35, 1) both;
+  }
+  .hb-layer[data-dir='left'].wipe .hb-seam {
+    animation: seam-left 1.3s cubic-bezier(0.65, 0, 0.35, 1) both;
+  }
+  @keyframes seam-up {
+    0% {
+      top: 100%;
+      opacity: 1;
+    }
+    90% {
+      opacity: 1;
+    }
+    100% {
+      top: 0;
+      opacity: 0;
+    }
+  }
+  @keyframes seam-left {
+    0% {
+      left: 100%;
+      opacity: 1;
+    }
+    90% {
+      opacity: 1;
+    }
+    100% {
+      left: 0;
+      opacity: 0;
+    }
+  }
+
+  /* Slow camera push on each stage while it is on screen. */
+  @media (prefers-reduced-motion: no-preference) {
+    .hb.playing .hb-layer:is(.on, .wipe) :global(.hb-img) {
+      animation: push 6.5s cubic-bezier(0.25, 0.1, 0.25, 1) both;
+    }
+    .hb.playing.booted .hb-layer:last-of-type.on :global(.hb-img) {
+      animation:
+        push 6.5s cubic-bezier(0.25, 0.1, 0.25, 1) both,
+        rgb-breathe 2.6s ease-in-out 1.3s infinite;
+    }
+  }
+  @keyframes push {
+    from {
+      transform: scale(1.16);
+    }
+    to {
+      transform: scale(1.02);
+    }
+  }
+  @keyframes rgb-breathe {
+    0%,
+    100% {
+      filter: saturate(1.1) contrast(1.05) brightness(1) hue-rotate(0deg);
+    }
+    50% {
+      filter: saturate(1.4) contrast(1.08) brightness(1.15) hue-rotate(-22deg);
+    }
+  }
+
+  /* Faint engineering grid over the photography */
+  .hb-grid {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.35;
+    background-image:
+      linear-gradient(rgb(120 170 255 / 0.07) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(120 170 255 / 0.07) 1px, transparent 1px);
+    background-size: 64px 64px;
+    -webkit-mask-image: radial-gradient(ellipse at center, transparent 30%, #000 85%);
+    mask-image: radial-gradient(ellipse at center, transparent 30%, #000 85%);
+  }
+
+  /* ── Assembly HUD (bottom-left) ───────────── */
+  .hb-hud {
+    position: absolute;
+    left: max(16px, 2.5vw);
+    bottom: max(16px, 3vh);
+    display: grid;
+    grid-template-columns: auto auto 1fr;
+    align-items: center;
+    gap: 6px 10px;
+    max-width: min(420px, calc(100% - 32px));
+    padding: 12px 16px;
+    border-radius: 16px;
+    color: #e6eefb;
+    background: rgb(6 11 24 / 0.6);
+    border: 1px solid rgb(255 255 255 / 0.14);
+    backdrop-filter: blur(12px) saturate(1.3);
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .hb-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #f59e0b;
+    box-shadow: 0 0 10px #f59e0b;
+    animation: blink 1.2s steps(2) infinite;
+  }
+  .hb.booted .hb-dot {
+    background: #34d399;
+    box-shadow: 0 0 12px #34d399;
+    animation: none;
+  }
+  @keyframes blink {
+    50% {
+      opacity: 0.35;
+    }
+  }
+  .hb-step {
+    font-weight: 700;
+    color: var(--cyan);
+    letter-spacing: 0.04em;
+  }
+  .hb-label {
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .hb.booted .hb-label {
+    color: #a7f3d0;
+  }
+  .hb-bars {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 4px;
+  }
+  .hb-bar {
+    height: 3px;
+    border-radius: 2px;
+    background: rgb(255 255 255 / 0.15);
+    overflow: hidden;
+  }
+  .hb-bar i {
+    display: block;
+    height: 100%;
+    width: 0;
+    background: linear-gradient(90deg, var(--blue), var(--cyan));
+  }
+  .hb-bar.done i {
+    width: 100%;
+  }
+  .hb.playing .hb-bar.on i {
+    animation: fill 4.5s linear forwards;
+  }
+  .hb.booted .hb-bar.on i {
+    width: 100%;
+    animation: none;
+    background: #34d399;
+  }
+  @keyframes fill {
+    to {
+      width: 100%;
+    }
+  }
+
+  @media (max-width: 760px) {
+    /* Phones: just a thin progress strip along the bottom edge. */
+    .hb-hud {
+      left: 0;
+      right: 0;
+      bottom: 0;
+      max-width: none;
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      background: none;
+      backdrop-filter: none;
+    }
+    .hb-dot,
+    .hb-step,
+    .hb-label {
+      display: none;
+    }
+    .hb-bars {
+      gap: 2px;
+    }
+    .hb-grid {
+      background-size: 40px 40px;
+    }
+  }
+</style>

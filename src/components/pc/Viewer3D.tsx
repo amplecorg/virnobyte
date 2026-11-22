@@ -105,7 +105,7 @@ function Scene({
         )}
         {nvme.map((s, i) => (
           <Inspectable key={`m2-${s.id}-${i}`} label={s.name} sub={`${s.specs.kind} · ${s.specs.read_mbps} MB/s`} onFocus={focus} focusPoint={new THREE.Vector3(L.m2.x, L.m2.y - i * 0.42 + 0.2, L.boardZ + 0.3)}>
-            <M2 dims={dims} ff={ff} index={i} />
+            <M2 dims={dims} ff={ff} index={i} part={s} />
           </Inspectable>
         ))}
         {bays.map((s, i) => (

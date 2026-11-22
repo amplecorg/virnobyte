@@ -6,6 +6,7 @@ import { useFrame } from '@react-three/fiber';
 import { Html, RoundedBox, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import type { Part } from '@/lib/pc/engine';
+import { MODELS, modelFor, orient, type ModelDef } from './models';
 
 export interface CaseDims {
   D: number; // depth (front–back, x)
@@ -93,30 +94,71 @@ class Boundary extends Component<{ fallback: ReactNode; children: ReactNode }, {
   }
 }
 
-function Gltf({ url, size, position }: { url: string; size: THREE.Vector3; position: THREE.Vector3 }) {
+function Gltf({ url, steps, size, position, back, top }: { url: string; steps?: ModelDef['steps']; size: THREE.Vector3; position: THREE.Vector3; back?: boolean; top?: boolean }) {
   const { scene } = useGLTF(url);
   const obj = useMemo(() => {
-    const c = scene.clone(true);
+    const inner = scene.clone(true);
+    orient(inner, steps);
+    inner.traverse((o) => {
+      if ((o as THREE.Mesh).isMesh) {
+        o.castShadow = true;
+        o.receiveShadow = true;
+      }
+    });
+    const c = new THREE.Group();
+    c.add(inner);
+    c.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(c);
     const s = box.getSize(new THREE.Vector3());
     const k = Math.min(size.x / (s.x || 1), size.y / (s.y || 1), size.z / (s.z || 1));
     c.scale.setScalar(k);
-    const center = new THREE.Box3().setFromObject(c).getCenter(new THREE.Vector3());
+    c.updateMatrixWorld(true);
+    const b2 = new THREE.Box3().setFromObject(c);
+    const center = b2.getCenter(new THREE.Vector3());
+    // `back`: the model's rear face sits at position.z (parts that mount flat on the motherboard).
+    if (back) center.z = b2.min.z;
+    // `top`: the model's upper edge sits at position.y (cards hanging from a slot).
+    if (top) center.y = b2.max.y;
     c.position.sub(center);
     return c;
-  }, [scene, size]);
-  return <primitive object={obj} position={position} />;
+  }, [scene, size.x, size.y, size.z, steps, back, top]);
+  // The group carries the placement; the inner object keeps its centring offset.
+  return (
+    <group position={position}>
+      <primitive object={obj} />
+    </group>
+  );
 }
 
-/** Loads part.model_url if present (cached by useGLTF), otherwise renders the procedural fallback. */
-export function PartModel({ part, size, position, fallback }: { part?: Part; size: THREE.Vector3; position: THREE.Vector3; fallback: ReactNode }) {
-  if (!part?.model_url) return <>{fallback}</>;
+/**
+ * Renders the part's real 3D model: an explicit part.model_url wins, otherwise the closest
+ * catalogue model from ./models. Falls back to the procedural mesh while loading or on error.
+ */
+export function PartModel({
+  part, def, size, position, fallback, back, top,
+}: { part?: Part; def?: ModelDef; size: THREE.Vector3; position: THREE.Vector3; fallback: ReactNode; back?: boolean; top?: boolean }) {
+  const m: ModelDef | undefined = part?.model_url ? { url: part.model_url, credit: '' } : def ?? modelFor(part);
+  if (!m) return <>{fallback}</>;
   return (
-    <Boundary fallback={fallback}>
+    <Boundary key={m.url} fallback={fallback}>
       <Suspense fallback={fallback}>
-        <Gltf url={part.model_url} size={size} position={position} />
+        <Gltf url={m.url} steps={m.steps} size={size} position={position} back={back} top={top} />
       </Suspense>
     </Boundary>
+  );
+}
+
+/** A real case/radiator fan (Lian Li UNI FAN) facing +z, with the animated RGB ring on top. */
+function RealFan({ size, rgb }: { size: number; rgb: THREE.Material }) {
+  const zero = useMemo(() => new THREE.Vector3(0, 0, 0), []);
+  const dims = useMemo(() => new THREE.Vector3(size, size, size * 0.3), [size]);
+  return (
+    <group>
+      <PartModel def={MODELS.fanRgb} size={dims} position={zero} fallback={<Fan size={size} rgb={rgb} />} />
+      <mesh position={[0, 0, size * 0.16]} material={rgb}>
+        <torusGeometry args={[size * 0.44, size * 0.012, 6, 40]} />
+      </mesh>
+    </group>
   );
 }
 
@@ -184,7 +226,7 @@ export function Motherboard({ dims, part, ff }: { dims: CaseDims; part?: Part; f
     </group>
   );
   return (
-    <PartModel part={part} size={new THREE.Vector3(L.board.w, L.board.h, 0.4)} position={pos} fallback={fallback} />
+    <PartModel part={part} size={new THREE.Vector3(L.board.w, L.board.h, 0.6)} position={new THREE.Vector3(pos.x, pos.y, L.boardZ - 0.03)} back fallback={fallback} />
   );
 }
 
@@ -196,7 +238,7 @@ export function CPU({ dims, ff, part }: { dims: CaseDims; ff?: string; part?: Pa
       <boxGeometry args={[0.45, 0.4, 0.05]} />
     </mesh>
   );
-  return <PartModel part={part} size={new THREE.Vector3(0.45, 0.4, 0.08)} position={new THREE.Vector3(L.cpu.x, L.cpu.y, L.boardZ + 0.05)} fallback={fallback} />;
+  return <PartModel part={part} size={new THREE.Vector3(0.45, 0.45, 0.08)} position={new THREE.Vector3(L.cpu.x, L.cpu.y, L.boardZ + 0.02)} back fallback={fallback} />;
 }
 
 export function RAM({ dims, ff, part, rgbMat }: { dims: CaseDims; ff?: string; part: Part; rgbMat: THREE.Material }) {
@@ -207,41 +249,60 @@ export function RAM({ dims, ff, part, rgbMat }: { dims: CaseDims; ff?: string; p
   const slotsUsed = n === 2 && L.board.h > 2 ? [1, 3] : Array.from({ length: n }, (_, i) => i);
   return (
     <group>
-      {slotsUsed.map((i) => (
-        <group key={i} position={[L.ramX + i * 0.11, L.cpu.y - 0.05, L.boardZ + 0.06 + h / 2]}>
-          <mesh material={body}>
-            <boxGeometry args={[0.04, 1.33, h]} />
-          </mesh>
-          {part.specs.rgb && (
-            <mesh position={[0, 0, h / 2 + 0.02]} material={rgbMat}>
-              <boxGeometry args={[0.045, 1.25, 0.05]} />
+      {slotsUsed.map((i) => {
+        const x = L.ramX + i * 0.11;
+        const stick = (
+          <group position={[x, L.cpu.y - 0.05, L.boardZ + 0.06 + h / 2]}>
+            <mesh material={body}>
+              <boxGeometry args={[0.04, 1.33, h]} />
             </mesh>
-          )}
-        </group>
-      ))}
+            {part.specs.rgb && (
+              <mesh position={[0, 0, h / 2 + 0.02]} material={rgbMat}>
+                <boxGeometry args={[0.045, 1.25, 0.05]} />
+              </mesh>
+            )}
+          </group>
+        );
+        return (
+          <group key={i}>
+            <PartModel part={part} size={new THREE.Vector3(0.12, 1.33, h + 0.04)} position={new THREE.Vector3(x, L.cpu.y - 0.05, L.boardZ + 0.03)} back fallback={stick} />
+            {/* Light bar glow on RGB kits, synced with the rest of the build */}
+            {part.specs.rgb && (
+              <mesh position={[x, L.cpu.y - 0.05, L.boardZ + 0.07 + h]} material={rgbMat}>
+                <boxGeometry args={[0.03, 1.2, 0.012]} />
+              </mesh>
+            )}
+          </group>
+        );
+      })}
     </group>
   );
 }
 
-export function M2({ dims, ff, index }: { dims: CaseDims; ff?: string; index: number }) {
+export function M2({ dims, ff, index, part }: { dims: CaseDims; ff?: string; index: number; part?: Part }) {
   const L = layout(dims, ff);
   const m = useMemo(() => mat('#2b3540', { metalness: 0.6 }), []);
-  return (
-    <mesh position={[L.m2.x + 0.1, L.m2.y - index * 0.42, L.boardZ + 0.05]} material={m}>
+  const x = L.m2.x + 0.1;
+  const y = L.m2.y - index * 0.42;
+  const fallback = (
+    <mesh position={[x, y, L.boardZ + 0.05]} material={m}>
       <boxGeometry args={[0.8, 0.22, 0.03]} />
     </mesh>
   );
+  return <PartModel part={part} size={new THREE.Vector3(0.8, 0.26, 0.2)} position={new THREE.Vector3(x, y, L.boardZ + 0.02)} back fallback={fallback} />;
 }
 
 export function Drive({ dims, part, index }: { dims: CaseDims; part: Part; index: number }) {
   const is35 = part.specs.form_factor === '3.5"';
   const m = useMemo(() => mat(is35 ? '#3b4450' : '#1f2630', { metalness: 0.7, roughness: 0.4 }), [is35]);
   const size: [number, number, number] = is35 ? [1.47, 0.26, 1.02] : [1.0, 0.07, 0.7];
-  return (
-    <mesh position={[dims.D / 2 - 0.5 - size[0] / 2, -dims.H / 2 + 0.2 + size[1] / 2 + index * 0.32, 0]} material={m}>
+  const pos = new THREE.Vector3(dims.D / 2 - 0.5 - size[0] / 2, -dims.H / 2 + 0.2 + size[1] / 2 + index * 0.32, 0);
+  const fallback = (
+    <mesh position={pos} material={m}>
       <boxGeometry args={size} />
     </mesh>
   );
+  return <PartModel part={part} size={new THREE.Vector3(...size)} position={pos} fallback={fallback} />;
 }
 
 export function GPU({ dims, ff, part, rgbMat, lowPoly }: { dims: CaseDims; ff?: string; part: Part; rgbMat: THREE.Material; lowPoly?: boolean }) {
@@ -270,7 +331,9 @@ export function GPU({ dims, ff, part, rgbMat, lowPoly }: { dims: CaseDims; ff?: 
       ))}
     </group>
   );
-  return <PartModel part={part} size={new THREE.Vector3(len, 1.2, thick)} position={pos} fallback={fallback} />;
+  // Real card: scaled by its length, hanging from the x16 slot towards the glass.
+  const real = new THREE.Vector3(L.x0 + 0.05 + len / 2, L.pcieY + 0.08, L.boardZ + 0.05);
+  return <PartModel part={part} size={new THREE.Vector3(len, 9, 9)} position={real} back top fallback={fallback} />;
 }
 
 export function PSU({ dims, part }: { dims: CaseDims; part: Part }) {
@@ -321,6 +384,11 @@ export function Cooler({ dims, ff, part, rgbMat, lowPoly }: { dims: CaseDims; ff
         </mesh>
         <mesh geometry={tube(-0.08)} material={dark} />
         <mesh geometry={tube(0.08)} material={dark} />
+        <PartModel
+          def={MODELS.aioRadiator}
+          size={new THREE.Vector3(rad + 0.3, 0.4, 1.25)}
+          position={radPos}
+          fallback={
         <group position={radPos}>
           <mesh material={dark}>
             <boxGeometry args={[rad + 0.3, 0.27, 1.22]} />
@@ -331,6 +399,8 @@ export function Cooler({ dims, ff, part, rgbMat, lowPoly }: { dims: CaseDims; ff
             </group>
           ))}
         </group>
+          }
+        />
       </group>
     );
   }
@@ -428,12 +498,12 @@ export function CaseShell({
       {/* Front intake fans */}
       {Array.from({ length: fans }).map((_, i) => (
         <group key={i} position={[D / 2 - 0.2, H / 2 - 0.75 - i * (fanSize + 0.08), 0]} rotation={[0, -Math.PI / 2, 0]}>
-          <Fan size={fanSize} rgb={rgbMat} seg={lowPoly ? 16 : 32} />
+          {lowPoly ? <Fan size={fanSize} rgb={rgbMat} seg={16} /> : <RealFan size={fanSize} rgb={rgbMat} />}
         </group>
       ))}
       {/* Rear exhaust */}
       <group position={[-D / 2 + 0.17, H / 2 - 0.95, 0]} rotation={[0, Math.PI / 2, 0]}>
-        <Fan size={1.0} rgb={rgbMat} seg={lowPoly ? 16 : 32} />
+        {lowPoly ? <Fan size={1.0} rgb={rgbMat} seg={16} /> : <RealFan size={1.0} rgb={rgbMat} />}
       </group>
     </group>
   );

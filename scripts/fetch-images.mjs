@@ -28,6 +28,15 @@ const PHOTOS = {
   'virnobyte-business-meeting': '1542744173-8e7e53415bb0',
   'virnobyte-gaming-pc-build': '1587202372634-32705e3bf49c',
   'virnobyte-laptop-workspace': '1484788984921-03950022c9ef',
+  // PC build sequence on the home page (Unsplash licence, 3840px).
+  'virnobyte-build-01-motherboard': '1700427296131-0cc4c4610fc6',
+  'virnobyte-build-02-cpu-install': '1756801370266-f589801cedc3',
+  'virnobyte-build-03-cpu-cooler': '1513366884929-f0b3bedfb653',
+  'virnobyte-build-04-ram': '1541029071515-84cc54f84dc5',
+  'virnobyte-build-05-nvme-ssd': '1615293889204-6db03c596147',
+  'virnobyte-build-06-gpu': '1555618254-84e2cf498b01',
+  'virnobyte-build-07-cable-management': '1756575802474-b2348cef95c3',
+  'virnobyte-build-08-rgb-gaming-pc': '1719927604476-dc404b85358f',
 };
 
 const dir = new URL('../src/assets/photos/', import.meta.url);

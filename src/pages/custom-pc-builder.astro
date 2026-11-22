@@ -4,6 +4,7 @@ import Breadcrumbs from '@/components/Breadcrumbs.astro';
 import FaqList from '@/components/FaqList.astro';
 import CtaBand from '@/components/CtaBand.astro';
 import PCBuilder from '@/components/pc/PCBuilder.tsx';
+import { MODEL_CREDITS } from '@/components/pc/models';
 import { catalog, presets } from '@/lib/pc/catalog';
 import { get, json } from '@/lib/db';
 import { contactInfo, getSettings } from '@/lib/settings';
@@ -55,6 +56,15 @@ const faqs = [
         whatsapp={c.whatsappUrl('Hi Virnobyte, I would like help with a custom PC build.')}
       />
       <noscript><p class="lede">The configurator needs JavaScript. Call {c.phone} or WhatsApp us and we will build your quote by phone.</p></noscript>
+      <details class="credits">
+        <summary>3D model credits</summary>
+        <p>Component models are used under the <a href="https://creativecommons.org/licenses/by/4.0/" rel="noopener license" target="_blank">CC BY 4.0</a> licence, optimised for the web. Models represent the product type and may differ in detail from the exact part.</p>
+        <ul>
+          {Object.values(MODEL_CREDITS).map((m) => (
+            <li><a href={m.url} rel="noopener" target="_blank">{m.name}</a> by {m.author}</li>
+          ))}
+        </ul>
+      </details>
     </div>
   </section>
 
@@ -96,6 +106,23 @@ const faqs = [
   }
   .head .lede {
     color: #a9b8c8;
+  }
+  .credits {
+    margin-top: var(--space-5);
+    font-size: 0.82rem;
+    color: #8a9bb0;
+  }
+  .credits summary {
+    cursor: pointer;
+    width: fit-content;
+  }
+  .credits a {
+    color: #9ec9ff;
+  }
+  .credits ul {
+    margin: var(--space-2) 0 0;
+    padding-left: 1.2em;
+    columns: 2 280px;
   }
   .how {
     display: grid;
