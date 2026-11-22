@@ -6,6 +6,7 @@ import { inr } from '@/lib/format';
 import { getCart } from '@/lib/commerce/cart';
 import { reconcileOrder } from '@/lib/commerce/checkout';
 import { orderItems } from '@/lib/commerce/orders';
+import { ensureInvoiceNumber } from '@/lib/commerce/invoice';
 
 const orderId = Astro.url.searchParams.get('order_id');
 if (!orderId) {
@@ -31,6 +32,9 @@ const isCancelled = order.order_status === 'CANCELLED';
 // Online order that has not been paid yet: not confirmed, offer to finish the payment.
 const awaitingPayment = !isPaid && !isCod && !isCancelled && order.payment_status === 'PENDING';
 const confirmed = (isPaid || isCod) && !isCancelled;
+// Every confirmed order has a GST tax invoice (issued on payment / COD confirmation).
+const invoiceNo = confirmed ? order.invoice_no || ensureInvoiceNumber(order.order_id) : '';
+const invoiceHref = `/account/invoice/${encodeURIComponent(order.order_id)}`;
 const gatewayLabel = order.gateway === 'cashfree' ? 'Cashfree' : order.gateway === 'razorpay' ? 'Razorpay' : 'online payment';
 
 // Keeps the header cart badge in step after the cart was emptied by this order.
@@ -159,6 +163,12 @@ const heading = confirmed ? 'Order Placed Successfully!' : awaitingPayment ? 'Pa
 
         {/* Action Buttons */}
         <div class="fk-success-actions">
+          {invoiceNo && (
+            <a href={invoiceHref} class="fk-btn-invoice" target="_blank" rel="noopener">
+              <Icon name="receipt" size={20} />
+              <span>Tax Invoice <small>{invoiceNo}</small></span>
+            </a>
+          )}
           <a href={whatsappTrackUrl} target="_blank" rel="noopener" class="fk-btn-track-wa">
             <Icon name="whatsapp" size={20} />
             <span>Track Order on WhatsApp</span>
@@ -409,6 +419,29 @@ const heading = confirmed ? 'Order Placed Successfully!' : awaitingPayment ? 'Pa
     display: flex;
     gap: 14px;
     justify-content: center;
+  }
+  .fk-btn-invoice {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #0a5fc2;
+    color: #ffffff;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 14.5px;
+    padding: 12px 22px;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(10, 95, 194, 0.3);
+  }
+  .fk-btn-invoice small {
+    display: block;
+    font-weight: 500;
+    font-size: 11.5px;
+    opacity: 0.85;
+  }
+  .fk-btn-invoice:hover {
+    background: #084c9c;
+    color: #fff;
   }
   .fk-btn-track-wa {
     display: flex;

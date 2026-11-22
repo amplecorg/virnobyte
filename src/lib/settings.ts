@@ -105,6 +105,40 @@ export const DEFAULT_SETTINGS = {
     deliveryFee: 0,
     minFreeDelivery: 500,
   },
+  // Registered company profile: shown on the About page and printed on every tax invoice.
+  company: {
+    legalName: 'Virnobyte Private Limited',
+    companyType: 'Private Limited Company (limited by shares)',
+    cin: 'U95111PN2026PTC255068',
+    incorporatedOn: '28-04-2026',
+    gstin: '27AAMCV1703G1ZD',
+    gstStateCode: '27',
+    gstState: 'Maharashtra',
+    pan: 'AAMCV1703G',
+    tan: 'PNEV29601F',
+    udyam: 'UDYAM-MH-26-1136149',
+    msmeCategory: 'Micro',
+    dpiit: 'DIPP264419',
+    registeredOffice:
+      'Ground Floor, Office No. 1, Sadichha Nivas, Sawatha Mali Temple Road, Near Bright Computer Education, Chikhali, Pune, Maharashtra – 411062',
+    accountsEmail: 'account@virnobyte.com',
+    billingPhone: '8669883332',
+    website: 'virnobyte.com',
+    // Website orders use their own series so they never clash with invoices from the billing software (VPL/SL/…).
+    invoicePrefix: 'VPL/WEB',
+    defaultHsn: '8471',
+    defaultGstPercent: 18,
+    invoiceTerms: [
+      'Goods once sold won’t be taken back.',
+      'No warranty for physical damage or burn.',
+      'Claim at the warranty service center for brand materials.',
+      'Payment to be made in favour of ‘Virnobyte Private Limited’.',
+      'Cheque bouncing charges INR 900.',
+      'Interest at 24% p.a. will be charged post due date.',
+    ],
+    declaration:
+      'We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.',
+  },
   blog: {
     eyebrow: 'Guides',
     title: 'Practical IT advice from our workshop',

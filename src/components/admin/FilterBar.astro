@@ -1,0 +1,388 @@
+---
+// Shared admin list filters: search, dropdowns, yes/no, date and amount ranges, sort,
+// removable "active filter" chips and a results summary. Everything lives in the URL (GET),
+// so a filtered view can be bookmarked, shared or refreshed.
+import type { FilterDef } from '@/lib/admin/resources';
+import { inr } from '@/lib/format';
+
+type Resolved = FilterDef & { resolvedOptions?: { value: string; label: string }[] };
+
+interface Props {
+  filters: Resolved[];
+  values: Record<string, string>;
+  q?: string;
+  searchPlaceholder?: string;
+  sorts?: { value: string; label: string }[];
+  sort?: string;
+  count: number;
+  shown: number;
+  total?: number | null;
+  noun: string;
+  /** Singular form for a count of one, e.g. "order". */
+  one?: string;
+  searchable?: boolean;
+}
+
+const { filters, values, q = '', searchPlaceholder, sorts = [], sort = '', count, shown, total = null, noun, one, searchable = true } = Astro.props;
+const url = Astro.url;
+
+const tabFilter = filters.find((f) => f.type === 'select' && f.tabs) as (Resolved & { type: 'select' }) | undefined;
+const panelFilters = filters.filter((f) => f !== tabFilter);
+
+/** Same URL with some params replaced/removed (null removes). */
+const withParams = (patch: Record<string, string | null>) => {
+  const u = new URL(url);
+  for (const [k, v] of Object.entries(patch)) {
+    if (v == null || v === '') u.searchParams.delete(k);
+    else u.searchParams.set(k, v);
+  }
+  u.searchParams.delete('saved');
+  u.searchParams.delete('deleted');
+  return u.pathname + (u.search || '?');
+};
+
+const labelOf = (f: Resolved, v: string) =>
+  f.type === 'select' ? f.resolvedOptions?.find((o) => o.value === v)?.label ?? v : f.type === 'bool' ? (v === '1' ? f.yes ?? 'Yes' : f.no ?? 'No') : v;
+
+// Active chips (excluding the tab filter, which shows as the selected tab).
+const chips: { text: string; href: string }[] = [];
+if (q) chips.push({ text: `“${q}”`, href: withParams({ q: null }) });
+for (const f of panelFilters) {
+  if (f.type === 'daterange' || f.type === 'range') {
+    const from = values[`${f.name}_from`];
+    const to = values[`${f.name}_to`];
+    if (from || to) {
+      const p = f.type === 'range' ? f.prefix ?? '' : '';
+      const text = from && to ? `${p}${from} – ${p}${to}` : from ? `from ${p}${from}` : `up to ${p}${to}`;
+      chips.push({ text: `${f.label}: ${text}`, href: withParams({ [`${f.name}_from`]: null, [`${f.name}_to`]: null }) });
+    }
+  } else if (values[f.name]) {
+    chips.push({ text: `${f.label}: ${labelOf(f, values[f.name])}`, href: withParams({ [f.name]: null }) });
+  }
+}
+const anyActive = chips.length > 0 || !!(tabFilter && values[tabFilter.name]) || !!sort;
+const clearHref = url.pathname;
+const openPanel = chips.some((c) => !c.text.startsWith('“'));
+---
+
+{
+  tabFilter && (
+    <nav class="tabs fb-tabs" aria-label={`Filter by ${tabFilter.label.toLowerCase()}`}>
+      <a href={withParams({ [tabFilter.name]: null })} aria-current={!values[tabFilter.name] ? 'true' : undefined}>All</a>
+      {tabFilter.resolvedOptions?.map((o) => (
+        <a href={withParams({ [tabFilter.name]: o.value })} aria-current={values[tabFilter.name] === o.value ? 'true' : undefined}>{o.label}</a>
+      ))}
+    </nav>
+  )
+}
+
+<form method="get" class="fb" data-filterbar>
+  {tabFilter && values[tabFilter.name] && <input type="hidden" name={tabFilter.name} value={values[tabFilter.name]} />}
+  <div class="fb-top">
+    {searchable && <input type="search" name="q" value={q} placeholder={searchPlaceholder ?? `Search ${noun}`} aria-label={`Search ${noun}`} />}
+    {
+      panelFilters.length > 0 && (
+        <button type="button" class="fb-toggle" aria-expanded={openPanel ? 'true' : 'false'} aria-controls="fb-panel" data-fb-toggle>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5h18l-7 8v6l-4 2v-8z" /></svg>
+          Filters{chips.length - (q ? 1 : 0) > 0 && <span class="fb-count">{chips.length - (q ? 1 : 0)}</span>}
+        </button>
+      )
+    }
+    {
+      sorts.length > 1 && (
+        <label class="fb-sort">
+          <span>Sort</span>
+          <select name="sort" data-autosubmit>
+            {sorts.map((s, i) => (
+              <option value={i === 0 ? '' : s.value} selected={(sort || '') === (i === 0 ? '' : s.value)}>{s.label}</option>
+            ))}
+          </select>
+        </label>
+      )
+    }
+    <button class="btn fb-apply" type="submit">Apply</button>
+  </div>
+
+  {
+    panelFilters.length > 0 && (
+      <div class="fb-panel" id="fb-panel" hidden={!openPanel}>
+        {panelFilters.map((f) =>
+          f.type === 'select' ? (
+            <label class="fb-field">
+              <span>{f.label}</span>
+              <select name={f.name} data-autosubmit>
+                <option value="">All</option>
+                {f.resolvedOptions?.map((o) => (
+                  <option value={o.value} selected={values[f.name] === o.value}>{o.label}</option>
+                ))}
+              </select>
+            </label>
+          ) : f.type === 'bool' ? (
+            <label class="fb-field">
+              <span>{f.label}</span>
+              <select name={f.name} data-autosubmit>
+                <option value="">All</option>
+                <option value="1" selected={values[f.name] === '1'}>{f.yes ?? 'Yes'}</option>
+                <option value="0" selected={values[f.name] === '0'}>{f.no ?? 'No'}</option>
+              </select>
+            </label>
+          ) : f.type === 'daterange' ? (
+            <fieldset class="fb-field fb-range">
+              <legend>{f.label}</legend>
+              <input type="date" name={`${f.name}_from`} value={values[`${f.name}_from`] ?? ''} aria-label={`${f.label} from`} />
+              <span aria-hidden="true">–</span>
+              <input type="date" name={`${f.name}_to`} value={values[`${f.name}_to`] ?? ''} aria-label={`${f.label} to`} />
+              <span class="fb-presets">
+                <button type="button" data-days="0" data-for={f.name}>Today</button>
+                <button type="button" data-days="7" data-for={f.name}>7 days</button>
+                <button type="button" data-days="30" data-for={f.name}>30 days</button>
+                <button type="button" data-month data-for={f.name}>This month</button>
+              </span>
+            </fieldset>
+          ) : (
+            <fieldset class="fb-field fb-range">
+              <legend>{f.label}</legend>
+              <input type="number" inputmode="numeric" min="0" name={`${f.name}_from`} value={values[`${f.name}_from`] ?? ''} placeholder={`Min ${f.prefix ?? ''}`} aria-label={`${f.label} minimum`} />
+              <span aria-hidden="true">–</span>
+              <input type="number" inputmode="numeric" min="0" name={`${f.name}_to`} value={values[`${f.name}_to`] ?? ''} placeholder={`Max ${f.prefix ?? ''}`} aria-label={`${f.label} maximum`} />
+            </fieldset>
+          ),
+        )}
+      </div>
+    )
+  }
+</form>
+
+<div class="fb-summary">
+  <p>
+    <strong>{count.toLocaleString('en-IN')}</strong> {count === 1 && one ? one : noun}{anyActive ? (count === 1 ? ' matches' : ' match') : ''}
+    {count > shown && <span class="muted"> · showing the first {shown}</span>}
+    {total != null && <> · total <strong>{inr(total)}</strong></>}
+  </p>
+  {
+    chips.length > 0 && (
+      <ul class="fb-chips" aria-label="Active filters">
+        {chips.map((c) => (
+          <li>
+            <a href={c.href} aria-label={`Remove filter ${c.text}`}>{c.text} <span aria-hidden="true">×</span></a>
+          </li>
+        ))}
+      </ul>
+    )
+  }
+  {anyActive && <a class="small fb-clear" href={clearHref}>Clear all</a>}
+</div>
+
+<script>
+  document.querySelectorAll<HTMLFormElement>('[data-filterbar]').forEach((form) => {
+    // Dropdowns apply straight away; dates/amounts apply with the button or Enter.
+    form.querySelectorAll<HTMLSelectElement>('[data-autosubmit]').forEach((s) => s.addEventListener('change', () => form.requestSubmit()));
+    const toggle = form.querySelector<HTMLButtonElement>('[data-fb-toggle]');
+    const panel = form.querySelector<HTMLElement>('.fb-panel');
+    toggle?.addEventListener('click', () => {
+      const open = panel?.hidden ?? false;
+      if (panel) panel.hidden = !open;
+      toggle.setAttribute('aria-expanded', String(open));
+    });
+    const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    form.querySelectorAll<HTMLButtonElement>('[data-for]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const name = b.dataset.for!;
+        const from = form.querySelector<HTMLInputElement>(`[name="${name}_from"]`)!;
+        const to = form.querySelector<HTMLInputElement>(`[name="${name}_to"]`)!;
+        const now = new Date();
+        if (b.hasAttribute('data-month')) {
+          from.value = iso(new Date(now.getFullYear(), now.getMonth(), 1));
+        } else {
+          const d = new Date(now);
+          d.setDate(d.getDate() - Number(b.dataset.days || 0));
+          from.value = iso(d);
+        }
+        to.value = iso(now);
+        form.requestSubmit();
+      }),
+    );
+    // Drop empty fields so the URL stays readable.
+    form.addEventListener('submit', () => {
+      form.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input, select').forEach((el) => {
+        if (!el.value) el.disabled = true;
+      });
+    });
+  });
+</script>
+
+<style>
+  .fb-tabs {
+    margin-bottom: 10px;
+  }
+  .fb {
+    display: grid;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .fb-top {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+  .fb input[type='search'] {
+    flex: 1 1 240px;
+    min-height: 40px;
+    padding: 0 12px;
+    border: 1.5px solid var(--line-strong);
+    border-radius: 8px;
+    background: var(--surface);
+  }
+  .fb-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 40px;
+    padding: 0 14px;
+    border: 1.5px solid var(--line-strong);
+    border-radius: 8px;
+    background: var(--surface);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--ink);
+  }
+  .fb-toggle[aria-expanded='true'] {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .fb-count {
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 12px;
+    display: grid;
+    place-items: center;
+  }
+  .fb-sort {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    color: var(--ink-2);
+  }
+  .fb select,
+  .fb input[type='date'],
+  .fb input[type='number'] {
+    min-height: 38px;
+    padding: 0 10px;
+    border: 1.5px solid var(--line-strong);
+    border-radius: 8px;
+    background: var(--surface);
+    font: inherit;
+    font-size: 14px;
+    color: var(--ink);
+  }
+  .fb-apply {
+    min-height: 40px;
+  }
+  .fb-panel {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 16px;
+    align-items: flex-end;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface);
+  }
+  .fb-panel[hidden] {
+    display: none;
+  }
+  .fb-field {
+    display: grid;
+    gap: 4px;
+    min-width: 150px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+  .fb-field > span,
+  .fb-field legend {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ink-3, #536274);
+    padding: 0;
+    margin-bottom: 4px;
+  }
+  .fb-range {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+  }
+  .fb-range legend {
+    width: 100%;
+  }
+  .fb-range input[type='number'] {
+    width: 110px;
+  }
+  .fb-presets {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .fb-presets button {
+    border: 1px solid var(--line);
+    background: transparent;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+    color: var(--ink-2);
+  }
+  .fb-presets button:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .fb-summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 14px;
+    margin-bottom: 12px;
+    font-size: 14px;
+  }
+  .fb-summary p {
+    margin: 0;
+  }
+  .fb-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .fb-chips a {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: var(--accent-tint, #e8f1fc);
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .fb-chips a:hover {
+    background: var(--accent);
+    color: #fff;
+  }
+  .fb-clear {
+    font-weight: 600;
+  }
+</style>

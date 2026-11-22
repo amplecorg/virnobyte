@@ -6,6 +6,8 @@ import Photo from '@/components/Photo.astro';
 import { contactInfo, getSettings } from '@/lib/settings';
 import { services } from '@/lib/data';
 import { breadcrumbs, localBusiness } from '@/lib/schema';
+import { Picture } from 'astro:assets';
+import { LEADERS, COMPANY_VISION } from '@/lib/content/leadership';
 
 const s = getSettings();
 const c = contactInfo(s);
@@ -15,6 +17,23 @@ const crumbs = [
   { name: 'Home', href: '/' },
   { name: 'About', href: '/about' },
 ];
+const co = s.company;
+const PROFILE = [
+  { k: 'Registered name', v: co.legalName },
+  { k: 'Company type', v: co.companyType },
+  { k: 'CIN', v: co.cin },
+  { k: 'Incorporated', v: co.incorporatedOn },
+  { k: 'GSTIN', v: co.gstin },
+  { k: 'PAN', v: co.pan },
+  { k: 'TAN', v: co.tan },
+  { k: 'Udyam (MSME)', v: co.udyam ? `${co.udyam}${co.msmeCategory ? ` · ${co.msmeCategory}` : ''}` : '' },
+  { k: 'Startup India (DPIIT)', v: co.dpiit },
+  { k: 'Founders', v: LEADERS.filter((l) => l.founder).map((l) => l.name.replace(/^Mr\.\s*/, '')).join(' & ') },
+  { k: 'Accounts & billing', v: [co.accountsEmail, co.billingPhone].filter(Boolean).join(' · ') },
+  { k: 'Website', v: co.website },
+  { k: 'Registered office', v: co.registeredOffice, wide: true },
+].filter((r) => r.v);
+
 const VALUES = [
   { t: 'Customer first', d: 'We recommend what solves your problem, even when that is the cheaper option.' },
   { t: 'Transparency', d: 'Diagnosis before repair, itemised quotes, and no work without your approval.' },
@@ -161,7 +180,8 @@ const CERTIFICATES = [
         </div>
         <div class="card mv">
           <h2>Our vision</h2>
-          <p>To become a trusted technology partner for homes and businesses by delivering dependable hardware, networking and IT support while continuously improving quality, innovation and long-term value.</p>
+          <p>{COMPANY_VISION}</p>
+          <a class="mv-link" href="#vision">Read the vision of our leadership ↓</a>
         </div>
       </div>
     </div>
@@ -186,7 +206,102 @@ const CERTIFICATES = [
     </div>
   </section>
 
+  <!-- ── Leadership ───────────────────────────────────────────── -->
+  <section class="section lead-section" aria-labelledby="leadership-h" id="leadership">
+    <div class="wrap">
+      <div class="section-head" data-reveal>
+        <span class="eyebrow">Leadership</span>
+        <h2 id="leadership-h">The people behind {co.legalName}</h2>
+        <p class="lede">Founded by Saurabh and Shubham Virnodkar, Virnobyte is led by a four-member team covering technology, finance and governance, client relationships, and people.</p>
+      </div>
+      <ul class="leaders">
+        {
+          LEADERS.map((l) => (
+            <li class="leader" data-reveal>
+              <a href={`#vision-${l.slug}`} class="leader-photo" aria-label={`Read the vision of ${l.name}`}>
+                <Picture
+                  src={l.photo}
+                  alt={`${l.name}, ${l.role}, ${co.legalName}`}
+                  formats={['avif', 'webp']}
+                  widths={[320, 480, 640].filter((w) => w <= l.photo.width)}
+                  sizes="(min-width: 1100px) 280px, (min-width: 640px) 45vw, 90vw"
+                  loading="lazy"
+                  style={`object-position:${l.focus}`}
+                />
+                {l.founder && <span class="leader-badge">Co-Founder</span>}
+              </a>
+              <div class="leader-body">
+                <h3>{l.name}</h3>
+                <p class="leader-role">{l.role}</p>
+              </div>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  <!-- ── Vision from the leadership ──────────────────────────────── -->
+  <section class="section section--white vision-section" aria-labelledby="vision-h" id="vision">
+    <div class="wrap">
+      <div class="section-head" data-reveal>
+        <span class="eyebrow">Vision</span>
+        <h2 id="vision-h">Where Virnobyte is going</h2>
+        <p class="lede">Each member of the leadership team on the company they are building.</p>
+      </div>
+      <div class="visions">
+        {
+          LEADERS.map((l) => (
+            <article class="vision" id={`vision-${l.slug}`} data-reveal>
+              <header class="vision-who">
+                <Picture src={l.photo} alt="" formats={['avif', 'webp']} widths={[160]} sizes="56px" loading="lazy" class="vision-avatar" style={`object-position:${l.focus}`} />
+                <div>
+                  <strong>{l.name}</strong>
+                  <span>{l.role}{l.founder ? ' · Co-Founder' : ''}</span>
+                </div>
+                <span class="vision-area">{l.area}</span>
+              </header>
+              <blockquote>
+                <p class="vision-lead">“{l.vision[0]}</p>
+                <details>
+                  <summary>Read the full vision</summary>
+                  {l.vision.slice(1).map((para, i, a) => <p>{para}{i === a.length - 1 ? '”' : ''}</p>)}
+                </details>
+              </blockquote>
+              <footer class="vision-sign">— {l.name}, {l.role}, {co.legalName}</footer>
+            </article>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Company profile ────────────────────────────────────────── -->
+  <section class="section" aria-labelledby="profile-h" id="company-profile">
+    <div class="wrap profile">
+      <div class="section-head" data-reveal>
+        <span class="eyebrow">Company profile</span>
+        <h2 id="profile-h">{co.legalName} at a glance</h2>
+        <p class="lede">
+          Registered with the Ministry of Corporate Affairs, GST-registered, MSME (Udyam) registered and recognised under Startup India.
+          These are the details printed on our tax invoices.
+        </p>
+      </div>
+      <dl class="profile-grid" data-reveal>
+        {
+          PROFILE.map((r) => (
+            <div class:list={['profile-row', { wide: r.wide }]}>
+              <dt>{r.k}</dt>
+              <dd>{r.v}</dd>
+            </div>
+          ))
+        }
+      </dl>
+    </div>
+  </section>
+
   <!-- ── Certificates & Accreditations ────────────────────────── -->
+
   <section class="section cert-section" id="certificates">
     <div class="wrap">
       <div class="section-head cert-head" data-reveal>
@@ -443,6 +558,199 @@ const CERTIFICATES = [
 </script>
 
 <style>
+  .mv-link {
+    display: inline-block;
+    margin-top: var(--space-3);
+    font-weight: 600;
+    font-size: var(--fs-small);
+  }
+
+  /* Leadership */
+  .leaders {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+    gap: var(--space-5);
+  }
+  .leader {
+    display: grid;
+    gap: var(--space-3);
+    align-content: start;
+  }
+  .leader-photo {
+    position: relative;
+    display: block;
+    aspect-ratio: 4 / 5;
+    border-radius: var(--radius-l);
+    overflow: hidden;
+    background: linear-gradient(160deg, #eef2f7, #dfe6ee);
+    box-shadow: 0 14px 34px -18px rgb(11 23 36 / 0.45);
+  }
+  .leader-photo :global(picture) {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  .leader-photo :global(img) {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  .leader-photo:hover :global(img) {
+    transform: scale(1.04);
+  }
+  .leader-badge {
+    position: absolute;
+    left: 12px;
+    top: 12px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: #fff;
+    background: rgb(10 95 194 / 0.92);
+    box-shadow: 0 4px 12px rgb(10 95 194 / 0.35);
+  }
+  .leader-body h3 {
+    font-size: 1.15rem;
+    margin: 0;
+  }
+  .leader-role {
+    margin: 2px 0 0;
+    color: var(--ink-2);
+    font-size: var(--fs-small);
+  }
+
+  /* Visions */
+  .visions {
+    display: grid;
+    gap: var(--space-5);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr));
+    align-items: start;
+  }
+  .vision {
+    display: grid;
+    gap: var(--space-4);
+    align-content: start;
+    padding: var(--space-5);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-l);
+    background: var(--surface);
+    scroll-margin-top: calc(var(--header-h) + 16px);
+  }
+  .vision-who {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+  .vision-who :global(.vision-avatar) {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex: none;
+  }
+  .vision-who div {
+    display: grid;
+    line-height: 1.3;
+  }
+  .vision-who span {
+    font-size: var(--fs-small);
+    color: var(--ink-3);
+  }
+  .vision-who .vision-area {
+    margin-left: auto;
+    align-self: start;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--accent-tint);
+    color: var(--accent);
+    font-weight: 600;
+    font-size: 0.75rem;
+    white-space: nowrap;
+  }
+  .vision blockquote {
+    margin: 0;
+    display: grid;
+    gap: var(--space-3);
+  }
+  .vision-lead {
+    font-size: 1.12rem;
+    line-height: 1.55;
+    color: var(--ink);
+    border-left: 3px solid var(--accent);
+    padding-left: var(--space-4);
+  }
+  .vision details p {
+    color: var(--ink-2);
+    margin-top: var(--space-3);
+  }
+  .vision summary {
+    cursor: pointer;
+    width: fit-content;
+    font-weight: 600;
+    color: var(--accent);
+    font-size: var(--fs-small);
+  }
+  .vision-sign {
+    font-size: var(--fs-small);
+    color: var(--ink-3);
+    font-style: italic;
+  }
+  @media (max-width: 520px) {
+    .vision-who .vision-area {
+      display: none;
+    }
+  }
+
+  /* Company profile */
+  .profile-grid {
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    border: 1px solid var(--line);
+    border-radius: var(--radius-l);
+    overflow: hidden;
+    background: var(--surface);
+  }
+  @media (max-width: 900px) {
+    .profile-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (max-width: 480px) {
+    .profile-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  .profile-row {
+    padding: var(--space-4) var(--space-5);
+    border-bottom: 1px solid var(--line);
+    border-right: 1px solid var(--line);
+    margin-right: -1px;
+    margin-bottom: -1px;
+  }
+  .profile-row.wide {
+    grid-column: 1 / -1;
+  }
+  .profile-row dt {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .profile-row dd {
+    margin: 4px 0 0;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+
   .about {
     display: grid;
     gap: var(--space-7);

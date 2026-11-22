@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { all, db, get, tx } from '../db';
 import { emptyCartById } from './cart';
 import type { Line, Totals } from './pricing';
+import { ensureInvoiceNumber } from './invoice';
 
 /**
  * Orders are immutable snapshots: one `orders` row + one `order_items` row per line,
@@ -23,6 +24,9 @@ export interface CustomerInput {
   state: string;
   addressType: string;
   notes: string;
+  /** Optional, for a business (B2B) tax invoice. */
+  customerCompany: string;
+  customerGstin: string;
 }
 
 export interface OrderRow {
@@ -51,6 +55,11 @@ export interface OrderRow {
   gateway: string;
   gateway_order_id: string;
   gateway_payment_id: string;
+  invoice_no: string;
+  invoice_date: string | null;
+  customer_company: string;
+  customer_gstin: string;
+  paid_at: string | null;
   created_at: string;
 }
 
@@ -62,6 +71,8 @@ export interface OrderItemRow {
   unit_price: number;
   mrp: number;
   line_total: number;
+  hsn: string;
+  gst_rate: number;
 }
 
 const clean = (v: unknown, max: number) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
@@ -81,12 +92,18 @@ export function validateCustomer(input: Record<string, unknown>): { ok: true; cu
     state: clean(input.state, 80) || 'Maharashtra',
     addressType: input.addressType === 'Work' ? 'Work' : 'Home',
     notes: clean(input.notes, 500),
+    customerCompany: clean(input.customerCompany, 120),
+    customerGstin: String(input.customerGstin ?? '').toUpperCase().replace(/\s+/g, '').slice(0, 15),
   };
   if (customer.customerName.length < 2) return { ok: false, error: 'Please enter your full name.' };
   if (!/^[6-9]\d{9}$/.test(customer.customerPhone)) return { ok: false, error: 'Please enter a valid 10-digit mobile number.' };
   if (!/^[1-9]\d{5}$/.test(customer.pincode)) return { ok: false, error: 'Please enter a valid 6-digit pincode.' };
   if (customer.addressLine1.length < 5) return { ok: false, error: 'Please enter your house / flat and building.' };
   if (customer.customerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.customerEmail)) return { ok: false, error: 'Please check the email address.' };
+  if (customer.customerGstin && !/^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(customer.customerGstin)) {
+    return { ok: false, error: 'Please check the GSTIN — it should be 15 characters, e.g. 27AAMCV1703G1ZD.' };
+  }
+  if (customer.customerGstin && !customer.customerCompany) return { ok: false, error: 'Please enter the registered business name for the GST invoice.' };
   return { ok: true, customer };
 }
 
@@ -129,8 +146,9 @@ export function createOrder(input: {
           discount, delivery_fee, total_amount, subtotal, items_count,
           customer_name, customer_phone, customer_email,
           address_line1, address_line2, pincode, city, state, address_type,
-          payment_method, payment_status, order_status, gateway, notes, user_id, cart_id
-        ) VALUES (?,?,?,?,?,?,?, ?,?,?,?,?, ?,?,?, ?,?,?,?,?,?, ?,?,?,?,?,?,?)`,
+          payment_method, payment_status, order_status, gateway, notes, user_id, cart_id,
+          customer_company, customer_gstin
+        ) VALUES (?,?,?,?,?,?,?, ?,?,?,?,?, ?,?,?, ?,?,?,?,?,?, ?,?,?,?,?,?,?, ?,?)`,
       )
       .run(
         orderRef, first.productId, summary, first.slug, totals.itemCount, first.unitPrice, first.mrp,
@@ -139,19 +157,26 @@ export function createOrder(input: {
         c.addressLine1, c.addressLine2, c.pincode, c.city, c.state, c.addressType,
         cod ? 'cod' : input.gateway, cod ? 'COD_PENDING' : 'PENDING', cod ? 'CONFIRMED' : 'PENDING_PAYMENT',
         cod ? '' : input.gateway, c.notes, input.userId, input.cartId,
+        c.customerCompany, c.customerGstin,
       );
     const orderDbId = Number(res.lastInsertRowid);
     const item = d.prepare(
-      `INSERT INTO order_items (order_id, product_id, product_slug, product_name, image, quantity, unit_price, mrp, line_total)
-       VALUES (?,?,?,?,?,?,?,?,?)`,
+      `INSERT INTO order_items (order_id, product_id, product_slug, product_name, image, quantity, unit_price, mrp, line_total, hsn, gst_rate)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
     );
+    // HSN and GST rate are snapshotted so later catalogue edits never change an issued invoice.
+    const taxOf = d.prepare('SELECT hsn, gst_rate FROM products WHERE id = ?');
     for (const l of lines) {
-      item.run(orderDbId, l.productId, l.slug, l.name, l.image, l.quantity, l.unitPrice, l.mrp, l.lineTotal);
+      const t = (taxOf.get(l.productId) as { hsn: string; gst_rate: number } | undefined) ?? { hsn: '', gst_rate: 0 };
+      item.run(orderDbId, l.productId, l.slug, l.name, l.image, l.quantity, l.unitPrice, l.mrp, l.lineTotal, t.hsn || '', t.gst_rate || 0);
     }
   });
 
   // A COD order is final at this point; an online order keeps the cart until payment succeeds.
-  if (cod) emptyCartById(input.cartId);
+  if (cod) {
+    emptyCartById(input.cartId);
+    ensureInvoiceNumber(orderRef);
+  }
   return getOrder(orderRef)!;
 }
 
@@ -161,7 +186,7 @@ export const getOrderByGatewayId = (gatewayOrderId: string) =>
   gatewayOrderId ? get<OrderRow>('SELECT * FROM orders WHERE gateway_order_id = ?', gatewayOrderId) : undefined;
 
 export const orderItems = (orderDbId: number) =>
-  all<OrderItemRow>('SELECT product_slug, product_name, image, quantity, unit_price, mrp, line_total FROM order_items WHERE order_id = ? ORDER BY id', orderDbId);
+  all<OrderItemRow>('SELECT product_slug, product_name, image, quantity, unit_price, mrp, line_total, hsn, gst_rate FROM order_items WHERE order_id = ? ORDER BY id', orderDbId);
 
 export const ordersForUser = (userId: number, limit = 20) =>
   all<OrderRow>('SELECT * FROM orders WHERE user_id = ? ORDER BY id DESC LIMIT ?', userId, limit);
@@ -186,6 +211,9 @@ export function markOrderPaid(orderRef: string, paymentId: string): boolean {
     )
     .run(paymentId || '', orderRef);
   const changed = Number(res.changes) > 0;
-  if (changed) emptyCartById(getOrder(orderRef)?.cart_id);
+  if (changed) {
+    emptyCartById(getOrder(orderRef)?.cart_id);
+    ensureInvoiceNumber(orderRef);
+  }
   return changed;
 }

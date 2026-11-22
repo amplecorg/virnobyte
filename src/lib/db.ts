@@ -557,6 +557,9 @@ export function db(): any {
         ['diagnostic_setup', "TEXT NOT NULL DEFAULT ''"],
         ['delivery_text', "TEXT NOT NULL DEFAULT ''"],
         ['delivery_sub', "TEXT NOT NULL DEFAULT ''"],
+        // GST invoicing: blank HSN / 0% means "use the company default from settings".
+        ['hsn', "TEXT NOT NULL DEFAULT ''"],
+        ['gst_rate', 'INTEGER NOT NULL DEFAULT 0'],
       ];
 
       for (const [colName, colDef] of productMigrations) {
@@ -642,6 +645,11 @@ export function db(): any {
         ['gateway_order_id', "TEXT NOT NULL DEFAULT ''"],
         ['gateway_payment_id', "TEXT NOT NULL DEFAULT ''"],
         ['paid_at', 'TEXT'],
+        // Tax invoice: number is issued once (when paid, or at COD confirmation) and never changes.
+        ['invoice_no', "TEXT NOT NULL DEFAULT ''"],
+        ['invoice_date', 'TEXT'],
+        ['customer_company', "TEXT NOT NULL DEFAULT ''"],
+        ['customer_gstin', "TEXT NOT NULL DEFAULT ''"],
       ];
       for (const [colName, colDef] of orderMigrations) {
         if (!orderColSet.has(colName)) {
@@ -650,6 +658,12 @@ export function db(): any {
       }
       d.exec('CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id)');
       d.exec('CREATE INDEX IF NOT EXISTS idx_orders_gateway_order ON orders(gateway_order_id)');
+      d.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_invoice_no ON orders(invoice_no) WHERE invoice_no != ''");
+      // Per-financial-year running number for website invoices (e.g. 26-27 → 1, 2, 3…).
+      d.exec('CREATE TABLE IF NOT EXISTS invoice_counters (fy TEXT PRIMARY KEY, last INTEGER NOT NULL DEFAULT 0)');
+      const itemCols = new Set((d.prepare('PRAGMA table_info(order_items)').all() as { name: string }[]).map((c) => c.name));
+      if (!itemCols.has('hsn')) d.exec("ALTER TABLE order_items ADD COLUMN hsn TEXT NOT NULL DEFAULT ''");
+      if (!itemCols.has('gst_rate')) d.exec('ALTER TABLE order_items ADD COLUMN gst_rate INTEGER NOT NULL DEFAULT 0');
     } catch (migErr) {
       console.warn('[Virnobyte DB] Migration error for orders columns:', migErr);
     }

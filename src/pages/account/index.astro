@@ -115,7 +115,15 @@ const STATUS: Record<string, string> = {
                       <span class="small muted">{o.product_name}</span>
                     </td>
                     <td>{ORDER_STATUS[o.order_status] ?? o.order_status}</td>
-                    <td class="r">{inr(o.total_amount)}</td>
+                    <td class="r">
+                      {inr(o.total_amount)}
+                      {o.invoice_no && (
+                        <>
+                          <br />
+                          <a class="small" href={`/account/invoice/${encodeURIComponent(o.order_id)}`} target="_blank" rel="noopener">Invoice</a>
+                        </>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -40,6 +40,34 @@ const SECTIONS: Section[] = [
     ],
   },
   {
+    key: 'company',
+    title: 'Company profile & invoicing',
+    intro: 'Registered company details. Shown in the Company profile on the About page and printed on every website tax invoice. Keep them identical to your GST and MCA records.',
+    fields: [
+      { name: 'legalName', label: 'Registered company name', type: 'text', required: true, half: true },
+      { name: 'companyType', label: 'Company type', type: 'text', half: true },
+      { name: 'cin', label: 'CIN', type: 'text', half: true },
+      { name: 'incorporatedOn', label: 'Incorporated on', type: 'text', half: true, help: 'DD-MM-YYYY' },
+      { name: 'gstin', label: 'GSTIN', type: 'text', required: true, half: true },
+      { name: 'pan', label: 'PAN', type: 'text', half: true },
+      { name: 'gstState', label: 'GST state (place of business)', type: 'text', half: true, help: 'Orders delivered in this state get CGST + SGST; other states get IGST.' },
+      { name: 'gstStateCode', label: 'GST state code', type: 'text', half: true },
+      { name: 'tan', label: 'TAN', type: 'text', half: true },
+      { name: 'udyam', label: 'Udyam registration no.', type: 'text', half: true },
+      { name: 'msmeCategory', label: 'MSME category', type: 'text', half: true },
+      { name: 'dpiit', label: 'DPIIT (Startup India) certificate no.', type: 'text', half: true },
+      { name: 'registeredOffice', label: 'Registered office address', type: 'textarea', rows: 2, required: true },
+      { name: 'accountsEmail', label: 'Accounts / billing email', type: 'text', half: true },
+      { name: 'billingPhone', label: 'Billing phone', type: 'text', half: true },
+      { name: 'website', label: 'Website', type: 'text', half: true },
+      { name: 'invoicePrefix', label: 'Website invoice prefix', type: 'text', half: true, help: 'Invoice numbers become PREFIX/26-27/1, 2, 3… and restart each financial year. Keep it different from your billing software series (e.g. VPL/SL).' },
+      { name: 'defaultHsn', label: 'Default HSN code', type: 'text', half: true, help: 'Used for products without their own HSN.' },
+      { name: 'defaultGstPercent', label: 'Default GST %', type: 'number', half: true },
+      { name: 'invoiceTerms', label: 'Invoice terms & conditions', type: 'list', help: 'One term per line.' },
+      { name: 'declaration', label: 'Invoice declaration', type: 'textarea', rows: 2 },
+    ],
+  },
+  {
     key: 'coins',
     title: 'Coin program',
     intro: 'Rules for the coins shown on every membership card. Welcome coins per plan are set on each plan.',
@@ -264,6 +292,13 @@ if (Astro.request.method === 'POST') {
         setPath(value, f.name, v);
       }
       if (sec.key === 'card') value.prefix = String(value.prefix).toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4) || 'VB';
+      if (sec.key === 'company') {
+        for (const k of ['gstin', 'pan', 'cin', 'tan']) value[k] = String(value[k] ?? '').toUpperCase().replace(/\s+/g, '');
+        if (value.gstin && !/^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(value.gstin)) errors['company.gstin'] = 'Enter a valid 15-character GSTIN, e.g. 27AAMCV1703G1ZD.';
+        value.invoicePrefix = String(value.invoicePrefix || 'VPL/WEB').replace(/\s+/g, '').replace(/\/+$/, '');
+        value.defaultGstPercent = Math.min(28, value.defaultGstPercent || 18);
+        if (Object.keys(errors).length) error = 'Some fields need attention.';
+      }
       if (Object.keys(errors).length) error = 'Some fields need attention.';
       else {
         saveSetting(sec.key, value);

@@ -1,11 +1,25 @@
 ---
 import Admin from '@/layouts/Admin.astro';
 import Icon from '@/components/Icon.astro';
-import { all } from '@/lib/db';
+import { all, get } from '@/lib/db';
+import FilterBar from '@/components/admin/FilterBar.astro';
 import { formatDate, num, groupCardNumber } from '@/lib/format';
 
-const q = Astro.url.searchParams.get('q')?.trim() ?? '';
-const status = Astro.url.searchParams.get('status') ?? '';
+const sp = Astro.url.searchParams;
+const q = sp.get('q')?.trim() ?? '';
+const status = sp.get('status') ?? '';
+const plan = sp.get('plan') ?? '';
+const expiring = sp.get('expiring') ?? '';
+const sort = sp.get('sort') ?? '';
+const isoDate = (v: string | null) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : '');
+const joinedFrom = isoDate(sp.get('joined_from'));
+const joinedTo = isoDate(sp.get('joined_to'));
+const validFrom = isoDate(sp.get('valid_from'));
+const validTo = isoDate(sp.get('valid_to'));
+const coinsFrom = sp.get('coins_from') ?? '';
+const coinsTo = sp.get('coins_to') ?? '';
+
+const COINS = 'COALESCE((SELECT SUM(delta) FROM coin_ledger c WHERE c.user_id = u.id), 0)';
 const params: any[] = [];
 const where: string[] = ["u.role = 'customer'"];
 if (q) {
@@ -17,28 +31,75 @@ else if (status) {
   where.push('m.status = ?');
   params.push(status);
 }
+if (plan) {
+  where.push('m.plan_id = ?');
+  params.push(Number(plan));
+}
+// Renewal follow-ups: active cards ending within N days, or cards whose end date has passed.
+if (expiring === 'past') where.push("m.end_date IS NOT NULL AND date(m.end_date) < date('now')");
+else if (/^\d+$/.test(expiring)) {
+  where.push("m.status = 'active' AND date(m.end_date) BETWEEN date('now') AND date('now', ?)");
+  params.push(`+${expiring} days`);
+}
+if (joinedFrom) { where.push('date(u.created_at) >= ?'); params.push(joinedFrom); }
+if (joinedTo) { where.push('date(u.created_at) <= ?'); params.push(joinedTo); }
+if (validFrom) { where.push('date(m.end_date) >= ?'); params.push(validFrom); }
+if (validTo) { where.push('date(m.end_date) <= ?'); params.push(validTo); }
+if (coinsFrom !== '' && Number.isFinite(Number(coinsFrom))) { where.push(`${COINS} >= ?`); params.push(Number(coinsFrom)); }
+if (coinsTo !== '' && Number.isFinite(Number(coinsTo))) { where.push(`${COINS} <= ?`); params.push(Number(coinsTo)); }
 
-const rows = all<any>(
-  `SELECT u.id, u.name, u.email, u.phone, u.created_at,
-          m.card_number, m.status, m.end_date, p.name AS plan,
-          COALESCE((SELECT SUM(delta) FROM coin_ledger c WHERE c.user_id = u.id), 0) AS coins
-   FROM users u
+const SORTS = [
+  { value: '', label: 'Needs action first', sql: "CASE m.status WHEN 'pending' THEN 0 ELSE 1 END, u.id DESC" },
+  { value: 'new', label: 'Newest members', sql: 'u.id DESC' },
+  { value: 'old', label: 'Oldest members', sql: 'u.id ASC' },
+  { value: 'name', label: 'Name A–Z', sql: 'u.name COLLATE NOCASE' },
+  { value: 'expiry', label: 'Expiring soonest', sql: 'm.end_date IS NULL, m.end_date ASC' },
+  { value: 'coins', label: 'Most coins', sql: 'coins DESC' },
+];
+const orderSql = SORTS.find((x) => x.value === sort)?.sql ?? SORTS[0].sql;
+
+const FROM = `FROM users u
    LEFT JOIN memberships m ON m.id = (
      SELECT id FROM memberships WHERE user_id = u.id
      ORDER BY CASE status WHEN 'active' THEN 0 WHEN 'pending' THEN 1 ELSE 2 END, id DESC LIMIT 1)
    LEFT JOIN plans p ON p.id = m.plan_id
-   WHERE ${where.join(' AND ')}
-   ORDER BY CASE m.status WHEN 'pending' THEN 0 ELSE 1 END, u.id DESC
+   WHERE ${where.join(' AND ')}`;
+const rows = all<any>(
+  `SELECT u.id, u.name, u.email, u.phone, u.created_at,
+          m.card_number, m.status, m.end_date, p.name AS plan,
+          ${COINS} AS coins
+   ${FROM}
+   ORDER BY ${orderSql}
    LIMIT 500`,
   ...params,
 );
-const TABS = [
-  ['', 'All'],
-  ['pending', 'Awaiting activation'],
-  ['active', 'Active'],
-  ['expired', 'Expired'],
-  ['none', 'No card'],
-];
+const summary = get<{ n: number; coins: number }>(`SELECT COUNT(*) AS n, COALESCE(SUM(${COINS}), 0) AS coins ${FROM}`, ...params) ?? { n: rows.length, coins: 0 };
+
+const planOptions = all<{ id: number; name: string }>('SELECT id, name FROM plans ORDER BY sort, id').map((p) => ({ value: String(p.id), label: p.name }));
+const FILTERS = [
+  { type: 'select', name: 'status', label: 'Card status', tabs: true, resolvedOptions: [
+    { value: 'pending', label: 'Awaiting activation' },
+    { value: 'active', label: 'Active' },
+    { value: 'expired', label: 'Expired' },
+    { value: 'cancelled', label: 'Cancelled' },
+    { value: 'none', label: 'No card' },
+  ] },
+  { type: 'select', name: 'plan', label: 'Plan', resolvedOptions: planOptions },
+  { type: 'select', name: 'expiring', label: 'Renewal', resolvedOptions: [
+    { value: '7', label: 'Expiring in 7 days' },
+    { value: '30', label: 'Expiring in 30 days' },
+    { value: '60', label: 'Expiring in 60 days' },
+    { value: 'past', label: 'End date passed' },
+  ] },
+  { type: 'daterange', name: 'joined', label: 'Joined' },
+  { type: 'daterange', name: 'valid', label: 'Card valid until' },
+  { type: 'range', name: 'coins', label: 'Coin balance' },
+] as any[];
+const values: Record<string, string> = Object.fromEntries(
+  ['status', 'plan', 'expiring', 'joined_from', 'joined_to', 'valid_from', 'valid_to', 'coins_from', 'coins_to']
+    .map((k) => [k, sp.get(k) ?? ''])
+    .filter(([, v]) => v),
+);
 ---
 
 <Admin title="Members & coins" active="members">
@@ -50,15 +111,19 @@ const TABS = [
     <a class="btn" href="/admin/members/new"><Icon name="plus" /> Add member</a>
   </div>
 
-  <div class="toolbar">
-    <form method="get" role="search">
-      {status && <input type="hidden" name="status" value={status} />}
-      <input type="search" name="q" value={q} placeholder="Name, phone, email or card number" aria-label="Search members" />
-    </form>
-    <nav class="tabs" aria-label="Filter">
-      {TABS.map(([v, l]) => <a href={v ? `?status=${v}` : '?'} aria-current={status === v ? 'true' : undefined}>{l}</a>)}
-    </nav>
-  </div>
+  <FilterBar
+    filters={FILTERS}
+    values={values}
+    q={q}
+    searchPlaceholder="Name, phone, email or card number"
+    sorts={SORTS}
+    sort={sort}
+    count={summary.n}
+    shown={Math.min(summary.n, 500)}
+    noun="members"
+    one="member"
+  />
+  <p class="small muted" style="margin:-6px 0 12px">Coins held by these members: <strong>{num(summary.coins)}</strong></p>
 
   <div class="table-wrap">
     {
@@ -93,7 +158,7 @@ const TABS = [
           </tbody>
         </table>
       ) : (
-        <p class="empty-state">No members found.</p>
+        <p class="empty-state">No members match. <a href="/admin/members">Clear filters</a></p>
       )
     }
   </div>

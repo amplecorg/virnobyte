@@ -2,15 +2,21 @@
 import Admin from '@/layouts/Admin.astro';
 import Icon from '@/components/Icon.astro';
 import { RESOURCES } from '@/lib/admin/resources';
-import { listRows } from '@/lib/admin/forms';
+import FilterBar from '@/components/admin/FilterBar.astro';
+import { LIST_LIMIT, filterOptions, listRows, readFilters } from '@/lib/admin/forms';
 import { formatDate, inr } from '@/lib/format';
 
 const def = RESOURCES[Astro.params.resource!];
 if (!def) return Astro.redirect('/admin');
 
-const q = Astro.url.searchParams.get('q')?.trim() ?? '';
-const status = def.key === 'enquiries' ? Astro.url.searchParams.get('status') ?? '' : '';
-const rows = listRows(def, q, status ? { col: 'status', val: status } : undefined);
+const sp = Astro.url.searchParams;
+const q = sp.get('q')?.trim() ?? '';
+const values = readFilters(def, sp);
+const sort = sp.get('sort') ?? '';
+const { rows, count, total } = listRows(def, q, values, sort);
+const filters = (def.filters ?? []).map((f) => (f.type === 'select' ? { ...f, resolvedOptions: filterOptions(def, f) } : f));
+const filtered = q || Object.keys(values).length > 0;
+const plural = (w: string) => (/[^aeiou]y$/.test(w) ? w.slice(0, -1) + 'ies' : /(s|x|ch|sh)$/.test(w) ? w + 'es' : w + 's');
 const saved = Astro.url.searchParams.get('saved');
 const deleted = Astro.url.searchParams.get('deleted');
 const first = def.columns[0].name;
@@ -34,25 +40,19 @@ const first = def.columns[0].name;
   {saved && <p class="alert alert--ok" role="status" style="margin-bottom:14px">Saved.</p>}
   {deleted && <p class="alert alert--ok" role="status" style="margin-bottom:14px">Deleted.</p>}
 
-  <div class="toolbar">
-    {
-      def.search && (
-        <form method="get" role="search">
-          {status && <input type="hidden" name="status" value={status} />}
-          <input type="search" name="q" value={q} placeholder={`Search ${def.label.toLowerCase()}`} aria-label={`Search ${def.label}`} />
-        </form>
-      )
-    }
-    {
-      def.key === 'enquiries' && (
-        <nav class="tabs" aria-label="Filter by status">
-          {[['', 'All'], ['new', 'New'], ['contacted', 'Contacted'], ['closed', 'Closed']].map(([v, l]) => (
-            <a href={v ? `?status=${v}` : '?'} aria-current={status === v ? 'true' : undefined}>{l}</a>
-          ))}
-        </nav>
-      )
-    }
-  </div>
+  <FilterBar
+    filters={filters}
+    values={values}
+    q={q}
+    sorts={def.sorts}
+    sort={sort}
+    count={count}
+    shown={Math.min(count, LIST_LIMIT)}
+    total={def.sumColumn ? total : null}
+    noun={plural(def.singular)}
+    one={def.singular}
+    searchable={!!def.search?.length}
+  />
 
   <div class="table-wrap">
     {
@@ -100,7 +100,9 @@ const first = def.columns[0].name;
           </tbody>
         </table>
       ) : (
-        <p class="empty-state">{q ? `Nothing matches “${q}”.` : `No ${def.label.toLowerCase()} yet.`}</p>
+        <p class="empty-state">
+          {filtered ? <>Nothing matches these filters. <a href={Astro.url.pathname}>Clear filters</a></> : `No ${def.label.toLowerCase()} yet.`}
+        </p>
       )
     }
   </div>

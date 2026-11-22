@@ -3,7 +3,7 @@ import { randomBytes } from 'node:crypto';
 import { join } from 'node:path';
 import { UPLOAD_DIR, all, get, run, json } from '../db';
 import { slugify } from '../format';
-import type { FieldDef, ResourceDef } from './resources';
+import type { FieldDef, FilterDef, ResourceDef } from './resources';
 
 /** Converts an uploaded image to WebP (max 3840px wide) and returns its public path. */
 export async function saveUpload(file: File, hint = 'virnobyte'): Promise<string> {
@@ -168,18 +168,83 @@ export function saveRow(def: ResourceDef, row: Record<string, any>, id: number |
   return Number(res.lastInsertRowid);
 }
 
-export function listRows(def: ResourceDef, q: string, filter?: { col: string; val: string }) {
+export const LIST_LIMIT = 500;
+
+/** Reads the active filter values for a resource from the URL (only declared filters are honoured). */
+export function readFilters(def: ResourceDef, sp: URLSearchParams) {
+  const out: Record<string, string> = {};
+  for (const f of def.filters ?? []) {
+    if (f.type === 'daterange' || f.type === 'range') {
+      for (const k of [`${f.name}_from`, `${f.name}_to`]) {
+        const v = sp.get(k)?.trim();
+        if (v) out[k] = v;
+      }
+    } else {
+      const v = sp.get(f.name)?.trim();
+      if (v) out[f.name] = v;
+    }
+  }
+  return out;
+}
+
+/** Options for a select filter: explicit list → the form field's options → distinct values in the table. */
+export function filterOptions(def: ResourceDef, f: Extract<FilterDef, { type: 'select' }>): { value: string; label: string }[] {
+  if (f.options) return f.options;
+  const field = def.fields.find((x) => x.name === f.name && x.options?.length);
+  if (field?.options) return field.options;
+  return all<{ v: string }>(`SELECT DISTINCT ${f.name} AS v FROM ${def.table} WHERE ${f.name} IS NOT NULL AND ${f.name} != '' ORDER BY 1 LIMIT 100`).map((r) => ({
+    value: String(r.v),
+    label: String(r.v),
+  }));
+}
+
+export function listRows(def: ResourceDef, q: string, filters: Record<string, string> = {}, sortKey = '') {
   const where: string[] = [];
   const params: any[] = [];
   if (q && def.search?.length) {
     where.push(`(${def.search.map((c) => `${c} LIKE ?`).join(' OR ')})`);
     def.search.forEach(() => params.push(`%${q}%`));
   }
-  if (filter) {
-    where.push(`${filter.col} = ?`);
-    params.push(filter.val);
+  // Column names come only from the resource definition; user input is always a bound parameter.
+  for (const f of def.filters ?? []) {
+    if (f.type === 'select' && filters[f.name] != null) {
+      where.push(`${f.name} = ?`);
+      params.push(filters[f.name]);
+    } else if (f.type === 'bool' && (filters[f.name] === '1' || filters[f.name] === '0')) {
+      const test = f.sql ?? `${f.name} = 1`;
+      where.push(filters[f.name] === '1' ? `(${test})` : `NOT (${test})`);
+    } else if (f.type === 'daterange') {
+      const from = filters[`${f.name}_from`];
+      const to = filters[`${f.name}_to`];
+      if (from && /^\d{4}-\d{2}-\d{2}$/.test(from)) {
+        where.push(`date(${f.name}) >= ?`);
+        params.push(from);
+      }
+      if (to && /^\d{4}-\d{2}-\d{2}$/.test(to)) {
+        where.push(`date(${f.name}) <= ?`);
+        params.push(to);
+      }
+    } else if (f.type === 'range') {
+      const from = Number(String(filters[`${f.name}_from`] ?? '').replace(/[₹,\s]/g, ''));
+      const to = Number(String(filters[`${f.name}_to`] ?? '').replace(/[₹,\s]/g, ''));
+      if (filters[`${f.name}_from`] && Number.isFinite(from)) {
+        where.push(`${f.name} >= ?`);
+        params.push(from);
+      }
+      if (filters[`${f.name}_to`] && Number.isFinite(to)) {
+        where.push(`${f.name} <= ?`);
+        params.push(to);
+      }
+    }
   }
-  return all(`SELECT * FROM ${def.table} ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY ${def.orderBy} LIMIT 500`, ...params);
+  const whereSql = where.length ? 'WHERE ' + where.join(' AND ') : '';
+  const order = def.sorts?.find((x) => x.value === sortKey)?.sql ?? def.orderBy;
+  const rows = all(`SELECT * FROM ${def.table} ${whereSql} ORDER BY ${order} LIMIT ${LIST_LIMIT}`, ...params);
+  const agg = get<{ n: number; total: number }>(
+    `SELECT COUNT(*) AS n${def.sumColumn ? `, COALESCE(SUM(${def.sumColumn}), 0) AS total` : ', 0 AS total'} FROM ${def.table} ${whereSql}`,
+    ...params,
+  ) ?? { n: rows.length, total: 0 };
+  return { rows, count: agg.n, total: agg.total };
 }
 
 /** Specs editor: one "key: value" per line. Numbers, true/false and [a, b] lists are typed. */

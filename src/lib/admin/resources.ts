@@ -34,7 +34,25 @@ export interface ResourceDef {
   canCreate?: boolean;
   canDelete?: boolean;
   intro?: string;
+  /** Filter controls above the list. Only these columns can be filtered (values are always bound parameters). */
+  filters?: FilterDef[];
+  /** Extra sort orders offered in the list; the first entry is the default (def.orderBy). */
+  sorts?: { value: string; label: string; sql: string }[];
+  /** Show the sum of this money column for the filtered rows. */
+  sumColumn?: string;
 }
+
+export type FilterDef =
+  /** Dropdown. Options come from `options`, else from the field of the same name, else distinct values in the table. */
+  | { type: 'select'; name: string; label: string; options?: { value: string; label: string }[]; tabs?: boolean }
+  /** Yes / No. `sql` overrides the column test for computed flags (e.g. "invoice_no != ''"). */
+  | { type: 'bool'; name: string; label: string; yes?: string; no?: string; sql?: string }
+  /** From / to on a date or datetime column. */
+  | { type: 'daterange'; name: string; label: string }
+  /** Min / max on a number or money column. */
+  | { type: 'range'; name: string; label: string; prefix?: string };
+
+const published = (label = 'Published'): FilterDef => ({ type: 'bool', name: 'published', label, yes: 'Published', no: 'Hidden' });
 
 const opt = (...v: string[]) => v.map((x) => ({ value: x, label: x }));
 
@@ -46,6 +64,10 @@ export const RESOURCES: Record<string, ResourceDef> = {
     singular: 'plan',
     intro: 'Each plan is a membership card design. Edits update the public membership page and every member card using the plan.',
     orderBy: 'sort, id',
+    filters: [
+      { type: 'bool', name: 'active', label: 'On sale', yes: 'On sale', no: 'Off sale' },
+      { type: 'bool', name: 'featured', label: 'Featured' },
+    ],
     columns: [
       { name: 'name', label: 'Plan' },
       { name: 'price', label: 'Price', type: 'money' },
@@ -81,6 +103,11 @@ export const RESOURCES: Record<string, ResourceDef> = {
     singular: 'service',
     intro: 'Each service has its own SEO page at /services/[web-address].',
     orderBy: 'sort, id',
+    filters: [
+      { type: 'select', name: 'group_name', label: 'Group' },
+      published(),
+      { type: 'bool', name: 'footer', label: 'In footer' },
+    ],
     search: ['name', 'slug'],
     columns: [
       { name: 'name', label: 'Service' },
@@ -116,6 +143,17 @@ export const RESOURCES: Record<string, ResourceDef> = {
     singular: 'article',
     intro: 'Articles and practical guides published on /blog. Customize cover image sizes, display formatting, and full markdown content.',
     orderBy: 'published_at DESC, id DESC',
+    filters: [
+      published(),
+      { type: 'select', name: 'author', label: 'Author' },
+      { type: 'select', name: 'image_size', label: 'Cover size' },
+      { type: 'daterange', name: 'published_at', label: 'Published' },
+    ],
+    sorts: [
+      { value: 'new', label: 'Newest first', sql: 'published_at DESC, id DESC' },
+      { value: 'old', label: 'Oldest first', sql: 'published_at ASC, id ASC' },
+      { value: 'title', label: 'Title A–Z', sql: 'title COLLATE NOCASE' },
+    ],
     search: ['title', 'slug', 'description'],
     columns: [
       { name: 'title', label: 'Title' },
@@ -176,6 +214,11 @@ export const RESOURCES: Record<string, ResourceDef> = {
     label: 'FAQs',
     singular: 'FAQ',
     orderBy: 'topic, sort, id',
+    filters: [
+      { type: 'select', name: 'topic', label: 'Topic' },
+      { type: 'bool', name: 'home', label: 'On home page' },
+      published(),
+    ],
     search: ['question'],
     columns: [
       { name: 'question', label: 'Question' },
@@ -199,6 +242,21 @@ export const RESOURCES: Record<string, ResourceDef> = {
     label: 'Products',
     singular: 'product',
     orderBy: 'sort, id',
+    filters: [
+      { type: 'select', name: 'category', label: 'Category' },
+      { type: 'select', name: 'condition', label: 'Condition' },
+      { type: 'bool', name: 'in_stock', label: 'Stock', yes: 'In stock', no: 'Out of stock' },
+      published(),
+      { type: 'bool', name: 'no_price', label: 'Price', yes: 'Ask for price', no: 'Has price', sql: '(price IS NULL OR price = 0)' },
+      { type: 'range', name: 'price', label: 'Price', prefix: '₹' },
+    ],
+    sorts: [
+      { value: 'sort', label: 'Display order', sql: 'sort, id' },
+      { value: 'new', label: 'Newest first', sql: 'id DESC' },
+      { value: 'price_asc', label: 'Price: low to high', sql: 'price IS NULL, price ASC' },
+      { value: 'price_desc', label: 'Price: high to low', sql: 'price DESC' },
+      { value: 'name', label: 'Name A–Z', sql: 'name COLLATE NOCASE' },
+    ],
     search: ['name', 'category'],
     columns: [
       { name: 'name', label: 'Product' },
@@ -216,6 +274,8 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { name: 'summary', label: 'Summary & Specifications', type: 'textarea', rows: 6, help: 'Flipkart specifications bullet list. Start each point with • on a new line (e.g. • Processor: Intel Core i5).' },
       { name: 'price', label: 'Price (₹)', type: 'money', half: true, help: 'Selling price. Leave empty to show "Ask for price".' },
       { name: 'mrp', label: 'Crossed-out MRP (₹)', type: 'money', half: true, help: 'Original MRP. Discount percentage is auto-calculated.' },
+      { name: 'hsn', label: 'HSN code (for GST invoice)', type: 'text', half: true, help: 'e.g. 8471 computers & laptops, 8523 storage, 8525 CCTV cameras, 8517 routers, 8504 UPS. Blank = default from Settings → Company profile.' },
+      { name: 'gst_rate', label: 'GST rate %', type: 'number', half: true, help: 'Price above includes this GST. 0 = default from Settings (18%).' },
       { name: 'images', label: 'Product photos', type: 'images', help: 'Upload or drag and drop multiple photos. The first photo is the main cover image.' },
 
       { name: 'offer_tag', label: 'Offer tag under price (Line 1)', type: 'text', half: true, section: 'Under-Price Offers (Image 1)', help: 'Shows with 🏷️ icon right under price, e.g. Extra ₹1,000 off with Virnobyte Card. Leave blank to hide.' },
@@ -246,6 +306,23 @@ export const RESOURCES: Record<string, ResourceDef> = {
     label: 'Orders',
     singular: 'order',
     orderBy: 'id DESC',
+    filters: [
+      { type: 'select', name: 'order_status', label: 'Order status' },
+      { type: 'select', name: 'payment_status', label: 'Payment' },
+      { type: 'select', name: 'payment_method', label: 'Method' },
+      { type: 'bool', name: 'invoiced', label: 'Tax invoice', yes: 'Invoiced', no: 'Not invoiced', sql: "invoice_no != ''" },
+      { type: 'bool', name: 'b2b', label: 'Customer type', yes: 'Business (GSTIN)', no: 'Individual', sql: "customer_gstin != ''" },
+      { type: 'select', name: 'state', label: 'State' },
+      { type: 'daterange', name: 'created_at', label: 'Order date' },
+      { type: 'range', name: 'total_amount', label: 'Amount', prefix: '₹' },
+    ],
+    sorts: [
+      { value: 'new', label: 'Newest first', sql: 'id DESC' },
+      { value: 'old', label: 'Oldest first', sql: 'id ASC' },
+      { value: 'amount_desc', label: 'Amount: high to low', sql: 'total_amount DESC' },
+      { value: 'amount_asc', label: 'Amount: low to high', sql: 'total_amount ASC' },
+    ],
+    sumColumn: 'total_amount',
     search: ['order_id', 'customer_name', 'customer_phone', 'product_name'],
     columns: [
       { name: 'order_id', label: 'Order ID' },
@@ -253,6 +330,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { name: 'customer_phone', label: 'Phone' },
       { name: 'product_name', label: 'Product' },
       { name: 'total_amount', label: 'Amount', type: 'money' },
+      { name: 'invoice_no', label: 'Invoice' },
       { name: 'payment_status', label: 'Payment' },
       { name: 'order_status', label: 'Order Status' },
       { name: 'created_at', label: 'Date', type: 'date' },
@@ -262,6 +340,8 @@ export const RESOURCES: Record<string, ResourceDef> = {
     fields: [
       { name: 'order_id', label: 'Order ID', type: 'readonly', half: true, section: 'Order Overview' },
       { name: 'created_at', label: 'Order Date', type: 'readonly', half: true },
+      { name: 'invoice_no', label: 'Tax invoice no. (open via "View on site" → Tax Invoice)', type: 'readonly', half: true },
+      { name: 'customer_gstin', label: 'Customer GSTIN', type: 'readonly', half: true },
       { name: 'order_status', label: 'Order Status', type: 'select', half: true, options: [
         { value: 'PENDING_PAYMENT', label: 'Awaiting Online Payment (not confirmed)' },
         { value: 'CONFIRMED', label: 'Confirmed (New Order)' },
@@ -309,6 +389,11 @@ export const RESOURCES: Record<string, ResourceDef> = {
     singular: 'project',
     intro: 'Add only real projects you can verify. Category pages stay hidden from search until they have a published project.',
     orderBy: 'sort, id DESC',
+    filters: [
+      { type: 'select', name: 'category', label: 'Category' },
+      { type: 'select', name: 'client_type', label: 'Client type' },
+      published(),
+    ],
     search: ['title', 'location'],
     columns: [
       { name: 'title', label: 'Project' },
@@ -337,6 +422,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
     label: 'Gallery',
     singular: 'photo',
     orderBy: 'sort, id DESC',
+    filters: [published()],
     columns: [
       { name: 'caption', label: 'Caption' },
       { name: 'published', label: 'Published', type: 'bool' },
@@ -356,6 +442,12 @@ export const RESOURCES: Record<string, ResourceDef> = {
     singular: 'role',
     intro: 'A role is only shown publicly once it is published and has a real pay range.',
     orderBy: 'posted_at DESC, id DESC',
+    filters: [
+      { type: 'select', name: 'employment_type', label: 'Type' },
+      { type: 'select', name: 'location', label: 'Location' },
+      published(),
+      { type: 'daterange', name: 'posted_at', label: 'Posted' },
+    ],
     columns: [
       { name: 'title', label: 'Role' },
       { name: 'salary_max', label: 'Max pay', type: 'money' },
@@ -395,6 +487,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
     singular: 'testimonial',
     intro: 'Publish only genuine feedback from real customers, with their permission. Imported quotes from the old site are unpublished until verified.',
     orderBy: 'sort, id',
+    filters: [published()],
     columns: [
       { name: 'name', label: 'Name' },
       { name: 'role', label: 'Role' },
@@ -435,6 +528,20 @@ export const RESOURCES: Record<string, ResourceDef> = {
     singular: 'part',
     intro: 'The PC builder catalogue. These prices are what customers see and what the server uses for quotes. Seeded prices and specs are indicative — verify them before launch.',
     orderBy: "CASE category WHEN 'cpu' THEN 0 WHEN 'motherboard' THEN 1 WHEN 'ram' THEN 2 WHEN 'gpu' THEN 3 WHEN 'storage' THEN 4 WHEN 'cooler' THEN 5 WHEN 'psu' THEN 6 WHEN 'case' THEN 7 ELSE 8 END, sort, price",
+    filters: [
+      { type: 'select', name: 'category', label: 'Category', tabs: true },
+      { type: 'select', name: 'brand', label: 'Brand' },
+      { type: 'bool', name: 'in_stock', label: 'Stock', yes: 'In stock', no: 'Out of stock' },
+      { type: 'bool', name: 'active', label: 'Shown in builder', yes: 'Shown', no: 'Hidden' },
+      { type: 'bool', name: 'has_model', label: '3D model', yes: 'Custom model', no: 'Default model', sql: "model_url != ''" },
+      { type: 'range', name: 'price', label: 'Price', prefix: '₹' },
+    ],
+    sorts: [
+      { value: 'cat', label: 'Category', sql: "CASE category WHEN 'cpu' THEN 0 WHEN 'motherboard' THEN 1 WHEN 'ram' THEN 2 WHEN 'gpu' THEN 3 WHEN 'storage' THEN 4 WHEN 'cooler' THEN 5 WHEN 'psu' THEN 6 WHEN 'case' THEN 7 ELSE 8 END, sort, price" },
+      { value: 'price_asc', label: 'Price: low to high', sql: 'price ASC' },
+      { value: 'price_desc', label: 'Price: high to low', sql: 'price DESC' },
+      { value: 'name', label: 'Name A–Z', sql: 'name COLLATE NOCASE' },
+    ],
     search: ['name', 'brand', 'category'],
     columns: [
       { name: 'name', label: 'Part' },
@@ -473,6 +580,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
     label: 'PC preset builds',
     singular: 'preset',
     orderBy: 'sort, id',
+    filters: [{ type: 'bool', name: 'active', label: 'Shown', yes: 'Shown', no: 'Hidden' }],
     columns: [
       { name: 'name', label: 'Preset' },
       { name: 'active', label: 'Shown', type: 'bool' },
@@ -495,6 +603,13 @@ export const RESOURCES: Record<string, ResourceDef> = {
     canCreate: false,
     intro: 'Saved builds, quote requests and orders from the PC builder. Totals were calculated on the server from catalogue prices.',
     orderBy: "CASE status WHEN 'ordered' THEN 0 WHEN 'quote' THEN 1 ELSE 2 END, id DESC",
+    filters: [
+      { type: 'select', name: 'status', label: 'Status', tabs: true },
+      { type: 'bool', name: 'registered', label: 'Customer', yes: 'Signed-in customer', no: 'Guest', sql: 'user_id IS NOT NULL' },
+      { type: 'daterange', name: 'created_at', label: 'Created' },
+      { type: 'range', name: 'total', label: 'Total', prefix: '₹' },
+    ],
+    sumColumn: 'total',
     search: ['code', 'name', 'phone'],
     columns: [
       { name: 'code', label: 'Build' },
@@ -529,6 +644,13 @@ export const RESOURCES: Record<string, ResourceDef> = {
     singular: 'enquiry',
     canCreate: false,
     orderBy: "CASE status WHEN 'new' THEN 0 WHEN 'contacted' THEN 1 ELSE 2 END, id DESC",
+    filters: [
+      { type: 'select', name: 'status', label: 'Status', tabs: true, options: [{ value: 'new', label: 'New' }, { value: 'contacted', label: 'Contacted' }, { value: 'closed', label: 'Closed' }] },
+      { type: 'select', name: 'kind', label: 'Type' },
+      { type: 'select', name: 'topic', label: 'Topic' },
+      { type: 'select', name: 'area', label: 'Area' },
+      { type: 'daterange', name: 'created_at', label: 'Received' },
+    ],
     search: ['name', 'phone', 'topic'],
     columns: [
       { name: 'created_at', label: 'Received', type: 'date' },
