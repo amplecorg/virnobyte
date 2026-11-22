@@ -468,6 +468,9 @@ CREATE TABLE IF NOT EXISTS payment_events (
 
 let instance: any = null;
 let dbInitError: string | null = null;
+let journalMode = '';
+let inMemory = false;
+const startedAt = new Date().toISOString();
 
 export function getDbStatus() {
   return {
@@ -476,6 +479,11 @@ export function getDbStatus() {
     sqliteLoadError,
     dbInitError,
     dataDir: DATA_DIR,
+    // Diagnostics: different pids/startedAt across requests mean several app processes share the DB.
+    journalMode,
+    inMemory,
+    pid: proc?.pid,
+    startedAt,
     nodeVersion: proc?.version || 'unknown',
   };
 }
@@ -493,22 +501,38 @@ export function db(): any {
     try {
       d = new DatabaseSyncClass(dbPath);
     } catch (diskErr: any) {
+      // Never accept admin edits into a throwaway in-memory DB on the live site: they would
+      // silently vanish on the next restart. Fail loudly instead (the site serves built-in content).
+      if (env.NODE_ENV === 'production') throw diskErr;
       console.warn(`[Virnobyte DB] Disk DB (${dbPath}) failed: ${diskErr?.message}. Falling back to in-memory database.`);
       d = new DatabaseSyncClass(':memory:');
+      inMemory = true;
     }
 
-    // Try WAL mode, fallback to DELETE if WAL fails (e.g. shared hosting / CageFS)
+    // Wait for other processes' locks instead of failing a save.
     try {
-      d.exec('PRAGMA journal_mode = WAL;');
-    } catch (walErr: any) {
-      console.warn('[Virnobyte DB] WAL mode failed, falling back to DELETE mode:', walErr?.message);
-      try {
-        d.exec('PRAGMA journal_mode = DELETE;');
-      } catch {}
+      d.exec('PRAGMA busy_timeout = 10000;');
+    } catch {}
+
+    // Journal mode. WAL needs reliable shared memory between processes; on shared hosting
+    // (Hostinger hbuilds / persistent_data, CageFS, network storage) several Node processes can
+    // otherwise miss or overwrite each other's saves — edits then "revert after some time".
+    // The classic rollback journal (DELETE) is safe across processes there.
+    const shared = /persistent_data|\/hbuilds\//.test(DATA_DIR);
+    const wanted = String(env.SQLITE_JOURNAL_MODE || (shared ? 'DELETE' : 'WAL')).toUpperCase();
+    try {
+      if (wanted !== 'WAL') d.exec('PRAGMA wal_checkpoint(TRUNCATE);');
+      d.exec(`PRAGMA journal_mode = ${wanted === 'WAL' ? 'WAL' : 'DELETE'};`);
+    } catch (jmErr: any) {
+      console.warn(`[Virnobyte DB] Could not set journal_mode=${wanted}:`, jmErr?.message);
     }
+    try {
+      journalMode = String((d.prepare('PRAGMA journal_mode').get() as any)?.journal_mode ?? '');
+    } catch {}
 
     try {
-      d.exec('PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;');
+      // FULL fsyncs each commit, so a save survives a process being recycled right after it.
+      d.exec(`PRAGMA foreign_keys = ON; PRAGMA synchronous = ${journalMode === 'wal' ? 'NORMAL' : 'FULL'};`);
     } catch {}
 
     d.exec(SCHEMA);
