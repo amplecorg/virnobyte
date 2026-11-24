@@ -295,7 +295,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { name: 'rating_count', label: 'Ratings & Reviews text', type: 'text', half: true, help: 'e.g. 128 Ratings & 42 Reviews. Leave blank to hide.' },
       { name: 'badge', label: 'Product badge / tag', type: 'text', half: true, help: 'e.g. Assured, Best Seller, Top Rated. Leave blank to hide.' },
 
-      { name: 'in_stock', label: 'In stock', type: 'bool', half: true, section: 'Publishing' },
+      { name: 'in_stock', label: 'In stock', type: 'bool', half: true, section: 'Publishing', help: 'For products tracked in Inventory this is set automatically from live stock.' },
       { name: 'published', label: 'Published', type: 'bool', half: true },
       { name: 'sort', label: 'Display order', type: 'number', half: true },
     ],
@@ -344,6 +344,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { name: 'customer_gstin', label: 'Customer GSTIN', type: 'readonly', half: true },
       { name: 'order_status', label: 'Order Status', type: 'select', half: true, options: [
         { value: 'PENDING_PAYMENT', label: 'Awaiting Online Payment (not confirmed)' },
+        { value: 'AWAITING_OTP', label: 'Awaiting customer OTP (COD, not confirmed)' },
         { value: 'CONFIRMED', label: 'Confirmed (New Order)' },
         { value: 'PROCESSING', label: 'Processing / Diagnostic Testing' },
         { value: 'OUT_FOR_DELIVERY', label: 'Out for Doorstep Delivery' },
@@ -358,6 +359,8 @@ export const RESOURCES: Record<string, ResourceDef> = {
       ]},
       { name: 'payment_method', label: 'Payment Method', type: 'text', half: true },
       { name: 'total_amount', label: 'Total Amount (₹)', type: 'money', half: true },
+      { name: 'coin_discount', label: 'Paid with coins (₹ off)', type: 'readonly', half: true },
+      { name: 'coins_used', label: 'Coins used', type: 'readonly', half: true },
 
       { name: 'product_name', label: 'Items Ordered', type: 'textarea', rows: 2, section: 'Order Items', help: 'All items in this order. Use "View on site" for the per-item price breakdown.' },
       { name: 'items_count', label: 'Different Products', type: 'readonly', half: true },

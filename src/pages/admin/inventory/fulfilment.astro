@@ -1,0 +1,222 @@
+---
+import Admin from '@/layouts/Admin.astro';
+import InventoryNav from '@/components/admin/InventoryNav.astro';
+import { all } from '@/lib/db';
+import { when } from '@/lib/inventory/format';
+import { ALLOCATION_SELECT, STATUS_LABEL, fulfil, stockBySource, type AllocationView, type FulfilAction } from '@/lib/inventory/stock';
+
+const admin = Astro.locals.user!;
+let flash = '';
+let error = '';
+if (Astro.request.method === 'POST') {
+  const f = await Astro.request.formData();
+  const str = (k: string) => String(f.get(k) ?? '').trim();
+  try {
+    flash = fulfil(Number(str('alloc_id')), str('_action') as FulfilAction, { kind: 'admin', name: `Admin: ${admin.name || admin.email}` }, {
+      courier: str('courier'),
+      trackingNo: str('tracking_no'),
+      note: str('note'),
+      sourceId: Number(str('source_id')) || undefined,
+      restock: f.get('restock') === 'on',
+    });
+  } catch (e: any) {
+    error = e.message;
+  }
+}
+
+const sp = Astro.url.searchParams;
+const status = sp.get('status') ?? 'open';
+const sourceFilter = Number(sp.get('source')) || 0;
+const orderQ = sp.get('order')?.trim() ?? '';
+
+const GROUPS: Record<string, string[]> = {
+  open: ['UNASSIGNED', 'ASSIGNED', 'ACCEPTED'],
+  UNASSIGNED: ['UNASSIGNED'],
+  ASSIGNED: ['ASSIGNED', 'ACCEPTED'],
+  SHIPPED: ['SHIPPED'],
+  DELIVERED: ['DELIVERED'],
+  HELD: ['HELD'],
+  closed: ['REJECTED', 'CANCELLED', 'EXPIRED', 'RETURNED'],
+};
+const where: string[] = [];
+const params: any[] = [];
+// Searching for an order shows all of its lines whatever their status.
+if (orderQ) {
+  where.push('(o.order_id LIKE ? OR o.customer_name LIKE ? OR o.customer_phone LIKE ?)');
+  params.push(`%${orderQ}%`, `%${orderQ}%`, `%${orderQ}%`);
+} else if (GROUPS[status]) {
+  where.push(`a.status IN (${GROUPS[status].map(() => '?').join(',')})`);
+  params.push(...GROUPS[status]);
+}
+if (sourceFilter) {
+  where.push('a.source_id = ?');
+  params.push(sourceFilter);
+}
+const rows = all<AllocationView>(
+  `${ALLOCATION_SELECT} ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
+   ORDER BY CASE a.status WHEN 'UNASSIGNED' THEN 0 WHEN 'ASSIGNED' THEN 1 WHEN 'ACCEPTED' THEN 2 ELSE 3 END, a.id DESC LIMIT 300`,
+  ...params,
+);
+const counts = Object.fromEntries(
+  all<{ status: string; n: number }>('SELECT status, COUNT(*) AS n FROM inv_allocations GROUP BY status').map((r) => [r.status, r.n]),
+);
+const count = (k: string) => (GROUPS[k] ?? []).reduce((n, s) => n + (counts[s] ?? 0), 0);
+const sources = all<{ id: number; name: string; active: number }>("SELECT id, name, active FROM inv_sources ORDER BY CASE kind WHEN 'own' THEN 0 ELSE 1 END, priority, name");
+const TABS: [string, string][] = [
+  ['open', 'To ship'],
+  ['UNASSIGNED', 'No vendor yet'],
+  ['ASSIGNED', 'Waiting to ship'],
+  ['SHIPPED', 'Shipped'],
+  ['DELIVERED', 'Delivered'],
+  ['HELD', 'Awaiting payment'],
+  ['closed', 'Closed'],
+];
+const tabLink = (k: string) => `/admin/inventory/fulfilment?status=${k}${sourceFilter ? `&source=${sourceFilter}` : ''}`;
+const self = Astro.url.pathname + Astro.url.search;
+const freeAt = (productId: number) => new Map(stockBySource(productId).filter((s) => s.usable).map((s) => [s.source_id, Math.max(0, s.free)]));
+---
+
+<Admin title="All shipments" active="inventory">
+  <div class="inv">
+    <div class="page-head">
+      <div>
+        <h1>All shipments</h1>
+        <p>Every item and who is shipping it. Vendors update these from their Seller Hub; you can also do it on each order’s page.</p>
+      </div>
+    </div>
+    <InventoryNav active="fulfilment" />
+
+    {flash && <p class="alert alert--ok" role="status" style="margin-bottom:14px">{flash}</p>}
+    {error && <p class="alert alert--error" role="alert" style="margin-bottom:14px">{error}</p>}
+
+    <div class="toolbar">
+      <nav class="tabs" aria-label="Status">
+        {TABS.map(([k, label]) => (
+          <a href={tabLink(k)} aria-current={!orderQ && k === status ? 'true' : undefined}>
+            {label}{count(k) ? ` (${count(k)})` : ''}
+          </a>
+        ))}
+      </nav>
+      <form method="get" style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
+        <input type="hidden" name="status" value={status} />
+        <select name="source" aria-label="Vendor" style="min-height:40px;border:1.5px solid var(--line-strong);border-radius:8px;padding:0 8px" onchange="this.form.submit()">
+          <option value="">All vendors</option>
+          {sources.map((s) => <option value={s.id} selected={s.id === sourceFilter}>{s.name}</option>)}
+        </select>
+        <input type="search" name="order" value={orderQ} placeholder="Order ID, customer or phone" aria-label="Search orders" />
+      </form>
+    </div>
+
+    <div class="table-wrap">
+      {
+        rows.length ? (
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th scope="col">Order</th>
+                <th scope="col">Item</th>
+                <th scope="col">Vendor</th>
+                <th scope="col">Status</th>
+                <th scope="col">Ship to</th>
+                <th scope="col">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => {
+                const free = ['UNASSIGNED', 'ASSIGNED', 'ACCEPTED'].includes(r.status) ? freeAt(r.product_id) : new Map();
+                return (
+                  <tr>
+                    <td>
+                      <a class="row-link" href={`/admin/r/orders/${r.order_id}#shipping`}>{r.order_ref}</a>
+                      <div class="small muted">{when(r.created_at)}</div>
+                    </td>
+                    <td>
+                      <a href={`/admin/inventory/products/${r.product_id}`}>{r.product_name}</a> × <b>{r.qty}</b>
+                      {r.sku && <div class="small muted">SKU {r.sku}</div>}
+                    </td>
+                    <td>{r.source_name ?? <span class="muted">—</span>}</td>
+                    <td>
+                      <span class:list={['pill', `s-${r.status}`]}>{STATUS_LABEL[r.status]}</span>
+                      {r.courier && <div class="small">{r.courier}{r.tracking_no && ` · ${r.tracking_no}`}</div>}
+                      {r.note && <div class="small muted">{r.note}</div>}
+                    </td>
+                    <td class="addr">
+                      {r.customer_name} · {r.customer_phone}
+                      <br />
+                      {r.city}, {r.pincode}
+                    </td>
+                    <td>
+                      <div class="acts">
+                        {(r.status === 'ASSIGNED' || r.status === 'ACCEPTED') && (
+                          <details class="more">
+                            <summary>Ship</summary>
+                            <form method="post" action={self}>
+                              <input type="hidden" name="alloc_id" value={r.id} />
+                              <input type="text" name="courier" placeholder="Courier" aria-label="Courier" />
+                              <input type="text" name="tracking_no" placeholder="Tracking no." aria-label="Tracking number" />
+                              <button class="btn btn--sm" name="_action" value="ship">Mark shipped</button>
+                            </form>
+                          </details>
+                        )}
+                        {r.status === 'SHIPPED' && (
+                          <form method="post" action={self}>
+                            <input type="hidden" name="alloc_id" value={r.id} />
+                            <button class="btn btn--sm btn--ghost" name="_action" value="deliver">Mark delivered</button>
+                          </form>
+                        )}
+                        {['UNASSIGNED', 'ASSIGNED', 'ACCEPTED'].includes(r.status) && (
+                          <details class="more">
+                            <summary>{r.status === 'UNASSIGNED' ? 'Choose vendor' : 'Change vendor'}</summary>
+                            <form method="post" action={self}>
+                              <input type="hidden" name="alloc_id" value={r.id} />
+                              <select name="source_id" required aria-label="Vendor">
+                                <option value="">Choose…</option>
+                                {sources.filter((s) => s.id !== r.source_id).map((s) => (
+                                  <option value={s.id}>{s.name} ({free.get(s.id) ?? 0} in stock){s.active ? '' : ' – off'}</option>
+                                ))}
+                              </select>
+                              <button class="btn btn--sm" name="_action" value="assign">Assign</button>
+                            </form>
+                          </details>
+                        )}
+                        {(r.status === 'ASSIGNED' || r.status === 'ACCEPTED') && (
+                          <details class="more">
+                            <summary>Vendor can’t ship</summary>
+                            <form method="post" action={self}>
+                              <input type="hidden" name="alloc_id" value={r.id} />
+                              <input type="text" name="note" placeholder="Reason" required aria-label="Reason" />
+                              <button class="btn btn--sm btn--danger" name="_action" value="reject">Pass to another vendor</button>
+                            </form>
+                          </details>
+                        )}
+                        {(r.status === 'SHIPPED' || r.status === 'DELIVERED') && (
+                          <details class="more">
+                            <summary>Returned</summary>
+                            <form method="post" action={self}>
+                              <input type="hidden" name="alloc_id" value={r.id} />
+                              <input type="text" name="note" placeholder="Note" aria-label="Note" />
+                              <label class="small"><input type="checkbox" name="restock" /> Back into {r.source_name ?? 'stock'}</label>
+                              <button class="btn btn--sm btn--ghost" name="_action" value="return">Mark returned</button>
+                            </form>
+                          </details>
+                        )}
+                        {['HELD', 'UNASSIGNED', 'ASSIGNED', 'ACCEPTED'].includes(r.status) && (
+                          <form method="post" action={self} data-confirm="Cancel just this item? The vendor is told not to ship it. The order itself is not cancelled.">
+                            <input type="hidden" name="alloc_id" value={r.id} />
+                            <button class="btn btn--sm btn--ghost" name="_action" value="cancel">Cancel item</button>
+                          </form>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        ) : (
+          <p class="muted" style="padding:16px">{orderQ ? 'No orders match.' : 'Nothing here.'}</p>
+        )
+      }
+    </div>
+  </div>
+</Admin>

@@ -5,6 +5,8 @@ import { RESOURCES } from '@/lib/admin/resources';
 import FilterBar from '@/components/admin/FilterBar.astro';
 import { LIST_LIMIT, filterOptions, listRows, readFilters } from '@/lib/admin/forms';
 import { formatDate, inr } from '@/lib/format';
+import { shippingSummaries } from '@/lib/inventory/stock';
+import '@/styles/inventory.css';
 
 const def = RESOURCES[Astro.params.resource!];
 if (!def) return Astro.redirect('/admin');
@@ -20,6 +22,9 @@ const plural = (w: string) => (/[^aeiou]y$/.test(w) ? w.slice(0, -1) + 'ies' : /
 const saved = Astro.url.searchParams.get('saved');
 const deleted = Astro.url.searchParams.get('deleted');
 const first = def.columns[0].name;
+// Customer Orders also shows who is shipping each order (dropship inventory), so nothing needs a second page.
+const isOrders = def.key === 'orders';
+const shipping = isOrders ? shippingSummaries(rows.map((r: any) => Number(r.id))) : new Map();
 ---
 
 <Admin title={def.label} active={def.key}>
@@ -79,9 +84,17 @@ const first = def.columns[0].name;
                       : c.type === 'date' ? formatDate(v)
                       : c.type === 'status' ? <span class:list={['pill', v]}>{v}</span>
                       : v;
+                    const ship = isOrders && c.name === 'order_status' ? shipping.get(r.id) : undefined;
                     return (
-                      <td class={c.type === 'money' ? 'num' : undefined}>
+                      <td class:list={[c.type === 'money' && 'num', ship && 'inv']}>
                         {c.name === first ? <a class="row-link" href={`/admin/r/${def.key}/${r.id}`}>{content || '(untitled)'}</a> : content}
+                        {ship && (
+                          // Dropship: who is shipping it, shown right under the order status.
+                          <a href={`/admin/r/orders/${r.id}#shipping`} style="display:block;margin-top:4px;text-decoration:none">
+                            <span class:list={['pill', ship.tone]}>{ship.label}</span>
+                            {ship.detail && <span class="small muted" style="display:block;margin-top:2px">{ship.detail}</span>}
+                          </a>
+                        )}
                       </td>
                     );
                   })}

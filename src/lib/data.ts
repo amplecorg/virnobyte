@@ -138,7 +138,8 @@ export function requestMembership(userId: number, planId: number) {
 }
 
 /** Activates a card, sets validity and credits the plan's welcome coins exactly once. */
-export function activateMembership(id: number, adminId: number, startDate?: string) {
+/** adminId is null when the card is activated automatically by an online payment. */
+export function activateMembership(id: number, adminId: number | null, startDate?: string) {
   tx(() => {
     const m = get<Membership>('SELECT * FROM memberships WHERE id = ?', id);
     if (!m) throw new Error('Membership not found.');

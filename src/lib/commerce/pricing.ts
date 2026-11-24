@@ -18,6 +18,10 @@ export interface Line {
   /** False when the product is out of stock or has no online price. */
   available: boolean;
   unavailableReason: string;
+  /** Highest quantity the shopper can pick right now (live stock for inventory-tracked products). */
+  maxQty: number;
+  /** Shown under the line, e.g. "Only 2 left — quantity lowered to 2". */
+  stockNote: string;
 }
 
 export interface Totals {

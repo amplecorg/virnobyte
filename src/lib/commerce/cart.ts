@@ -6,6 +6,7 @@ import { resolveImage } from '../images';
 import type { User } from '../auth';
 import { getPaymentConfig } from './payments';
 import { clampQty, computeTotals, MAX_QTY, type Line, type Totals } from './pricing';
+import { availableFor } from '../inventory/stock';
 
 /**
  * Server-side cart.
@@ -52,10 +53,20 @@ export function productImageUrl(p: Pick<Product, 'image' | 'images'>): string {
 export function buildLine(p: Product, quantity: number): Line {
   const unitPrice = Math.max(0, Math.round(Number(p.price) || 0));
   const mrp = Math.max(unitPrice, Math.round(Number(p.mrp) || 0));
-  const qty = clampQty(quantity);
+  const wanted = clampQty(quantity);
+  // Inventory-tracked products sell only what the sources hold right now.
+  const live = availableFor(p.id);
+  const maxQty = live == null ? MAX_QTY : Math.min(MAX_QTY, live);
+  const qty = live != null && live > 0 ? Math.min(wanted, live) : wanted;
+  const stockNote =
+    live != null && live > 0 && wanted > live
+      ? `Only ${live} left — quantity lowered to ${live}`
+      : live != null && live > 0 && live <= 3
+        ? `Only ${live} left`
+        : '';
   const unavailableReason = !unitPrice
     ? 'Price on request — contact us to order'
-    : !p.in_stock
+    : !p.in_stock || live === 0
       ? 'Currently out of stock'
       : '';
   return {
@@ -70,6 +81,8 @@ export function buildLine(p: Product, quantity: number): Line {
     lineTotal: unitPrice * qty,
     available: !unavailableReason,
     unavailableReason,
+    maxQty: Math.max(1, maxQty),
+    stockNote: unavailableReason ? '' : stockNote,
   };
 }
 

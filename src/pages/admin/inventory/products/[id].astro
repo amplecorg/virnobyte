@@ -1,0 +1,234 @@
+---
+import Admin from '@/layouts/Admin.astro';
+import InventoryNav from '@/components/admin/InventoryNav.astro';
+import { all, get } from '@/lib/db';
+import { num } from '@/lib/format';
+import { ago, when } from '@/lib/inventory/format';
+import {
+  ALLOCATION_SELECT, STATUS_LABEL, availableFor, isTracked, removeStockRow, setStock, setTracking, stockBySource, type AllocationView,
+} from '@/lib/inventory/stock';
+
+const pid = Number(Astro.params.id);
+const product = get<any>('SELECT id, name, slug, category, published, in_stock FROM products WHERE id = ?', pid);
+if (!product) return Astro.redirect('/admin/inventory/products');
+const admin = Astro.locals.user!;
+const actor = `Admin: ${admin.name || admin.email}`;
+
+let flash = '';
+let error = '';
+if (Astro.request.method === 'POST') {
+  const f = await Astro.request.formData();
+  const str = (k: string) => String(f.get(k) ?? '').trim();
+  try {
+    switch (str('_action')) {
+      case 'tracking':
+        setTracking(pid, f.get('tracked') === 'on', Number(str('low_level')));
+        flash = 'Saved.';
+        break;
+      case 'save_stock': {
+        let changed = 0;
+        for (const s of stockBySource(pid)) {
+          const rawQty = f.get(`qty_${s.source_id}`);
+          if (rawQty == null) continue;
+          const qty = Math.max(0, Math.trunc(Number(String(rawQty).replace(/[,\s]/g, '')) || 0));
+          const sku = str(`sku_${s.source_id}`);
+          // Only touch rows that changed, so an unchanged vendor row does not look freshly confirmed.
+          if (qty !== s.qty || sku !== s.sku) {
+            setStock(s.source_id, [{ productId: pid, qty, sku }], 'SET', actor, str('note'));
+            changed++;
+          }
+        }
+        flash = changed ? 'Stock saved.' : 'Nothing changed.';
+        break;
+      }
+      case 'add_source': {
+        const sid = Number(str('source_id'));
+        if (!sid) throw new Error('Choose a source.');
+        setStock(sid, [{ productId: pid, qty: Number(str('qty')) || 0, sku: str('sku') }], 'SET', actor, 'Added to source');
+        flash = 'Added.';
+        break;
+      }
+      case 'remove':
+        removeStockRow(Number(str('source_id')), pid, actor);
+        flash = 'Removed.';
+        break;
+    }
+  } catch (e: any) {
+    error = e.message;
+  }
+}
+
+const tracked = isTracked(pid);
+const settings = get<{ low_level: number }>('SELECT low_level FROM inv_products WHERE product_id = ?', pid) ?? { low_level: 2 };
+const sources = stockBySource(pid);
+const available = availableFor(pid);
+const onSite = get<{ in_stock: number }>('SELECT in_stock FROM products WHERE id = ?', pid)?.in_stock;
+const listed = new Set(sources.map((s) => s.source_id));
+const otherSources = all<{ id: number; name: string; active: number }>("SELECT id, name, active FROM inv_sources ORDER BY CASE kind WHEN 'own' THEN 0 ELSE 1 END, name").filter((s) => !listed.has(s.id));
+const lines = all<AllocationView>(`${ALLOCATION_SELECT} WHERE a.product_id = ? ORDER BY a.id DESC LIMIT 25`, pid);
+const moves = all<any>(
+  `SELECT m.*, s.name AS source_name FROM inv_movements m LEFT JOIN inv_sources s ON s.id = m.source_id WHERE m.product_id = ? ORDER BY m.id DESC LIMIT 40`,
+  pid,
+);
+---
+
+<Admin title={`Stock · ${product.name}`} active="inventory">
+  <div class="inv">
+    <div class="page-head">
+      <div>
+        <a href="/admin/inventory/products" class="back-btn">Stock</a>
+        <h1>{product.name}</h1>
+        <p>
+          {tracked ? <>Available to sell now: <b>{num(available ?? 0)}</b></> : 'Manual stock — the "In stock" switch on the product page applies.'} · On the site:{' '}
+          <b>{onSite ? 'In stock' : 'Out of stock'}</b>
+        </p>
+      </div>
+      <a class="btn btn--ghost" href={`/admin/r/products/${pid}`}>Edit product details</a>
+    </div>
+    <InventoryNav active="products" />
+
+    {flash && <p class="alert alert--ok" role="status" style="margin-bottom:14px">{flash}</p>}
+    {error && <p class="alert alert--error" role="alert" style="margin-bottom:14px">{error}</p>}
+
+    <section class="panel">
+      <h2 style="margin-bottom:12px">Stock control</h2>
+      <form method="post" class="inline-form">
+        <input type="hidden" name="_action" value="tracking" />
+        <label class="switch"><input type="checkbox" name="tracked" checked={tracked} /> Automatic: show "In stock" only while units are available</label>
+        <div class="field" style="flex:0 1 200px">
+          <label for="low">Low-stock alert at or below</label>
+          <input id="low" name="low_level" type="number" min="0" step="1" value={settings.low_level} />
+        </div>
+        <button class="btn" type="submit">Save</button>
+      </form>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>Who has stock</h2><span class="small muted">Orders go to your own stock first, then to vendors in priority order.</span></div>
+      {
+        sources.length ? (
+          <form method="post">
+            <input type="hidden" name="_action" value="save_stock" />
+            <div class="table-wrap">
+              <table class="tbl">
+                <thead>
+                  <tr>
+                    <th scope="col">Stock with</th>
+                    <th scope="col">Vendor SKU / code</th>
+                    <th scope="col" class="num">On hand</th>
+                    <th scope="col" class="num">Reserved</th>
+                    <th scope="col" class="num">Free</th>
+                    <th scope="col">Selling?</th>
+                    <th scope="col">Updated</th>
+                    <th scope="col"><span class="sr-only">Remove</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sources.map((s) => (
+                    <tr>
+                      <td><a class="row-link" href={`/admin/inventory/sources/${s.source_id}`}>{s.name}</a></td>
+                      <td><input class="sku-in" name={`sku_${s.source_id}`} value={s.sku} aria-label={`SKU at ${s.name}`} /></td>
+                      <td class="num"><input class="qty-in" type="number" min="0" step="1" name={`qty_${s.source_id}`} value={s.qty} aria-label={`Units at ${s.name}`} /></td>
+                      <td class="num">{s.reserved || ''}</td>
+                      <td class="num"><b>{Math.max(0, s.free)}</b></td>
+                      <td>
+                        {s.usable ? <span class="pill good">Yes</span> : !s.active ? <span class="pill">Vendor off</span> : <span class="pill bad" title="The vendor has not confirmed stock recently">Out of date</span>}
+                      </td>
+                      <td class="small">{ago(s.updated_at)}</td>
+                      <td>
+                        <button class="btn btn--sm btn--ghost" type="submit" form={`rm-${s.source_id}`}>Remove</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div class="inline-form" style="margin-top:12px">
+              <div class="field">
+                <label for="note">Note for the stock log (optional)</label>
+                <input id="note" name="note" placeholder="e.g. Counted on shelf" />
+              </div>
+              <button class="btn" type="submit">Save stock</button>
+            </div>
+          </form>
+        ) : (
+          <p class="muted">Nobody has stock of this product yet. Add yours or a vendor’s below.</p>
+        )
+      }
+      {sources.map((s) => (
+        <form method="post" id={`rm-${s.source_id}`} data-confirm={`Remove ${product.name} from ${s.name}?`} hidden>
+          <input type="hidden" name="_action" value="remove" />
+          <input type="hidden" name="source_id" value={s.source_id} />
+        </form>
+      ))}
+
+      {
+        otherSources.length > 0 && (
+          <form method="post" class="inline-form" style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line)">
+            <input type="hidden" name="_action" value="add_source" />
+            <div class="field">
+              <label for="src">Add stock with</label>
+              <select id="src" name="source_id" required>
+                <option value="">Choose…</option>
+                {otherSources.map((s) => <option value={s.id}>{s.name}{s.active ? '' : ' (off)'}</option>)}
+              </select>
+            </div>
+            <div class="field" style="flex:0 1 120px">
+              <label for="aq">Units</label>
+              <input id="aq" name="qty" type="number" min="0" step="1" value="0" />
+            </div>
+            <div class="field">
+              <label for="as">Vendor SKU / code</label>
+              <input id="as" name="sku" placeholder="As in their stock list" />
+            </div>
+            <button class="btn btn--ghost" type="submit">Add</button>
+          </form>
+        )
+      }
+    </section>
+
+    <div class="split-2">
+      <section class="panel">
+        <div class="panel-head"><h2>Recent orders</h2><a class="small" href="/admin/inventory/fulfilment">All shipments</a></div>
+        {
+          lines.length ? (
+            <table class="tbl">
+              <tbody>
+                {lines.map((l) => (
+                  <tr>
+                    <td><a class="row-link" href={`/admin/r/orders/${l.order_id}#shipping`}>{l.order_ref}</a><div class="small muted">{when(l.created_at)}</div></td>
+                    <td class="num">× {l.qty}</td>
+                    <td>{l.source_name ?? '—'}</td>
+                    <td><span class:list={['pill', `s-${l.status}`]}>{STATUS_LABEL[l.status]}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p class="muted">No orders for this product yet.</p>
+          )
+        }
+      </section>
+      <section class="panel">
+        <div class="panel-head"><h2>Stock history</h2><a class="small" href={`/admin/inventory/movements?product=${pid}`}>Full history</a></div>
+        {
+          moves.length ? (
+            <table class="tbl">
+              <tbody>
+                {moves.map((m) => (
+                  <tr>
+                    <td class="small">{when(m.created_at)}</td>
+                    <td>{m.source_name ?? '—'}<div class="small muted">{m.kind}{m.ref && ` · ${m.ref}`}{m.note && ` · ${m.note}`}</div></td>
+                    <td class="num"><span class={m.delta > 0 ? 'delta-pos' : 'delta-neg'}>{m.delta > 0 ? '+' : '−'}{Math.abs(m.delta)}</span><div class="small muted">→ {m.qty_after}</div></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p class="muted">No stock changes yet.</p>
+          )
+        }
+      </section>
+    </div>
+  </div>
+</Admin>

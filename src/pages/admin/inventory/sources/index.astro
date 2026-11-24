@@ -1,0 +1,78 @@
+---
+import Admin from '@/layouts/Admin.astro';
+import InventoryNav from '@/components/admin/InventoryNav.astro';
+import Icon from '@/components/Icon.astro';
+import { all } from '@/lib/db';
+import { num } from '@/lib/format';
+import { ago } from '@/lib/inventory/format';
+import { USABLE_SQL } from '@/lib/inventory/stock';
+
+const sources = all<any>(
+  `SELECT s.*, CASE WHEN ${USABLE_SQL} THEN 1 ELSE 0 END AS usable,
+     (SELECT COUNT(*) FROM inv_stock st WHERE st.source_id = s.id) AS products,
+     (SELECT COALESCE(SUM(qty), 0) FROM inv_stock st WHERE st.source_id = s.id) AS units,
+     (SELECT COUNT(*) FROM inv_allocations a WHERE a.source_id = s.id AND a.status IN ('ASSIGNED','ACCEPTED')) AS open_lines,
+     (SELECT COUNT(*) FROM inv_allocations a WHERE a.source_id = s.id AND a.status IN ('SHIPPED','DELIVERED') AND a.updated_at >= datetime('now', '-30 days')) AS shipped_30
+   FROM inv_sources s ORDER BY CASE s.kind WHEN 'own' THEN 0 ELSE 1 END, s.active DESC, s.priority, s.name`,
+);
+const METHOD: Record<string, string> = { manual: 'You', portal: 'Vendor (Seller Hub)' };
+const deleted = Astro.url.searchParams.get('deleted');
+---
+
+<Admin title="Vendors" active="vendors">
+  <div class="inv">
+    <div class="page-head">
+      <div>
+        <h1>Vendors</h1>
+        <p>Everyone who ships orders for you. Orders go to your own stock first, then to the vendor with the lowest priority number.</p>
+      </div>
+      <a class="btn" href="/admin/inventory/sources/new"><Icon name="plus" /> Add vendor</a>
+    </div>
+    <InventoryNav active="sources" />
+    {deleted && <p class="alert alert--ok" role="status" style="margin-bottom:14px">Vendor deleted.</p>}
+
+    <div class="table-wrap">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th scope="col">Vendor</th>
+            <th scope="col" class="num">Priority</th>
+            <th scope="col">Stock updates</th>
+            <th scope="col">Stock checked</th>
+            <th scope="col" class="num">Products</th>
+            <th scope="col" class="num">Units</th>
+            <th scope="col" class="num">Waiting to ship</th>
+            <th scope="col" class="num">Shipped, 30 days</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sources.map((s) => (
+            <tr>
+              <td>
+                <a class="row-link" href={`/admin/inventory/sources/${s.id}`}>{s.name}</a>
+                <div class="small muted">{s.kind === 'own' ? 'Your own stock' : [s.contact_name, s.city].filter(Boolean).join(' · ') || 'Vendor'}</div>
+              </td>
+              <td class="num">{s.kind === 'own' ? '—' : s.priority}</td>
+              <td>{s.kind === 'own' ? 'You' : METHOD[s.update_method]}</td>
+              <td>
+                {!s.active ? (
+                  <span class="pill">Switched off</span>
+                ) : s.kind === 'own' ? (
+                  <span class="pill good">Always selling</span>
+                ) : s.usable ? (
+                  <span class="pill good">{ago(s.stock_updated_at)}</span>
+                ) : (
+                  <span class="pill bad" title={`Not confirmed within ${s.stale_hours} hours, so it is not being sold`}>Paused · {ago(s.stock_updated_at)}</span>
+                )}
+              </td>
+              <td class="num">{num(s.products)}</td>
+              <td class="num">{num(s.units)}</td>
+              <td class="num">{s.open_lines || ''}</td>
+              <td class="num">{s.shipped_30 || ''}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</Admin>

@@ -9,6 +9,7 @@ import { plans, allFaqs, currentMembership } from '@/lib/data';
 import { contactInfo, getSettings } from '@/lib/settings';
 import { breadcrumbs, faqPage } from '@/lib/schema';
 import { inr, num } from '@/lib/format';
+import { getPaymentConfig } from '@/lib/commerce/payments';
 
 const s = getSettings();
 const c = contactInfo(s);
@@ -93,7 +94,9 @@ const coinValue = s.coins.valueInr === 1 ? '1 coin = ₹1' : `1 coin = ₹${s.co
         }
       </ul>
       <p class="small muted note">
-        Payment is collected at our counter or during the first visit — your card is activated as soon as it is confirmed.
+        {getPaymentConfig().onlineAvailable
+          ? 'Pay online by UPI, card or NetBanking and your card is activated instantly, with your coins credited. You can also pay at our counter.'
+          : 'Payment is collected at our counter or during the first visit — your card is activated as soon as it is confirmed.'}
       </p>
     </div>
   </section>

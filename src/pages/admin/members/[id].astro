@@ -104,7 +104,7 @@ const planOpts = planList.map((p) => ({ value: String(p.id), label: `${p.name}${
 <Admin title={member.name} active="members">
   <div class="page-head">
     <div>
-      <a href="/admin/members" class="small">← Members</a>
+      <a href="/admin/members" class="back-btn">Members</a>
       <h1>{member.name}</h1>
       <p>Member since {formatDate(member.created_at)} · {member.phone} · {member.email}</p>
     </div>

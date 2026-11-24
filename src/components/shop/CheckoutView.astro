@@ -7,6 +7,8 @@ import { inr } from '@/lib/format';
 import { getPaymentConfig } from '@/lib/commerce/payments';
 import type { Line, Totals } from '@/lib/commerce/pricing';
 import { userFromCookies } from '@/lib/auth';
+import { coinQuote } from '@/lib/commerce/coins';
+import { num } from '@/lib/format';
 
 interface Props {
   lines: Line[];
@@ -23,6 +25,9 @@ const buyable = lines.filter((l) => l.available);
 const canOrder = cfg.enabled && buyable.length > 0 && (cfg.onlineAvailable || cfg.codAvailable);
 const gatewayName = cfg.gateway === 'cashfree' ? 'Cashfree' : 'Razorpay';
 const itemsLabel = `${totals.itemCount} ITEM${totals.itemCount === 1 ? '' : 'S'}`;
+// Virno Coins: what this customer could use on this order (the server re-checks when the order is placed).
+const coins = user ? coinQuote(user.id, totals.subtotal) : null;
+const showCoins = !!coins && coins.rules.enabled && coins.balance > 0;
 ---
 
 <div class="fk-checkout-page">
@@ -85,11 +90,12 @@ const itemsLabel = `${totals.itemCount} ITEM${totals.itemCount === 1 ? '' : 'S'}
                     ) : (
                       <p class="fk-item-off-note">{l.unavailableReason} — not included in this order.</p>
                     )}
+                    {l.stockNote && <p class="fk-item-off-note" style="color:#b45309">{l.stockNote}</p>}
                   </div>
                 </div>
               ))
             }
-            {mode === 'cart' && <a class="fk-edit-cart" href="/cart">← Edit cart</a>}
+            {mode === 'cart' && <a class="back-btn fk-edit-cart" href="/cart">Edit cart</a>}
           </div>
         </div>
 
@@ -234,6 +240,25 @@ const itemsLabel = `${totals.itemCount} ITEM${totals.itemCount === 1 ? '' : 'S'}
                 </div>
 
                 <div class="fk-step-body">
+                  {showCoins && coins && (
+                    <label class:list={['fk-coins', { off: !coins.coins }]}>
+                      <input type="checkbox" name="useCoins" id="fk-use-coins" checked={coins.coins > 0} disabled={!coins.coins} data-discount={coins.discount} />
+                      <span class="fk-coins-icon" aria-hidden="true">🪙</span>
+                      <span class="fk-coins-text">
+                        {coins.coins > 0 ? (
+                          <>
+                            <strong>Use {num(coins.coins)} {coins.rules.name}</strong> and save {inr(coins.discount)}
+                          </>
+                        ) : (
+                          <strong>{coins.rules.name}</strong>
+                        )}
+                        <small>
+                          Balance: {num(coins.balance)} coins{coins.rules.valueInr === 1 ? ' (1 coin = ₹1)' : ` (1 coin = ₹${coins.rules.valueInr})`}
+                          {coins.note ? ` · ${coins.note}` : coins.rules.maxPercent > 0 ? ` · up to ${coins.rules.maxPercent}% of the item price` : ''}
+                        </small>
+                      </span>
+                    </label>
+                  )}
                   <div class="fk-payment-options">
                     {cfg.onlineAvailable && (
                       <label class="fk-pay-option active">
@@ -286,7 +311,7 @@ const itemsLabel = `${totals.itemCount} ITEM${totals.itemCount === 1 ? '' : 'S'}
 
                   <div class="fk-submit-bar">
                     <button type="submit" id="fk-btn-place-order" class="fk-btn-submit">
-                      <span data-label>PLACE ORDER • {inr(totals.total)}</span>
+                      <span data-label data-base={totals.total}>PLACE ORDER • {inr(coins?.coins ? totals.total - coins.discount : totals.total)}</span>
                       <span class="fk-arrow-btn">➔</span>
                     </button>
                     <p class="fk-submit-guarantee">
@@ -327,9 +352,16 @@ const itemsLabel = `${totals.itemCount} ITEM${totals.itemCount === 1 ? '' : 'S'}
               <span class="fk-green-text">FREE</span>
             </div>
 
+            {showCoins && coins && coins.coins > 0 && (
+              <div class="fk-prow" id="fk-coins-row">
+                <span>{coins.rules.name} ({num(coins.coins)})</span>
+                <span class="fk-green-text">− {inr(coins.discount)}</span>
+              </div>
+            )}
+
             <div class="fk-total-row">
               <span>Total Amount</span>
-              <span class="fk-final-total">{inr(totals.total)}</span>
+              <span class="fk-final-total" id="fk-final-total">{inr(coins?.coins ? totals.total - coins.discount : totals.total)}</span>
             </div>
           </div>
 
@@ -374,6 +406,23 @@ const itemsLabel = `${totals.itemCount} ITEM${totals.itemCount === 1 ? '' : 'S'}
     });
   });
 
+  // Virno Coins: update the price box and button as the customer ticks / unticks "Use coins".
+  const coinBox = document.getElementById('fk-use-coins') as HTMLInputElement | null;
+  const coinRow = document.getElementById('fk-coins-row');
+  const finalTotal = document.getElementById('fk-final-total');
+  const labelEl = submitBtn?.querySelector<HTMLElement>('[data-label]');
+  const fmt = (n: number) => '₹' + new Intl.NumberFormat('en-IN').format(n);
+  const payable = () => {
+    const base = Number(labelEl?.dataset.base) || 0;
+    return coinBox?.checked ? Math.max(1, base - (Number(coinBox.dataset.discount) || 0)) : base;
+  };
+  const refreshCoins = () => {
+    if (coinRow) coinRow.style.display = coinBox?.checked ? '' : 'none';
+    if (finalTotal) finalTotal.textContent = fmt(payable());
+    if (labelEl && !submitBtn?.disabled) labelEl.textContent = `PLACE ORDER • ${fmt(payable())}`;
+  };
+  coinBox?.addEventListener('change', refreshCoins);
+
   if (form && submitBtn) {
     const label = submitBtn.querySelector('[data-label]') as HTMLElement;
     const original = label.textContent || 'PLACE ORDER';
@@ -384,8 +433,8 @@ const itemsLabel = `${totals.itemCount} ITEM${totals.itemCount === 1 ? '' : 'S'}
         errorBox.style.display = 'block';
         errorBox.scrollIntoView({ block: 'center', behavior: 'smooth' });
       }
-      label.textContent = original;
       submitBtn.disabled = false;
+      label.textContent = coinBox ? `PLACE ORDER • ${fmt(payable())}` : original;
     };
 
     form.addEventListener('submit', async (e) => {
@@ -774,6 +823,38 @@ const itemsLabel = `${totals.itemCount} ITEM${totals.itemCount === 1 ? '' : 'S'}
   }
 
   /* Payment Options */
+  .fk-coins {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    border: 1.5px solid #f2c94c;
+    background: #fffbea;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .fk-coins.off {
+    opacity: 0.7;
+    cursor: default;
+  }
+  .fk-coins input {
+    width: 18px;
+    height: 18px;
+    accent-color: #2874f0;
+  }
+  .fk-coins-icon {
+    font-size: 22px;
+  }
+  .fk-coins-text {
+    display: grid;
+    gap: 2px;
+    font-size: 14px;
+  }
+  .fk-coins-text small {
+    color: #6b7280;
+    font-size: 12px;
+  }
   .fk-payment-options {
     display: flex;
     flex-direction: column;
@@ -1045,13 +1126,7 @@ const itemsLabel = `${totals.itemCount} ITEM${totals.itemCount === 1 ? '' : 'S'}
   }
   .fk-edit-cart {
     align-self: flex-start;
-    font-size: 13px;
-    font-weight: 700;
-    color: #2874f0;
-    text-decoration: none;
-  }
-  .fk-edit-cart:hover {
-    text-decoration: underline;
+    margin-top: 6px;
   }
   .fk-form-error {
     display: none;

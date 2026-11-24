@@ -53,6 +53,10 @@ export const DEFAULT_SETTINGS = {
     valueInr: 1,
     maxRedeemPercent: 20,
     expiryMonths: 12,
+    // Website checkout: let signed-in customers pay part of an order with coins.
+    redeemAtCheckout: true,
+    minOrderForCoins: 0,
+    maxCoinsPerOrder: 0,
     rules: [
       'Coins are credited to your card when your membership is activated.',
       'Use coins against repair labour, consumables and products at the counter or during a doorstep visit.',
@@ -104,6 +108,23 @@ export const DEFAULT_SETTINGS = {
     enableOnline: true,
     deliveryFee: 0,
     minFreeDelivery: 500,
+  },
+  // Outgoing email, Google sign-in and order OTP. Empty values fall back to environment variables
+  // (SMTP_*, GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET, TEXTBEE_API_KEY / TEXTBEE_DEVICE_ID).
+  signin: {
+    smtpHost: '',
+    smtpPort: 587,
+    smtpUser: '',
+    smtpPass: '',
+    smtpFrom: '',
+    smtpSecure: false,
+    googleClientId: '',
+    googleClientSecret: '',
+    // Ask Cash-on-Delivery buyers for an emailed (or SMS) one-time code before the order is confirmed.
+    codOtp: true,
+    // Free SMS for OTPs via textbee.dev (Android phone + SIM). Blank = email OTP only.
+    textbeeApiKey: '',
+    textbeeDeviceId: '',
   },
   // Registered company profile: shown on the About page and printed on every tax invoice.
   company: {

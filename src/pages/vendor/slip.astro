@@ -1,0 +1,71 @@
+---
+import Vendor from '@/layouts/Vendor.astro';
+import { all } from '@/lib/db';
+import { when } from '@/lib/inventory/format';
+import { ALLOCATION_SELECT, type AllocationView } from '@/lib/inventory/stock';
+import { vendorFromCookies } from '@/lib/inventory/vendor';
+import { getSettings } from '@/lib/settings';
+
+/** Printable packing slip: only this vendor's items for the order, no prices. */
+const vendor = vendorFromCookies(Astro.cookies);
+const ref = Astro.url.searchParams.get('order') ?? '';
+const lines = vendor
+  ? all<AllocationView>(
+      `${ALLOCATION_SELECT} WHERE a.source_id = ? AND o.order_id = ? AND a.status IN ('ASSIGNED','ACCEPTED','SHIPPED','DELIVERED') ORDER BY a.id`,
+      vendor.id,
+      ref,
+    )
+  : [];
+const o = lines[0];
+const b = getSettings().business;
+---
+
+<Vendor title={`Packing slip ${ref}`} vendorName={vendor?.name}>
+  {
+    o ? (
+      <section class="sh-card" style="max-width:760px;margin:0 auto">
+        <div class="no-print btn-row" style="justify-content:flex-end;margin-bottom:12px">
+          <button class="btn btn--sm" type="button" onclick="window.print()">Print</button>
+        </div>
+        <div style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;border-bottom:2px solid #0f1b2d;padding-bottom:12px;margin-bottom:16px">
+          <div>
+            <img src="/virnobyte-logo.png" alt="Virnobyte" width="48" height="38" />
+            <div style="font-weight:800;font-size:1.2rem">{b.name}</div>
+            <div class="small">{b.phone} · {b.email}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:1.3rem;font-weight:800">Packing slip</div>
+            <div>Order <b>{o.order_ref}</b></div>
+            <div class="small">Ordered {when(o.created_at)}</div>
+          </div>
+        </div>
+        <div style="margin-bottom:16px">
+          <div class="small muted" style="text-transform:uppercase;letter-spacing:.05em">Ship to</div>
+          <div style="font-size:1.05rem;line-height:1.5">
+            <b>{o.customer_name}</b>
+            <br />
+            {o.address_line1}
+            {o.address_line2 && <><br />{o.address_line2}</>}
+            <br />
+            {o.city}, {o.state} {o.pincode}
+            <br />
+            Phone: {o.customer_phone}
+          </div>
+        </div>
+        <table class="sh-inv">
+          <thead>
+            <tr><th>Item</th><th>SKU</th><th class="num">Qty</th></tr>
+          </thead>
+          <tbody>
+            {lines.map((l) => (
+              <tr><td>{l.product_name}</td><td>{l.sku || '—'}</td><td class="num"><b>{l.qty}</b></td></tr>
+            ))}
+          </tbody>
+        </table>
+        <p class="small muted" style="margin-top:18px">Packed and shipped by {vendor?.name} on behalf of {b.name}. Questions about this order? Call {b.phone}.</p>
+      </section>
+    ) : (
+      <section class="sh-card sh-empty"><b>Packing slip not found</b>This order is not assigned to you.</section>
+    )
+  }
+</Vendor>

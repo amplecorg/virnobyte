@@ -1,0 +1,132 @@
+---
+import Vendor from '@/layouts/Vendor.astro';
+import { all } from '@/lib/db';
+import { ago } from '@/lib/inventory/format';
+import { confirmSourceStock } from '@/lib/inventory/stock';
+import { listings, sellerCounts, sellerOrders } from '@/lib/inventory/seller';
+import { vendorFromCookies } from '@/lib/inventory/vendor';
+
+/** Seller Hub home: what needs doing today. */
+const vendor = vendorFromCookies(Astro.cookies);
+let flash = '';
+if (vendor && Astro.request.method === 'POST') {
+  const f = await Astro.request.formData();
+  if (f.get('_action') === 'confirm') {
+    confirmSourceStock(vendor.id);
+    flash = 'Thank you — your stock is confirmed as correct.';
+  }
+}
+
+const src = vendor ? all<any>('SELECT stock_updated_at, stale_hours FROM inv_sources WHERE id = ?', vendor.id)[0] : null;
+const counts = vendor ? sellerCounts(vendor.id) : null;
+const toShip = vendor ? sellerOrders(vendor.id, 'unshipped', '', 5) : [];
+const items = vendor ? listings(vendor.id) : [];
+const outOf = items.filter((l) => l.available === 0);
+const low = items.filter((l) => l.available > 0 && l.available <= 2);
+
+// Stock freshness: after stale_hours Virnobyte stops selling this vendor's stock.
+const hoursSince = src?.stock_updated_at ? (Date.now() - +new Date(src.stock_updated_at.replace(' ', 'T') + 'Z')) / 3600_000 : Infinity;
+const stale = !!src?.stale_hours && hoursSince > src.stale_hours;
+const dueSoon = !!src?.stale_hours && !stale && hoursSince > src.stale_hours * 0.6;
+const fmtShipBy = (d: Date | null) => (d ? d.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : '—');
+---
+
+<Vendor title="Home" vendorName={vendor?.name} active="home" toShip={counts?.toShip}>
+  <div class="sh-head">
+    <div>
+      <h1>Hello, {vendor?.name}</h1>
+      <p>Here is what needs your attention today.</p>
+    </div>
+  </div>
+
+  {flash && <p class="alert alert--ok" role="status" style="margin-bottom:14px">{flash}</p>}
+
+  {
+    items.length === 0 ? (
+      <section class="sh-card">
+        <h2>Welcome! Let's get you selling</h2>
+        <ol style="margin:0 0 14px;padding-left:20px;line-height:1.9">
+          <li><b>Add the products you sell</b> and how many you have.</li>
+          <li>When an order comes, you get an email and it shows under <b>Orders</b>.</li>
+          <li>Pack it, ship it, and press <b>Confirm shipment</b>.</li>
+        </ol>
+        <a class="btn sh-primary" href="/vendor/inventory?add=1">+ Add your first product</a>
+      </section>
+    ) : (
+      <div class:list={['sh-banner', stale ? 'bad' : dueSoon ? '' : 'ok']}>
+        <p>
+          {stale
+            ? `Your products are paused: stock not confirmed for ${src?.stale_hours} hours. Check your numbers and confirm.`
+            : `Stock confirmed ${ago(src?.stock_updated_at)}.${src?.stale_hours ? ` Please confirm at least every ${src.stale_hours} hours to keep selling.` : ''}`}
+        </p>
+        <div class="btn-row">
+          <a class="btn btn--sm btn--ghost" href="/vendor/inventory">Update stock</a>
+          <form method="post">
+            <input type="hidden" name="_action" value="confirm" />
+            <button class="btn btn--sm" type="submit">My stock is correct</button>
+          </form>
+        </div>
+      </div>
+    )
+  }
+
+  <div class="sh-metrics">
+    <a class="sh-metric" href="/vendor/orders"><span>Orders to ship</span><b>{counts?.toShip ?? 0}</b><small>View orders →</small></a>
+    <a class:list={['sh-metric', counts?.late ? 'alert-red' : '']} href="/vendor/orders"><span>Late shipments</span><b>{counts?.late ?? 0}</b><small>Ship within 48 hours</small></a>
+    <a class="sh-metric" href="/vendor/orders?tab=shipped"><span>On the way</span><b>{counts?.inTransit ?? 0}</b><small>Shipped orders →</small></a>
+    <a class:list={['sh-metric', outOf.length ? 'alert-red' : '']} href="/vendor/inventory?view=out"><span>Out of stock</span><b>{outOf.length}</b><small>Restock →</small></a>
+    <a class="sh-metric" href="/vendor/inventory"><span>Your products</span><b>{items.length}</b><small>Manage inventory →</small></a>
+  </div>
+
+  <div class="split-2">
+    <section class="sh-card">
+      <div class="sh-card-head">
+        <h2>Orders to ship</h2>
+        <a class="small" href="/vendor/orders">See all</a>
+      </div>
+      {
+        toShip.length ? (
+          <ul class="sh-list">
+            {toShip.map((o) => (
+              <li>
+                <span>
+                  <a href={`/vendor/orders?q=${encodeURIComponent(o.ref)}`}><b>{o.ref}</b></a>
+                  <span class="sh-meta">
+                    {o.lines.map((l) => `${l.product_name} × ${l.qty}`).join(', ').slice(0, 90)}
+                  </span>
+                </span>
+                <span class="small" style={o.late ? 'color:#b91c1c;font-weight:700;white-space:nowrap' : 'white-space:nowrap'}>
+                  {o.late ? 'Late' : 'Ship by'} {fmtShipBy(o.shipBy)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div class="sh-empty"><b>All caught up</b>New orders appear here and in your email.</div>
+        )
+      }
+    </section>
+
+    <section class="sh-card">
+      <div class="sh-card-head">
+        <h2>Stock to look at</h2>
+        <a class="small" href="/vendor/inventory">Inventory</a>
+      </div>
+      {
+        outOf.length + low.length ? (
+          <ul class="sh-list">
+            {[...outOf, ...low].slice(0, 8).map((l) => (
+              <li>
+                <span>{l.name}</span>
+                <span class:list={['sh-status', l.available ? 'low' : 'out']}>{l.available ? `${l.available} left` : 'Out of stock'}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div class="sh-empty"><b>Stock looks good</b>No products are out of stock or running low.</div>
+        )
+      }
+      <p class="small muted" style="margin-top:10px">Last 30 days: {counts?.delivered30 ?? 0} orders delivered · {counts?.shipped7 ?? 0} shipped this week.</p>
+    </section>
+  </div>
+</Vendor>

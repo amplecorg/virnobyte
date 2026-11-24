@@ -1,6 +1,7 @@
 ---
 import Auth from '@/layouts/Auth.astro';
 import Field from '@/components/Field.astro';
+import GoogleButton from '@/components/GoogleButton.astro';
 import { authenticate, createSession, rateLimit } from '@/lib/auth';
 
 const next = Astro.url.searchParams.get('next');
@@ -27,6 +28,7 @@ if (Astro.request.method === 'POST') {
 }
 
 const isCheckout = safeNext && safeNext.startsWith('/checkout');
+const googleError = (Astro.url.searchParams.get('google_error') ?? '').slice(0, 200);
 ---
 
 <Auth
@@ -45,6 +47,8 @@ const isCheckout = safeNext && safeNext.startsWith('/checkout');
     </p>
   )}
   {error && <p class="alert alert--error" role="alert">{error}</p>}
+  {googleError && <p class="alert alert--error" role="alert">{googleError}</p>}
+  <GoogleButton next={safeNext} />
   <form method="post">
     <Field label="Email" name="email" type="email" required autocomplete="email" value={email} />
     <Field label="Password" name="password" type="password" required autocomplete="current-password" />

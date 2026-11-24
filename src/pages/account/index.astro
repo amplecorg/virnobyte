@@ -17,6 +17,7 @@ const history = coinHistory(user.id);
 const myOrders = ordersForUser(user.id);
 const ORDER_STATUS: Record<string, string> = {
   PENDING_PAYMENT: 'Awaiting payment',
+  AWAITING_OTP: 'Enter code to confirm',
   CONFIRMED: 'Confirmed',
   PROCESSING: 'Being prepared',
   OUT_FOR_DELIVERY: 'Out for delivery',

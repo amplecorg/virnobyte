@@ -7,7 +7,8 @@ import { getSettings, saveSetting, type Settings } from '@/lib/settings';
 import { saveUpload } from '@/lib/admin/forms';
 import { plans } from '@/lib/data';
 import { get, run } from '@/lib/db';
-import { setPassword } from '@/lib/auth';
+import { setPassword, siteOrigin } from '@/lib/auth';
+import { isMailConfigured, sendEmail } from '@/lib/mail';
 
 const currentUser = Astro.locals.user!;
 
@@ -74,7 +75,10 @@ const SECTIONS: Section[] = [
     fields: [
       { name: 'name', label: 'Coin name', type: 'text', required: true, half: true },
       { name: 'valueInr', label: 'Value of 1 coin (₹)', type: 'number', half: true },
-      { name: 'maxRedeemPercent', label: 'Max % of a bill payable with coins', type: 'number', half: true, help: '0 = no limit shown.' },
+      { name: 'redeemAtCheckout', label: 'Let customers use coins at website checkout', type: 'bool', half: true, help: 'Shows “Use your coins” on the checkout page, like Flipkart SuperCoins.' },
+      { name: 'maxRedeemPercent', label: 'Max % of a bill payable with coins', type: 'number', half: true, help: 'e.g. 20 = coins can pay up to 20% of the items’ price. 0 = no % limit.' },
+      { name: 'maxCoinsPerOrder', label: 'Max coins per order', type: 'number', half: true, help: '0 = no cap.' },
+      { name: 'minOrderForCoins', label: 'Minimum order to use coins (₹)', type: 'number', half: true, help: '0 = any order.' },
       { name: 'expiryMonths', label: 'Coins expire after (months)', type: 'number', half: true, help: '0 = no expiry shown.' },
       { name: 'rules', label: 'Coin rules', type: 'list', help: 'Shown on the membership page. One rule per line.' },
     ],
@@ -178,6 +182,24 @@ const SECTIONS: Section[] = [
     ],
   },
   {
+    key: 'signin',
+    title: 'Email, Google Sign-in & OTP',
+    intro: 'Outgoing email sends password-reset links, order OTP codes and vendor order emails. For Gmail / Google Workspace use host smtp.gmail.com, port 587, your full address as user, and an App Password (Google Account → Security → App passwords). Use “Send test email” below after saving.',
+    fields: [
+      { name: 'smtpHost', label: 'SMTP host', type: 'text', half: true, help: 'e.g. smtp.gmail.com or smtp.hostinger.com' },
+      { name: 'smtpPort', label: 'SMTP port', type: 'number', half: true, help: '587 (STARTTLS) or 465 (SSL).' },
+      { name: 'smtpUser', label: 'SMTP username', type: 'text', half: true, help: 'Usually the full email address.' },
+      { name: 'smtpPass', label: 'SMTP password / app password', type: 'text', half: true },
+      { name: 'smtpFrom', label: 'Send emails as', type: 'text', half: true, help: 'e.g. Virnobyte <info@virnobyte.com>. Blank = the SMTP username.' },
+      { name: 'smtpSecure', label: 'Use SSL (port 465)', type: 'bool', half: true },
+      { name: 'googleClientId', label: 'Google OAuth Client ID', type: 'text', half: true, help: 'Google Cloud Console → APIs & Services → Credentials → OAuth client ID (Web application). Blank hides the Google button.' },
+      { name: 'googleClientSecret', label: 'Google OAuth Client Secret', type: 'text', half: true },
+      { name: 'codOtp', label: 'Ask for an OTP before confirming Cash on Delivery orders', type: 'bool', half: true },
+      { name: 'textbeeApiKey', label: 'textbee.dev API key (optional, free SMS OTP)', type: 'text', half: true, help: 'Free: install the textbee app on a spare Android phone with a SIM, sign in at textbee.dev, and copy the API key. Blank = OTP by email only.' },
+      { name: 'textbeeDeviceId', label: 'textbee.dev device ID', type: 'text', half: true, help: 'textbee.dev dashboard → Devices. SMS go out from that phone’s SIM (free plan ≈ 50 SMS/day; email is always sent too).' },
+    ],
+  },
+  {
     key: 'blog',
     title: 'Blog Page Header & Image Sizes',
     intro: 'Customize the main blog listing page (/blog), including the page title, intro text, and card image display sizes.',
@@ -260,6 +282,20 @@ if (Astro.request.method === 'POST') {
         }
       }
     }
+  } else if (form.get('_action') === 'test_email') {
+    const to = String(form.get('test_to') ?? '').trim() || currentUser.email;
+    if (!isMailConfigured()) {
+      error = 'Email is not set up yet: fill in the SMTP host, username and password above and save first.';
+    } else {
+      const res = await sendEmail({
+        to,
+        subject: 'Virnobyte test email',
+        text: 'This is a test email from your Virnobyte website. Email sending works.',
+        html: '<p>This is a test email from your Virnobyte website. <b>Email sending works.</b></p>',
+      });
+      if (res.success) flash = `Test email sent to ${to}. Check the inbox (and spam folder).`;
+      else error = `The mail server refused the email: ${res.error}. Check the host, port, username and app password.`;
+    }
   } else {
     const sec = SECTIONS.find((x) => x.key === form.get('_section'));
     if (sec) {
@@ -319,6 +355,7 @@ function formValue(sec: Section, f: FieldDef) {
   return v == null ? '' : String(v);
 }
 const sample = plans()[1] ?? plans()[0];
+const googleRedirect = `${siteOrigin(Astro)}/account/google/callback`;
 ---
 
 <Admin title="Settings" active="settings">
@@ -379,6 +416,23 @@ const sample = plans()[1] ?? plans()[0];
             </div>
             <button class="btn" type="submit" style="margin-top:14px">Save {sec.title.toLowerCase()}</button>
           </form>
+          {sec.key === 'signin' && (
+            <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line);display:grid;gap:14px">
+              <form method="post" class="inline-form">
+                <input type="hidden" name="_action" value="test_email" />
+                <div class="field">
+                  <label for="test_to">Send a test email to</label>
+                  <input id="test_to" name="test_to" type="email" value={currentUser.email} />
+                </div>
+                <button class="btn btn--ghost" type="submit">Send test email</button>
+              </form>
+              <p class="small muted">
+                Email status: <b>{isMailConfigured() ? 'set up' : 'not set up — password reset and OTP emails are NOT being delivered'}</b>.
+                <br />
+                Google sign-in: in your OAuth client, add this <b>Authorised redirect URI</b>: <code>{googleRedirect}</code>
+              </p>
+            </div>
+          )}
           {(sec.key === 'coins' || sec.key === 'card') && sample && (
             <div>
               <MembershipCard planName={sample.name} from={sample.card_from} to={sample.card_to} text={sample.card_text} pattern={sample.card_pattern} coins={sample.coins} holder="Member name" number={`${settings.card.prefix}2600000001`} validThru="2027-10-07" status="active" />

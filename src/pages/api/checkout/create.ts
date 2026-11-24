@@ -6,6 +6,9 @@ import { startOnlinePayment } from '@/lib/commerce/checkout';
 import { getPublicOrigin, isSecure, json, readJson } from '@/lib/commerce/http';
 import { createOrder, validateCustomer } from '@/lib/commerce/orders';
 import { getPaymentConfig } from '@/lib/commerce/payments';
+import { StockError } from '@/lib/inventory/stock';
+import { coinQuote } from '@/lib/commerce/coins';
+import { sendOrderOtp } from '@/lib/commerce/otp';
 
 /**
  * POST /api/checkout/create
@@ -52,6 +55,10 @@ export const POST: APIRoute = async (ctx) => {
       return json({ ok: false, error: view.lines[0]?.unavailableReason || 'Your cart is empty.' }, 400);
     }
 
+    // Virno Coins: the browser only says "use my coins"; how many is worked out here from the real balance.
+    const useCoins = body.useCoins === 'on' || body.useCoins === true;
+    const quote = useCoins ? coinQuote(user.id, view.totals.subtotal) : null;
+
     const order = createOrder({
       lines: view.lines,
       totals: view.totals,
@@ -60,10 +67,16 @@ export const POST: APIRoute = async (ctx) => {
       gateway: cfg.gateway,
       userId: user.id,
       cartId: view.cartId,
+      coins: quote && quote.coins ? { coins: quote.coins, discount: quote.discount } : undefined,
     });
     const redirectUrl = `/order-success?order_id=${encodeURIComponent(order.order_id)}`;
 
     if (method === 'cod') {
+      if (order.order_status === 'AWAITING_OTP') {
+        // Send the code now; the verify page lets the customer ask again if it does not arrive.
+        await sendOrderOtp(order.order_id).catch((e) => console.warn('[Checkout] OTP send failed:', e));
+        return json({ ok: true, orderId: order.order_id, paymentMethod: 'cod', redirectUrl: `/order-verify?order_id=${encodeURIComponent(order.order_id)}` });
+      }
       // Re-read so the header badge cookie reflects the now-empty cart.
       if (view.cartId) getCart(ctx.cookies, user, isSecure(ctx));
       return json({ ok: true, orderId: order.order_id, paymentMethod: 'cod', redirectUrl });
@@ -73,6 +86,9 @@ export const POST: APIRoute = async (ctx) => {
     if (!started.ok) return json({ ok: false, error: started.error, orderId: order.order_id }, 502);
     return json({ ok: true, orderId: order.order_id, paymentMethod: 'online', payment: started.intent, redirectUrl });
   } catch (err: any) {
+    // Someone else bought the last units between the cart page and this request.
+    if (err instanceof StockError) return json({ ok: false, error: err.message }, 409);
+    if (String(err?.message || '').startsWith('Your coin balance changed')) return json({ ok: false, error: err.message }, 409);
     console.error('[Checkout] create failed:', err);
     return json({ ok: false, error: 'We could not place your order. Please try again or call us.' }, 500);
   }

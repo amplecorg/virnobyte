@@ -726,3 +726,8 @@ table.tbl {
 .inline-form .field {
   flex: 1 1 140px;
 }
+
+/* Back button above a page title. */
+.page-head .back-btn {
+  margin-bottom: 10px;
+}

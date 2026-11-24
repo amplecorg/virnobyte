@@ -1,8 +1,12 @@
 import { randomBytes } from 'node:crypto';
-import { all, db, get, tx } from '../db';
+import { all, db, get, txImmediate } from '../db';
 import { emptyCartById } from './cart';
 import type { Line, Totals } from './pricing';
 import { ensureInvoiceNumber } from './invoice';
+import { afterOrderPlaced, reconcileOrderStock, reserveForOrder, type OrderLineForStock } from '../inventory/stock';
+import { codOtpEnabled } from './otp';
+import { spendCoinsForOrder } from './coins';
+import { activatePaidMembership } from './membership-checkout';
 
 /**
  * Orders are immutable snapshots: one `orders` row + one `order_items` row per line,
@@ -61,6 +65,10 @@ export interface OrderRow {
   customer_gstin: string;
   paid_at: string | null;
   created_at: string;
+  coins_used: number;
+  coin_discount: number;
+  kind: string;
+  membership_id: number | null;
 }
 
 export interface OrderItemRow {
@@ -124,6 +132,8 @@ export function createOrder(input: {
   gateway: string;
   userId: number | null;
   cartId: number | null;
+  /** Virno Coins put towards this order (already checked with coinQuote). */
+  coins?: { coins: number; discount: number };
 }): OrderRow {
   const d = db();
   if (!d) throw new Error('Orders are unavailable right now. Please call us to place your order.');
@@ -132,13 +142,19 @@ export function createOrder(input: {
 
   const { customer: c, totals } = input;
   const cod = input.paymentMethod === 'cod';
+  // COD orders wait for the customer's OTP before they are confirmed (Admin → Settings can switch this off).
+  const needsOtp = cod && codOtpEnabled();
+  const coinsUsed = input.userId && input.coins && input.coins.coins > 0 ? input.coins : { coins: 0, discount: 0 };
+  const payable = Math.max(1, totals.total - coinsUsed.discount);
   const orderRef = newOrderRef();
   const first = lines[0];
   // Legacy single-product columns stay filled so the admin list reads naturally.
   const summary = lines.map((l) => (l.quantity > 1 ? `${l.name} × ${l.quantity}` : l.name)).join(' + ').slice(0, 250);
 
   // Statements are prepared directly (not via run()) so any failure rolls the whole order back.
-  tx(() => {
+  // IMMEDIATE takes the write lock first, so the stock check below cannot race another checkout.
+  let orderDbId = 0;
+  txImmediate(() => {
     const res = d
       .prepare(
         `INSERT INTO orders (
@@ -147,33 +163,41 @@ export function createOrder(input: {
           customer_name, customer_phone, customer_email,
           address_line1, address_line2, pincode, city, state, address_type,
           payment_method, payment_status, order_status, gateway, notes, user_id, cart_id,
-          customer_company, customer_gstin
-        ) VALUES (?,?,?,?,?,?,?, ?,?,?,?,?, ?,?,?, ?,?,?,?,?,?, ?,?,?,?,?,?,?, ?,?)`,
+          customer_company, customer_gstin, coins_used, coin_discount
+        ) VALUES (?,?,?,?,?,?,?, ?,?,?,?,?, ?,?,?, ?,?,?,?,?,?, ?,?,?,?,?,?,?, ?,?,?,?)`,
       )
       .run(
         orderRef, first.productId, summary, first.slug, totals.itemCount, first.unitPrice, first.mrp,
-        totals.discount, totals.deliveryFee, totals.total, totals.subtotal, lines.length,
+        totals.discount, totals.deliveryFee, payable, totals.subtotal, lines.length,
         c.customerName, c.customerPhone, c.customerEmail,
         c.addressLine1, c.addressLine2, c.pincode, c.city, c.state, c.addressType,
-        cod ? 'cod' : input.gateway, cod ? 'COD_PENDING' : 'PENDING', cod ? 'CONFIRMED' : 'PENDING_PAYMENT',
+        cod ? 'cod' : input.gateway, cod ? 'COD_PENDING' : 'PENDING', cod ? (needsOtp ? 'AWAITING_OTP' : 'CONFIRMED') : 'PENDING_PAYMENT',
         cod ? '' : input.gateway, c.notes, input.userId, input.cartId,
-        c.customerCompany, c.customerGstin,
+        c.customerCompany, c.customerGstin, coinsUsed.coins, coinsUsed.discount,
       );
-    const orderDbId = Number(res.lastInsertRowid);
+    orderDbId = Number(res.lastInsertRowid);
+    // Coins leave the balance with the order (refunded automatically if it never completes).
+    if (input.userId && coinsUsed.coins) spendCoinsForOrder(input.userId, coinsUsed.coins, orderRef);
     const item = d.prepare(
       `INSERT INTO order_items (order_id, product_id, product_slug, product_name, image, quantity, unit_price, mrp, line_total, hsn, gst_rate)
        VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
     );
     // HSN and GST rate are snapshotted so later catalogue edits never change an issued invoice.
     const taxOf = d.prepare('SELECT hsn, gst_rate FROM products WHERE id = ?');
+    const stockLines: OrderLineForStock[] = [];
     for (const l of lines) {
       const t = (taxOf.get(l.productId) as { hsn: string; gst_rate: number } | undefined) ?? { hsn: '', gst_rate: 0 };
-      item.run(orderDbId, l.productId, l.slug, l.name, l.image, l.quantity, l.unitPrice, l.mrp, l.lineTotal, t.hsn || '', t.gst_rate || 0);
+      const r = item.run(orderDbId, l.productId, l.slug, l.name, l.image, l.quantity, l.unitPrice, l.mrp, l.lineTotal, t.hsn || '', t.gst_rate || 0);
+      stockLines.push({ itemId: Number(r.lastInsertRowid), productId: l.productId, qty: l.quantity, name: l.name });
     }
+    // Dropship inventory: reserve units at a source (throws StockError, rolling back, if someone else got them first).
+    // Only a confirmed COD order is sent to vendors; one waiting for its OTP just holds the stock.
+    reserveForOrder(orderDbId, stockLines, cod && !needsOtp);
   });
+  afterOrderPlaced(orderDbId);
 
-  // A COD order is final at this point; an online order keeps the cart until payment succeeds.
-  if (cod) {
+  // A confirmed COD order is final now; OTP and online orders keep the cart until confirmed / paid.
+  if (cod && !needsOtp) {
     emptyCartById(input.cartId);
     ensureInvoiceNumber(orderRef);
   }
@@ -212,8 +236,19 @@ export function markOrderPaid(orderRef: string, paymentId: string): boolean {
     .run(paymentId || '', orderRef);
   const changed = Number(res.changes) > 0;
   if (changed) {
-    emptyCartById(getOrder(orderRef)?.cart_id);
+    const order = getOrder(orderRef);
+    emptyCartById(order?.cart_id);
     ensureInvoiceNumber(orderRef);
+    // Held stock becomes an assignment and the shipping source is notified.
+    if (order) reconcileOrderStock(order.id);
+    // A paid membership card is activated straight away, with its welcome coins.
+    if (order) {
+      try {
+        activatePaidMembership(order);
+      } catch (e) {
+        console.error('[Membership] could not activate paid card for', orderRef, e);
+      }
+    }
   }
   return changed;
 }

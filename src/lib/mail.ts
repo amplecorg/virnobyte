@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { getSettings } from './settings';
 const proc = typeof globalThis.process !== 'undefined' ? globalThis.process : undefined;
 const env = proc?.env || {};
 
@@ -9,8 +10,28 @@ export interface SendMailOptions {
   text: string;
 }
 
+/** True on the live server. Development conveniences (showing links on screen) must never run there. */
+export const isProduction = () => env.NODE_ENV === 'production';
+
+/** Mail server settings: Admin → Settings → Email first, then SMTP_* environment variables. */
+export function mailConfig() {
+  let s: Record<string, any> = {};
+  try {
+    s = (getSettings() as any).signin || {};
+  } catch {}
+  const pick = (v: unknown, e: string | undefined) => String(v ?? '').trim() || String(e ?? '').trim();
+  const host = pick(s.smtpHost, env.SMTP_HOST);
+  const user = pick(s.smtpUser, env.SMTP_USER);
+  const pass = pick(s.smtpPass, env.SMTP_PASS);
+  const port = Number(s.smtpHost ? s.smtpPort : env.SMTP_PORT) || 587;
+  const secure = s.smtpHost ? !!s.smtpSecure || port === 465 : env.SMTP_SECURE === 'true' || port === 465;
+  const from = pick(s.smtpFrom, env.SMTP_FROM || env.MAIL_FROM) || (user ? `Virnobyte <${user}>` : 'Virnobyte <info@virnobyte.com>');
+  return { host, user, pass, port, secure, from };
+}
+
 export function isMailConfigured(): boolean {
-  return Boolean(env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASS);
+  const c = mailConfig();
+  return Boolean(c.host && c.user && c.pass);
 }
 
 export async function sendEmail({
@@ -19,19 +40,11 @@ export async function sendEmail({
   html,
   text,
 }: SendMailOptions): Promise<{ success: boolean; devMode?: boolean; error?: string }> {
-  const host = env.SMTP_HOST;
-  const user = env.SMTP_USER;
-  const pass = env.SMTP_PASS;
-  const port = Number(env.SMTP_PORT || 587);
-  const secure = env.SMTP_SECURE === 'true' || port === 465;
-  const from =
-    env.SMTP_FROM ||
-    env.MAIL_FROM ||
-    (user ? `Virnobyte <${user}>` : 'Virnobyte <info@virnobyte.com>');
+  const { host, user, pass, port, secure, from } = mailConfig();
 
   if (!host || !user || !pass) {
     console.log('\n============================================================');
-    console.log('[VIRNOBYTE MAIL] SMTP not configured. Simulating email dispatch:');
+    console.log('[VIRNOBYTE MAIL] SMTP not configured. Email NOT sent:');
     console.log(`To: ${to}`);
     console.log(`From: ${from}`);
     console.log(`Subject: ${subject}`);

@@ -1,0 +1,123 @@
+---
+import '@/styles/inventory.css';
+import { all } from '@/lib/db';
+import { when } from '@/lib/inventory/format';
+import { ALLOCATION_SELECT, SHIP_BY_HOURS, STATUS_LABEL, stockBySource, type AllocationView } from '@/lib/inventory/stock';
+
+/**
+ * Shipping panel on the admin order page: which vendor ships each item, courier and tracking,
+ * and the few actions an admin needs (ship for them, move to another vendor, delivered, cancel item).
+ * Forms post to the order page with `_ship_action`; the page handles them before the order form.
+ */
+interface Props {
+  orderId: number;
+}
+const { orderId } = Astro.props;
+const lines = all<AllocationView>(
+  `${ALLOCATION_SELECT} WHERE a.order_id = ? AND a.status NOT IN ('EXPIRED') ORDER BY CASE WHEN a.status IN ('REJECTED','CANCELLED') THEN 1 ELSE 0 END, a.id`,
+  orderId,
+);
+const vendors = all<{ id: number; name: string; kind: string; active: number }>(
+  "SELECT id, name, kind, active FROM inv_sources ORDER BY CASE kind WHEN 'own' THEN 0 ELSE 1 END, priority, name",
+);
+const lateCut = Date.now() - SHIP_BY_HOURS * 3600_000;
+const isLate = (l: AllocationView) =>
+  (l.status === 'ASSIGNED' || l.status === 'ACCEPTED') && !!l.assigned_at && +new Date(l.assigned_at.replace(' ', 'T') + 'Z') < lateCut;
+const open = (s: string) => ['UNASSIGNED', 'ASSIGNED', 'ACCEPTED'].includes(s);
+const COURIERS = ['Delhivery', 'Blue Dart', 'DTDC', 'Ekart', 'Xpressbees', 'Shadowfax', 'Ecom Express', 'India Post', 'Own delivery'];
+const LABEL: Record<string, string> = { ...STATUS_LABEL, ASSIGNED: 'Waiting to ship', ACCEPTED: 'Waiting to ship', REJECTED: 'Vendor could not ship' };
+---
+
+{
+  lines.length > 0 && (
+    <section class="panel inv" id="shipping">
+      <div class="panel-head">
+        <h2>Shipping</h2>
+        <span class="small muted">Vendors ship these items straight to the customer.</span>
+      </div>
+      <datalist id="admin-couriers">{COURIERS.map((c) => <option value={c} />)}</datalist>
+      <div class="table-wrap" style="border:0">
+        <table class="tbl">
+          <thead>
+            <tr><th scope="col">Item</th><th scope="col">Shipped by</th><th scope="col">Status</th><th scope="col">Actions</th></tr>
+          </thead>
+          <tbody>
+            {lines.map((l) => {
+              const free = open(l.status) ? new Map(stockBySource(l.product_id).filter((s) => s.usable).map((s) => [s.source_id, Math.max(0, s.free)])) : new Map();
+              const closed = l.status === 'REJECTED' || l.status === 'CANCELLED';
+              return (
+                <tr style={closed ? 'opacity:.6' : undefined}>
+                  <td>{l.product_name} × <b>{l.qty}</b>{l.sku && <div class="small muted">SKU {l.sku}</div>}</td>
+                  <td>{l.source_name ?? <span class="muted">Nobody yet</span>}</td>
+                  <td>
+                    <span class:list={['pill', isLate(l) ? 'bad' : `s-${l.status}`]}>{isLate(l) ? 'Late' : LABEL[l.status]}</span>
+                    {l.courier && <div class="small">{l.courier}{l.tracking_no && ` · ${l.tracking_no}`}</div>}
+                    {l.shipped_at && <div class="small muted">Shipped {when(l.shipped_at)}</div>}
+                    {l.note && <div class="small muted">{l.note}</div>}
+                  </td>
+                  <td>
+                    <div class="acts">
+                      {open(l.status) && (
+                        <details class="more">
+                          <summary>{l.status === 'UNASSIGNED' ? 'Choose vendor' : 'Change vendor'}</summary>
+                          <form method="post">
+                            <input type="hidden" name="_ship_action" value="assign" />
+                            <input type="hidden" name="alloc_id" value={l.id} />
+                            <select name="source_id" required aria-label="Vendor">
+                              <option value="">Choose…</option>
+                              {vendors.filter((v) => v.id !== l.source_id).map((v) => (
+                                <option value={v.id}>{v.name} ({free.get(v.id) ?? 0} in stock){v.active ? '' : ' – off'}</option>
+                              ))}
+                            </select>
+                            <button class="btn btn--sm" type="submit">Save</button>
+                          </form>
+                        </details>
+                      )}
+                      {(l.status === 'ASSIGNED' || l.status === 'ACCEPTED') && (
+                        <details class="more">
+                          <summary>Mark shipped</summary>
+                          <form method="post">
+                            <input type="hidden" name="_ship_action" value="ship" />
+                            <input type="hidden" name="alloc_id" value={l.id} />
+                            <input type="text" name="courier" list="admin-couriers" placeholder="Courier" aria-label="Courier" />
+                            <input type="text" name="tracking_no" placeholder="Tracking no." aria-label="Tracking number" />
+                            <button class="btn btn--sm" type="submit">Save</button>
+                          </form>
+                        </details>
+                      )}
+                      {l.status === 'SHIPPED' && (
+                        <form method="post">
+                          <input type="hidden" name="_ship_action" value="deliver" />
+                          <input type="hidden" name="alloc_id" value={l.id} />
+                          <button class="btn btn--sm btn--ghost" type="submit">Mark delivered</button>
+                        </form>
+                      )}
+                      {(l.status === 'SHIPPED' || l.status === 'DELIVERED') && (
+                        <details class="more">
+                          <summary>Returned</summary>
+                          <form method="post">
+                            <input type="hidden" name="_ship_action" value="return" />
+                            <input type="hidden" name="alloc_id" value={l.id} />
+                            <label class="small"><input type="checkbox" name="restock" /> Put back in stock</label>
+                            <button class="btn btn--sm btn--ghost" type="submit">Mark returned</button>
+                          </form>
+                        </details>
+                      )}
+                      {open(l.status) && (
+                        <form method="post" data-confirm="Cancel just this item? The vendor is told not to ship it. To cancel the whole order, set the order status to Cancelled.">
+                          <input type="hidden" name="_ship_action" value="cancel" />
+                          <input type="hidden" name="alloc_id" value={l.id} />
+                          <button class="btn btn--sm btn--ghost" type="submit">Cancel item</button>
+                        </form>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  )
+}

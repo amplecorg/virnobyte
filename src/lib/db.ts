@@ -5,6 +5,7 @@ import os from 'node:os';
 import { seedDatabase } from './seed';
 import { SERVICES } from './content/services';
 import { POSTS } from './content/posts';
+import { INVENTORY_SCHEMA } from './inventory/schema';
 
 const proc = typeof globalThis.process !== 'undefined' ? globalThis.process : (typeof process !== 'undefined' ? process : undefined);
 const env = proc?.env || {};
@@ -668,6 +669,42 @@ export function db(): any {
       console.warn('[Virnobyte DB] Migration error for orders columns:', migErr);
     }
 
+    // Google sign-in, coin redemption on orders, order OTP and membership purchases.
+    try {
+      const userCols = new Set((d.prepare('PRAGMA table_info(users)').all() as { name: string }[]).map((c) => c.name));
+      if (!userCols.has('google_sub')) d.exec('ALTER TABLE users ADD COLUMN google_sub TEXT');
+      d.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_sub ON users(google_sub) WHERE google_sub IS NOT NULL');
+      const oc = new Set((d.prepare('PRAGMA table_info(orders)').all() as { name: string }[]).map((c) => c.name));
+      const add: [string, string][] = [
+        ['coins_used', 'INTEGER NOT NULL DEFAULT 0'],
+        ['coin_discount', 'INTEGER NOT NULL DEFAULT 0'],
+        ['coins_refunded', 'INTEGER NOT NULL DEFAULT 0'],
+        // 'product' (shop order) or 'membership' (membership card purchase).
+        ['kind', "TEXT NOT NULL DEFAULT 'product'"],
+        ['membership_id', 'INTEGER'],
+      ];
+      for (const [c, def] of add) if (!oc.has(c)) d.exec(`ALTER TABLE orders ADD COLUMN ${c} ${def}`);
+      d.exec(`CREATE TABLE IF NOT EXISTS order_otps (
+        order_id INTEGER PRIMARY KEY REFERENCES orders(id) ON DELETE CASCADE,
+        code_hash TEXT NOT NULL,
+        sent_to TEXT NOT NULL DEFAULT '',
+        expires_at TEXT NOT NULL,
+        attempts INTEGER NOT NULL DEFAULT 0,
+        sends INTEGER NOT NULL DEFAULT 1,
+        last_sent_at TEXT NOT NULL DEFAULT (datetime('now')),
+        verified_at TEXT
+      )`);
+    } catch (migErr) {
+      console.warn('[Virnobyte DB] Migration error for sign-in / coins / OTP columns:', migErr);
+    }
+
+    // Dropship inventory (separate tables; see lib/inventory/schema.ts).
+    try {
+      d.exec(INVENTORY_SCHEMA);
+    } catch (migErr) {
+      console.warn('[Virnobyte DB] Migration error for inventory tables:', migErr);
+    }
+
     seedDatabase(d);
     instance = d;
     return d;
@@ -786,20 +823,38 @@ export function run(sql: string, ...params: any[]) {
   return { changes: 0, lastInsertRowid: 0 };
 }
 
-export function tx<T>(fn: () => T): T {
+let txDepth = 0;
+
+function runTx<T>(begin: string, fn: () => T): T {
   const d = db();
-  if (d && typeof d.exec === 'function') {
-    d.exec('BEGIN');
+  // Nested calls join the outer transaction instead of failing on a second BEGIN.
+  if (!d || typeof d.exec !== 'function' || txDepth > 0) return fn();
+  d.exec(begin);
+  txDepth++;
+  try {
+    const out = fn();
+    txDepth--;
+    d.exec('COMMIT');
+    return out;
+  } catch (e) {
+    txDepth--;
     try {
-      const out = fn();
-      d.exec('COMMIT');
-      return out;
-    } catch (e) {
       d.exec('ROLLBACK');
-      throw e;
-    }
+    } catch {}
+    throw e;
   }
-  return fn();
+}
+
+export function tx<T>(fn: () => T): T {
+  return runTx('BEGIN', fn);
+}
+
+/**
+ * Takes the write lock up front. Use when the transaction reads then writes based on what it read
+ * (stock checks), so two app processes can never both sell the last unit.
+ */
+export function txImmediate<T>(fn: () => T): T {
+  return runTx('BEGIN IMMEDIATE', fn);
 }
 
 export function json<T = any>(value: string | null | undefined, fallback: T): T {

@@ -58,13 +58,14 @@ const toFreeDelivery = totals.deliveryFee > 0 ? cfg.minFreeDelivery - totals.sub
                         ) : (
                           <p class="vc-unavailable">{l.unavailableReason}</p>
                         )}
+                        {l.stockNote && <p class="vc-stock-note">{l.stockNote}</p>}
 
                         <div class="vc-controls">
                           {l.available && (
                             <div class="vc-qty" role="group" aria-label={`Quantity for ${l.name}`}>
                               <button type="button" data-cart-qty={l.quantity - 1} data-product={l.productId} aria-label="Decrease quantity" disabled={l.quantity <= 1}>−</button>
                               <span aria-live="polite">{l.quantity}</span>
-                              <button type="button" data-cart-qty={l.quantity + 1} data-product={l.productId} aria-label="Increase quantity" disabled={l.quantity >= MAX_QTY}>+</button>
+                              <button type="button" data-cart-qty={l.quantity + 1} data-product={l.productId} aria-label="Increase quantity" disabled={l.quantity >= Math.min(MAX_QTY, l.maxQty)}>+</button>
                             </div>
                           )}
                           <button type="button" class="vc-remove" data-cart-qty="0" data-product={l.productId}>REMOVE</button>
@@ -291,6 +292,12 @@ const toFreeDelivery = totals.deliveryFee > 0 ? cfg.minFreeDelivery - totals.sub
   .vc-each {
     font-size: 12.5px;
     color: #878787;
+  }
+  .vc-stock-note {
+    margin: 4px 0 0;
+    font-size: 13px;
+    font-weight: 700;
+    color: #b45309;
   }
   .vc-unavailable {
     margin: 4px 0 0;

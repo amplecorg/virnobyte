@@ -1,0 +1,81 @@
+---
+import '@/styles/global.css';
+import '@/styles/admin.css';
+import '@/styles/inventory.css';
+import '@/styles/seller.css';
+
+interface Props {
+  title: string;
+  vendorName?: string;
+  active?: 'home' | 'orders' | 'inventory';
+  /** Orders waiting to ship, shown as a badge on the Orders tab. */
+  toShip?: number;
+}
+const { title, vendorName, active, toShip = 0 } = Astro.props;
+const NAV = [
+  { key: 'home', href: '/vendor', label: 'Home' },
+  { key: 'orders', href: '/vendor/orders', label: 'Orders', badge: toShip },
+  { key: 'inventory', href: '/vendor/inventory', label: 'Inventory' },
+];
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="referrer" content="no-referrer" />
+    <title>{title} · Virnobyte Seller Hub</title>
+    <link rel="icon" href="/favicon.ico" />
+  </head>
+  <body class="admin seller">
+    <header class="sh-top">
+      <a class="sh-brand" href="/vendor">
+        <img src="/virnobyte-logo-white.png" alt="" width="34" height="27" />
+        <span>Virnobyte <b>Seller Hub</b></span>
+      </a>
+      {
+        vendorName && (
+          <nav class="sh-nav" aria-label="Seller Hub">
+            {NAV.map((n) => (
+              <a href={n.href} aria-current={active === n.key ? 'page' : undefined}>
+                {n.label}
+                {n.badge ? <span class="sh-badge">{n.badge}</span> : null}
+              </a>
+            ))}
+          </nav>
+        )
+      }
+      {
+        vendorName && (
+          <div class="sh-me">
+            <span class="sh-me-name">{vendorName}</span>
+            <form method="post" action="/vendor/logout">
+              <button class="sh-signout" type="submit">Sign out</button>
+            </form>
+          </div>
+        )
+      }
+    </header>
+    <main class="sh-main inv">
+      {
+        vendorName ? (
+          <slot />
+        ) : (
+          <section class="sh-card sh-signin">
+            <h1>Please open your Seller Hub link</h1>
+            <p>Your Seller Hub opens from the private link Virnobyte sent you on WhatsApp or email. If you lost it, ask Virnobyte for a new one.</p>
+          </section>
+        )
+      }
+    </main>
+    <script>
+      document.querySelectorAll<HTMLFormElement>('form[data-confirm]').forEach((f) =>
+        f.addEventListener('submit', (e) => {
+          if (!confirm(f.dataset.confirm!)) e.preventDefault();
+        }),
+      );
+    </script>
+  </body>
+</html>

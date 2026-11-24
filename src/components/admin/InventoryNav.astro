@@ -1,0 +1,20 @@
+---
+import '@/styles/inventory.css';
+
+interface Props {
+  active: 'overview' | 'fulfilment' | 'products' | 'sources' | 'movements';
+}
+const { active } = Astro.props;
+const TABS = [
+  { key: 'overview', href: '/admin/inventory', label: 'Overview' },
+  { key: 'products', href: '/admin/inventory/products', label: 'Stock' },
+  { key: 'fulfilment', href: '/admin/inventory/fulfilment', label: 'All shipments' },
+  { key: 'sources', href: '/admin/inventory/sources', label: 'Vendors' },
+  { key: 'movements', href: '/admin/inventory/movements', label: 'Stock history' },
+];
+---
+
+<nav class="tabs inv-tabs" aria-label="Inventory">
+  {TABS.map((t) => <a href={t.href} aria-current={t.key === active ? 'true' : undefined}>{t.label}</a>)}
+</nav>
+

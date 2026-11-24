@@ -24,6 +24,11 @@ if (order.user_id && (!user || (user.id !== order.user_id && user.role !== 'admi
   return Astro.redirect(`/account/login?next=${encodeURIComponent(Astro.url.pathname + Astro.url.search)}`, 302);
 }
 
+// A Cash-on-Delivery order is not confirmed until its OTP is entered.
+if (order.order_status === 'AWAITING_OTP') {
+  return Astro.redirect(`/order-verify?order_id=${encodeURIComponent(order.order_id)}`, 302);
+}
+
 const items = orderItems(order.id);
 const c = contactInfo();
 const isPaid = order.payment_status === 'PAID';
@@ -62,7 +67,12 @@ const heading = confirmed ? 'Order Placed Successfully!' : awaitingPayment ? 'Pa
         </div>
 
         <h1 class="fk-success-heading">{heading}</h1>
-        {confirmed ? (
+        {confirmed && order.kind === 'membership' ? (
+          <p class="fk-success-sub">
+            Payment received. Your <strong>{order.product_name}</strong> is now <strong>active</strong> and your welcome coins are on it.
+            See it in <a href="/account">your account</a>.
+          </p>
+        ) : confirmed ? (
           <p class="fk-success-sub">
             Thank you for choosing <strong>Virnobyte Assured</strong>. Your order is confirmed and our technician is preparing it for delivery.
           </p>
@@ -113,6 +123,13 @@ const heading = confirmed ? 'Order Placed Successfully!' : awaitingPayment ? 'Pa
             <div class="fk-sum-row">
               <span class="fk-sum-label">Delivery Charges:</span>
               <span class="fk-sum-value">{inr(order.delivery_fee)}</span>
+            </div>
+          )}
+
+          {order.coin_discount > 0 && (
+            <div class="fk-sum-row">
+              <span class="fk-sum-label">Paid with Virno Coins ({order.coins_used}):</span>
+              <span class="fk-sum-value" style="color:#388e3c">− {inr(order.coin_discount)}</span>
             </div>
           )}
 

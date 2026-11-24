@@ -1,6 +1,7 @@
 import { defineMiddleware } from 'astro:middleware';
 import { userFromCookies } from './lib/auth';
 import { generatePageMarkdown } from './lib/agent-markdown';
+import { startInventoryJobs } from './lib/inventory/jobs';
 
 // Old WordPress URLs → new canonical pages (permanent redirects keep their link equity).
 const LEGACY: Record<string, string> = {
@@ -25,11 +26,17 @@ const LEGACY: Record<string, string> = {
   '/product/premium-it-partner': '/membership',
 };
 
-const PRIVATE = /^\/(admin|account|api)(\/|$)/;
+const PRIVATE = /^\/(admin|account|api|vendor)(\/|$)/;
 // Per-shopper pages: must never be stored by a shared cache or indexed.
-const SHOPPER = /^\/(cart|checkout|order-success)(\/|$)/;
+const SHOPPER = /^\/(cart|checkout|order-success|order-verify)(\/|$)/;
 
 export const onRequest = defineMiddleware(async (ctx, next) => {
+  // Inventory upkeep (hold expiry, stale-stock re-sync); starts once per process.
+  try {
+    startInventoryJobs();
+  } catch (err: any) {
+    console.error('[Inventory] could not start background jobs:', err?.message);
+  }
   const url = ctx.url;
   // Use the raw request path: Astro may normalise ctx.url's trailing slash.
   const pathname = new URL(ctx.request.url).pathname;
@@ -84,7 +91,7 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
   if (
     pathname === '/account' ||
     (pathname.startsWith('/account/') &&
-      !/^\/account\/(login|register|forgot-password|reset-password)$/.test(pathname))
+      !/^\/account\/(login|register|forgot-password|reset-password|google|google\/callback)$/.test(pathname))
   ) {
     if (!user) return ctx.redirect(`/account/login?next=${encodeURIComponent(pathname + url.search)}`);
   }

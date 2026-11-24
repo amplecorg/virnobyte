@@ -39,7 +39,7 @@ export function financialYear(d = new Date()) {
 /** True once the order is a completed sale that should carry a tax invoice. */
 export function invoiceEligible(o: Pick<InvoiceOrder, 'payment_status' | 'payment_method' | 'order_status'>) {
   if (o.order_status === 'CANCELLED') return false;
-  return o.payment_status === 'PAID' || (o.payment_method === 'cod' && o.order_status !== 'PENDING_PAYMENT');
+  return o.payment_status === 'PAID' || (o.payment_method === 'cod' && o.order_status !== 'PENDING_PAYMENT' && o.order_status !== 'AWAITING_OTP');
 }
 
 /**
@@ -106,7 +106,7 @@ export interface InvoiceTotals {
 
 export function computeInvoice(
   items: { product_name: string; quantity: number; unit_price: number; line_total: number; hsn?: string; gst_rate?: number }[],
-  order: { delivery_fee: number; total_amount: number; state: string },
+  order: { delivery_fee: number; total_amount: number; state: string; coin_discount?: number },
 ): InvoiceTotals {
   const co = getSettings().company;
   const defRate = Number(co.defaultGstPercent) || 18;
@@ -152,7 +152,9 @@ export function computeInvoice(
   const sgst = sum('sgst');
   const igst = sum('igst');
   const tax = r2(cgst + sgst + igst);
-  const total = order.total_amount;
+  // Virno Coins are treated like a voucher: the sale (and its GST) is the full value, and the
+  // coins are shown afterwards as part of the payment. total_amount is what the customer paid in money.
+  const total = order.total_amount + (Number(order.coin_discount) || 0);
   return {
     lines,
     intraState,

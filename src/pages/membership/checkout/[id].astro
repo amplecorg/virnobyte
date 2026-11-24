@@ -1,0 +1,214 @@
+---
+import Base from '@/layouts/Base.astro';
+import MembershipCard from '@/components/MembershipCard.astro';
+import { currentMembership, planById } from '@/lib/data';
+import { getPaymentConfig } from '@/lib/commerce/payments';
+import { getSettings } from '@/lib/settings';
+import { inr, num } from '@/lib/format';
+
+/** Buy a membership card online: details + pay with the store's gateway; the card activates on payment. */
+const plan = planById(Number(Astro.params.id));
+if (!plan || !plan.active) return Astro.redirect('/membership', 302);
+const user = Astro.locals.user;
+if (!user) return Astro.redirect(`/account/register?plan=${plan.id}`, 302);
+const mine = currentMembership(user.id);
+if (mine?.status === 'active') return Astro.redirect('/account', 302);
+const cfg = getPaymentConfig();
+const s = getSettings();
+const gatewayName = cfg.gateway === 'cashfree' ? 'Cashfree' : 'Razorpay';
+---
+
+<Base title={`Buy the ${plan.name} card | Virnobyte`} description={`Pay online for the Virnobyte ${plan.name} membership card.`} canonical={`/membership/checkout/${plan.id}`} noindex>
+  <section class="section">
+    <div class="wrap mc-grid">
+      <div class="mc-main">
+        <a href="/membership" class="back-btn">All plans</a>
+        <h1>Get the {plan.name} card</h1>
+        {
+          !cfg.onlineAvailable ? (
+            <div class="mc-box">
+              <p>Online payment is not available right now. Request the card and pay at our counter or during the first visit.</p>
+              <form method="post" action="/api/membership">
+                <input type="hidden" name="plan_id" value={plan.id} />
+                <input type="hidden" name="request" value="1" />
+                <button class="btn" type="submit">Request the {plan.name} card</button>
+              </form>
+            </div>
+          ) : (
+            <form id="mc-form" class="mc-box" novalidate>
+              <input type="hidden" name="planId" value={plan.id} />
+              <h2>Card holder &amp; service address</h2>
+              <p class="small muted">The name is printed on your card. The address is where our technicians come for doorstep visits.</p>
+              <div class="mc-fields">
+                <label>Full name on card<input name="customerName" required autocomplete="name" value={user.name} /></label>
+                <label>Mobile number<input name="customerPhone" required inputmode="tel" autocomplete="tel" value={user.phone} placeholder="10-digit mobile" /></label>
+                <label class="wide">Email<input name="customerEmail" type="email" autocomplete="email" value={user.email} /></label>
+                <label class="wide">House / flat, building<input name="addressLine1" required autocomplete="address-line1" /></label>
+                <label class="wide">Area, street, landmark<input name="addressLine2" autocomplete="address-line2" /></label>
+                <label>Pincode<input name="pincode" required inputmode="numeric" maxlength="6" autocomplete="postal-code" /></label>
+                <label>City<input name="city" value="Pune" autocomplete="address-level2" /></label>
+                <label>State<input name="state" value="Maharashtra" autocomplete="address-level1" /></label>
+              </div>
+              <p class="mc-error" id="mc-error" role="alert" hidden></p>
+              <button class="btn btn--block" id="mc-pay" type="submit"><span data-label>Pay {inr(plan.price)} securely</span></button>
+              <p class="small muted">Pay by UPI, card, NetBanking or wallet via {gatewayName}. Your card is activated and {num(plan.coins)} {s.coins.name} are credited as soon as the payment succeeds. A GST invoice is issued automatically.</p>
+            </form>
+          )
+        }
+      </div>
+      <aside class="mc-side">
+        <MembershipCard planName={plan.name} from={plan.card_from} to={plan.card_to} text={plan.card_text} pattern={plan.card_pattern} coins={plan.coins} holder={user.name} />
+        <dl class="mc-sum">
+          <div><dt>{plan.name} membership · {Math.round(plan.validity_days / 30.4)} months</dt><dd>{inr(plan.mrp > plan.price ? plan.mrp : plan.price)}</dd></div>
+          {plan.mrp > plan.price && <div><dt>Discount</dt><dd class="ok">− {inr(plan.mrp - plan.price)}</dd></div>}
+          <div class="tot"><dt>To pay</dt><dd>{inr(plan.price)}</dd></div>
+        </dl>
+        <ul class="ticks small">
+          <li>{num(plan.coins)} {s.coins.name} credited on activation</li>
+          <li>{plan.doorstep_visits} doorstep visits included</li>
+          {plan.benefits.slice(0, 4).map((b) => <li>{b}</li>)}
+        </ul>
+      </aside>
+    </div>
+  </section>
+</Base>
+
+<script>
+  import { openPayment } from '../../../scripts/pay';
+  const form = document.getElementById('mc-form') as HTMLFormElement | null;
+  const btn = document.getElementById('mc-pay') as HTMLButtonElement | null;
+  const err = document.getElementById('mc-error');
+  if (form && btn) {
+    const label = btn.querySelector('[data-label]') as HTMLElement;
+    const original = label.textContent || 'Pay';
+    const fail = (m: string) => {
+      if (err) {
+        err.textContent = m;
+        err.hidden = false;
+      }
+      label.textContent = original;
+      btn.disabled = false;
+    };
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (err) err.hidden = true;
+      btn.disabled = true;
+      label.textContent = 'Opening payment…';
+      try {
+        const res = await fetch('/api/membership/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(Object.fromEntries(new FormData(form).entries())),
+        });
+        const data = await res.json();
+        if (data.requiresLogin) return void (window.location.href = '/account/login?next=' + encodeURIComponent(location.pathname));
+        if (!res.ok || !data.ok) {
+          if (data.redirectUrl) return void (window.location.href = data.redirectUrl);
+          return fail(data.error || 'Please check your details and try again.');
+        }
+        try {
+          await openPayment(data);
+        } catch {
+          window.location.href = data.redirectUrl;
+        }
+      } catch (e: any) {
+        fail(e?.message || 'Network error. Please try again.');
+      }
+    });
+  }
+</script>
+
+<style>
+  .mc-grid {
+    display: grid;
+    gap: var(--space-6);
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 1040px;
+  }
+  @media (min-width: 900px) {
+    .mc-grid {
+      grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+      align-items: start;
+    }
+  }
+  .mc-main h1 {
+    margin: 8px 0 16px;
+  }
+  .mc-box {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-l);
+    padding: var(--space-5);
+    display: grid;
+    gap: var(--space-4);
+  }
+  .mc-box h2 {
+    font-size: 1.15rem;
+    margin: 0;
+  }
+  .mc-fields {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: 1fr 1fr;
+  }
+  .mc-fields label {
+    display: grid;
+    gap: 4px;
+    font-size: 13px;
+    font-weight: 650;
+  }
+  .mc-fields .wide {
+    grid-column: 1 / -1;
+  }
+  .mc-fields input {
+    min-height: 44px;
+    padding: 0 12px;
+    border: 1.5px solid var(--line-strong);
+    border-radius: 8px;
+    font: inherit;
+    font-weight: 400;
+  }
+  @media (max-width: 560px) {
+    .mc-fields {
+      grid-template-columns: 1fr;
+    }
+  }
+  .mc-error {
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: #fdeceb;
+    color: #8c1d14;
+    font-weight: 600;
+  }
+  .mc-side {
+    display: grid;
+    gap: var(--space-4);
+  }
+  .mc-sum {
+    margin: 0;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-m, 10px);
+    padding: var(--space-4);
+    display: grid;
+    gap: 8px;
+  }
+  .mc-sum div {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .mc-sum dd {
+    margin: 0;
+    font-weight: 700;
+  }
+  .mc-sum .ok {
+    color: #388e3c;
+  }
+  .mc-sum .tot {
+    border-top: 1px solid var(--line);
+    padding-top: 8px;
+    font-size: 1.1rem;
+  }
+</style>

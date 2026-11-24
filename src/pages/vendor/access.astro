@@ -1,0 +1,19 @@
+---
+import Vendor from '@/layouts/Vendor.astro';
+import { isSecure } from '@/lib/commerce/http';
+import { rateLimit } from '@/lib/auth';
+import { signInVendor } from '@/lib/inventory/vendor';
+
+// Opening the private link signs the vendor in and removes the token from the address bar.
+const token = Astro.url.searchParams.get('t') ?? '';
+const allowed = rateLimit(`vendor-access:${Astro.clientAddress}`, 20, 10 * 60_000);
+const vendor = allowed && token ? signInVendor(Astro.cookies, token, isSecure(Astro)) : undefined;
+if (vendor) return Astro.redirect('/vendor', 303);
+---
+
+<Vendor title="Sign in">
+  <section class="panel" style="max-width:520px;margin:40px auto">
+    <h1 style="margin-bottom:10px">This link does not work</h1>
+    <p>{allowed ? 'The portal link is old, was replaced, or was copied incompletely.' : 'Too many attempts. Please wait a few minutes.'} Please ask Virnobyte for a new link.</p>
+  </section>
+</Vendor>

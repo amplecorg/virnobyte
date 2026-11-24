@@ -1,0 +1,208 @@
+---
+import Vendor from '@/layouts/Vendor.astro';
+import { when } from '@/lib/inventory/format';
+import { cannotFulfil, confirmShipment, markDelivered, sellerCounts, sellerOrders, type OrderTab } from '@/lib/inventory/seller';
+import { STATUS_LABEL } from '@/lib/inventory/stock';
+import { vendorFromCookies } from '@/lib/inventory/vendor';
+
+/** Seller Hub → Orders: ship, cancel, track. Grouped per customer order, never shows prices. */
+const vendor = vendorFromCookies(Astro.cookies);
+const sp = Astro.url.searchParams;
+const TABS: [OrderTab, string][] = [
+  ['unshipped', 'Unshipped'],
+  ['shipped', 'Shipped'],
+  ['delivered', 'Delivered'],
+  ['cancelled', 'Cancelled'],
+];
+const tab = (TABS.find(([k]) => k === sp.get('tab'))?.[0] ?? 'unshipped') as OrderTab;
+const q = sp.get('q')?.trim() ?? '';
+
+let flash = '';
+let error = '';
+if (vendor && Astro.request.method === 'POST') {
+  const f = await Astro.request.formData();
+  const str = (k: string) => String(f.get(k) ?? '').trim();
+  const orderId = Number(str('order_id'));
+  try {
+    switch (str('_action')) {
+      case 'ship':
+        flash = confirmShipment(vendor, orderId, str('courier'), str('tracking_no'));
+        break;
+      case 'deliver':
+        flash = markDelivered(vendor, orderId);
+        break;
+      case 'cancel':
+        flash = cannotFulfil(vendor, orderId, str('reason') ? [str('reason'), str('other')].filter(Boolean).join(': ') : '');
+        break;
+    }
+  } catch (e: any) {
+    error = e.message;
+  }
+}
+
+const counts = vendor ? sellerCounts(vendor.id) : null;
+// A search looks across every tab, like a seller searching for an order ID.
+const orders = vendor
+  ? q
+    ? (['unshipped', 'shipped', 'delivered', 'cancelled'] as OrderTab[]).flatMap((t) => sellerOrders(vendor.id, t, q).map((o) => ({ ...o, tab: t })))
+    : sellerOrders(vendor.id, tab).map((o) => ({ ...o, tab }))
+  : [];
+const COURIERS = ['Delhivery', 'Blue Dart', 'DTDC', 'Ekart', 'Xpressbees', 'Shadowfax', 'Ecom Express', 'India Post', 'Professional Couriers', 'Own delivery'];
+const REASONS = ['Out of stock', 'Item damaged / failed check', 'Cannot deliver to this pincode', 'Price or listing error', 'Other'];
+const fmt = (d: Date | null) => (d ? d.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : '—');
+const tabLink = (k: string) => `/vendor/orders?tab=${k}`;
+---
+
+<Vendor title="Orders" vendorName={vendor?.name} active="orders" toShip={counts?.toShip}>
+  <div class="sh-head">
+    <div>
+      <h1>Manage orders</h1>
+      <p>Ship within 48 hours of an order arriving, then press Confirm shipment and add the courier and tracking number.</p>
+    </div>
+  </div>
+
+  {flash && <p class="alert alert--ok" role="status" style="margin-bottom:14px">{flash}</p>}
+  {error && <p class="alert alert--error" role="alert" style="margin-bottom:14px">{error}</p>}
+
+  <nav class="sh-tabs" aria-label="Order status">
+    {TABS.map(([k, label]) => (
+      <a href={tabLink(k)} aria-current={!q && k === tab ? 'true' : undefined}>
+        {label}{k === 'unshipped' && counts?.toShip ? ` (${counts.toShip})` : k === 'shipped' && counts?.inTransit ? ` (${counts.inTransit})` : ''}
+      </a>
+    ))}
+  </nav>
+
+  <form method="get" class="sh-tools">
+    <input type="hidden" name="tab" value={tab} />
+    <input type="search" name="q" value={q} placeholder="Search order ID or customer name" aria-label="Search orders" />
+    <button class="btn btn--sm btn--ghost" type="submit">Search</button>
+    {q && <a class="small" href={tabLink(tab)}>Clear</a>}
+  </form>
+
+  <datalist id="couriers">{COURIERS.map((c) => <option value={c} />)}</datalist>
+
+  {
+    orders.length ? (
+      orders.map((o) => (
+        <article class:list={['sh-order', o.late && 'late']}>
+          <div class="sh-order-head">
+            <div><span>Order ID</span><b>{o.ref}</b></div>
+            <div><span>Order received</span><b>{when(o.assignedAt ?? o.placedAt)}</b></div>
+            {o.tab === 'unshipped' && (
+              <div class:list={[o.late && 'late-tag']}>
+                <span>{o.late ? 'Late — ship now' : 'Ship by'}</span>
+                <b class:list={[o.late && 'late-tag']}>{fmt(o.shipBy)}</b>
+              </div>
+            )}
+            {o.tab !== 'unshipped' && (
+              <div><span>Status</span><b>{STATUS_LABEL[o.lines[0].status]}</b></div>
+            )}
+          </div>
+          <div class="sh-order-body">
+            <div>
+              {o.lines.map((l) => (
+                <div class="sh-item">
+                  {l.image ? <img class="sh-thumb" src={l.image} alt="" loading="lazy" /> : <span class="sh-thumb empty">No photo</span>}
+                  <div>
+                    <div class="sh-item-name">{l.product_name}</div>
+                    <div class="sh-meta">{l.sku ? `Your SKU: ${l.sku}` : 'No SKU set'}</div>
+                    <span class="sh-qty">Qty: {l.qty}</span>
+                    {l.status === 'REJECTED' && l.note && <div class="sh-meta">Reason: {l.note}</div>}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div class="sh-addr">
+              {o.tab === 'unshipped' || o.tab === 'shipped' ? (
+                <>
+                  <h3>Ship to</h3>
+                  <b>{o.customer.name}</b>
+                  <br />
+                  {o.customer.line1}
+                  {o.customer.line2 && <><br />{o.customer.line2}</>}
+                  <br />
+                  {o.customer.city}, {o.customer.state} {o.customer.pincode}
+                  <br />
+                  Phone: <a href={`tel:+91${o.customer.phone}`}>{o.customer.phone}</a>
+                </>
+              ) : (
+                <>
+                  <h3>Customer</h3>
+                  {o.customer.name}, {o.customer.city}
+                </>
+              )}
+            </div>
+
+            <div class="sh-actions no-print">
+              {o.tab === 'unshipped' && (
+                <>
+                  <details class="sh-more" open={o.late}>
+                    <summary class="btn btn--sm sh-primary">Confirm shipment</summary>
+                    <form method="post" class="sh-drop">
+                      <input type="hidden" name="_action" value="ship" />
+                      <input type="hidden" name="order_id" value={o.orderId} />
+                      <label>
+                        Courier
+                        <input name="courier" list="couriers" required placeholder="e.g. Delhivery" autocomplete="off" />
+                      </label>
+                      <label>
+                        Tracking number <span class="muted">(optional)</span>
+                        <input name="tracking_no" placeholder="AWB / tracking ID" autocomplete="off" />
+                      </label>
+                      <button class="btn btn--sm" type="submit">Confirm shipment</button>
+                    </form>
+                  </details>
+                  <a class="btn btn--sm btn--ghost" href={`/vendor/slip?order=${encodeURIComponent(o.ref)}`} target="_blank" rel="noopener">Print packing slip</a>
+                  <details class="sh-more">
+                    <summary class="sh-linkbtn">Can't ship this order?</summary>
+                    <form method="post" class="sh-drop" data-confirm="Cancel this order for you? Virnobyte will give it to another seller.">
+                      <input type="hidden" name="_action" value="cancel" />
+                      <input type="hidden" name="order_id" value={o.orderId} />
+                      <label>
+                        Reason
+                        <select name="reason" required>
+                          <option value="">Choose…</option>
+                          {REASONS.map((r) => <option value={r}>{r}</option>)}
+                        </select>
+                      </label>
+                      <label>
+                        Details <span class="muted">(optional)</span>
+                        <input name="other" placeholder="Anything we should know" />
+                      </label>
+                      <button class="btn btn--sm btn--danger" type="submit">Cancel order</button>
+                    </form>
+                  </details>
+                </>
+              )}
+              {o.tab === 'shipped' && (
+                <>
+                  <div class="sh-track">
+                    {o.lines[0].courier}{o.lines[0].tracking_no && <> · <b>{o.lines[0].tracking_no}</b></>}
+                    <br />
+                    Shipped {when(o.lines[0].shipped_at)}
+                  </div>
+                  <form method="post">
+                    <input type="hidden" name="_action" value="deliver" />
+                    <input type="hidden" name="order_id" value={o.orderId} />
+                    <button class="btn btn--sm btn--ghost" type="submit">Mark as delivered</button>
+                  </form>
+                  <a class="sh-linkbtn" href={`/vendor/slip?order=${encodeURIComponent(o.ref)}`} target="_blank" rel="noopener">Packing slip</a>
+                </>
+              )}
+              {o.tab === 'delivered' && o.lines[0].courier && (
+                <div class="sh-track">{o.lines[0].courier}{o.lines[0].tracking_no && ` · ${o.lines[0].tracking_no}`}</div>
+              )}
+              {o.tab === 'cancelled' && <p class="small muted">Do not ship. No action needed.</p>}
+            </div>
+          </div>
+        </article>
+      ))
+    ) : (
+      <section class="sh-card sh-empty">
+        <b>{q ? 'No orders match your search' : tab === 'unshipped' ? 'No orders to ship' : 'Nothing here yet'}</b>
+        {tab === 'unshipped' && !q ? 'New orders appear here and in your email as soon as a customer buys.' : ''}
+      </section>
+    )
+  }
+</Vendor>

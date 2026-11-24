@@ -1,0 +1,165 @@
+---
+import Admin from '@/layouts/Admin.astro';
+import InventoryNav from '@/components/admin/InventoryNav.astro';
+import { all, get } from '@/lib/db';
+import { formatDate, num } from '@/lib/format';
+import { ago } from '@/lib/inventory/format';
+import { ALLOCATION_SELECT, SHIP_BY_HOURS, USABLE_SQL, expireHolds, syncProducts, type AllocationView } from '@/lib/inventory/stock';
+
+let flash = '';
+if (Astro.request.method === 'POST') {
+  const f = await Astro.request.formData();
+  if (f.get('_action') === 'resync') {
+    expireHolds();
+    const flipped = syncProducts();
+    flash = `Stock refreshed. ${flipped} product${flipped === 1 ? '' : 's'} switched between in stock and out of stock.`;
+  }
+}
+
+const n = (sql: string) => get<{ n: number }>(sql)?.n ?? 0;
+const stats = {
+  tracked: n('SELECT COUNT(*) AS n FROM inv_products WHERE tracked = 1'),
+  out: n('SELECT COUNT(*) AS n FROM inv_products ip JOIN products p ON p.id = ip.product_id WHERE ip.tracked = 1 AND ip.available = 0'),
+  low: n('SELECT COUNT(*) AS n FROM inv_products WHERE tracked = 1 AND available > 0 AND available <= low_level'),
+  unassigned: n("SELECT COUNT(DISTINCT order_id) AS n FROM inv_allocations WHERE status = 'UNASSIGNED'"),
+  waiting: n("SELECT COUNT(DISTINCT order_id) AS n FROM inv_allocations WHERE status IN ('ASSIGNED','ACCEPTED')"),
+  late: n(`SELECT COUNT(DISTINCT order_id) AS n FROM inv_allocations WHERE status IN ('ASSIGNED','ACCEPTED') AND assigned_at <= datetime('now', '-${SHIP_BY_HOURS} hours')`),
+  stale: n(`SELECT COUNT(*) AS n FROM inv_sources s WHERE s.kind = 'vendor' AND s.active = 1 AND NOT (${USABLE_SQL})`),
+};
+
+// Lines that need someone: no source, or a source that missed its ship-by time.
+const attention = all<AllocationView>(
+  `${ALLOCATION_SELECT}
+   WHERE a.status = 'UNASSIGNED'
+      OR (a.status IN ('ASSIGNED','ACCEPTED') AND a.assigned_at <= datetime('now', '-${SHIP_BY_HOURS} hours'))
+   ORDER BY a.id LIMIT 30`,
+);
+
+const lowList = all<any>(
+  `SELECT p.id, p.name, p.published, ip.available, ip.low_level FROM inv_products ip JOIN products p ON p.id = ip.product_id
+   WHERE ip.tracked = 1 AND ip.available <= ip.low_level ORDER BY ip.available, p.name LIMIT 30`,
+);
+
+const sources = all<any>(
+  `SELECT s.*, CASE WHEN ${USABLE_SQL} THEN 1 ELSE 0 END AS usable,
+     (SELECT COUNT(*) FROM inv_stock st WHERE st.source_id = s.id) AS products,
+     (SELECT COALESCE(SUM(qty), 0) FROM inv_stock st WHERE st.source_id = s.id) AS units,
+     (SELECT COUNT(*) FROM inv_allocations a WHERE a.source_id = s.id AND a.status IN ('ASSIGNED','ACCEPTED')) AS open_lines
+   FROM inv_sources s ORDER BY CASE s.kind WHEN 'own' THEN 0 ELSE 1 END, s.active DESC, s.priority, s.name`,
+);
+const METHOD: Record<string, string> = { manual: 'You', portal: 'Vendor (Seller Hub)' };
+---
+
+
+<Admin title="Inventory" active="inventory">
+  <div class="inv">
+    <div class="page-head">
+      <div>
+        <h1>Inventory</h1>
+        <p>Stock on your own shelf and at every vendor. Products go out of stock on the site by themselves.</p>
+      </div>
+      <form method="post">
+        <input type="hidden" name="_action" value="resync" />
+        <button class="btn btn--ghost" type="submit" title="Recalculate what is in stock right now">Refresh stock</button>
+      </form>
+    </div>
+    <InventoryNav active="overview" />
+
+    {flash && <p class="alert alert--ok" role="status" style="margin-bottom:14px">{flash}</p>}
+
+    <div class="kpis">
+      <a class:list={['kpi', stats.unassigned && 'kpi-bad']} href="/admin/inventory/fulfilment?status=UNASSIGNED"><span>Orders with no vendor</span><b>{stats.unassigned}</b></a>
+      <a class:list={['kpi', stats.late && 'kpi-bad']} href="/admin/inventory/fulfilment?status=open"><span>Late (not shipped in 48 h)</span><b>{stats.late}</b></a>
+      <a class="kpi" href="/admin/inventory/fulfilment?status=open"><span>Waiting to ship</span><b>{stats.waiting}</b></a>
+      <a class="kpi" href="/admin/inventory/products?view=out"><span>Products out of stock</span><b>{stats.out}</b></a>
+    </div>
+
+    {
+      stats.tracked === 0 && (
+        <section class="panel">
+          <h2 style="margin-bottom:8px">Getting started</h2>
+          <ol style="margin:0;padding-left:20px;line-height:1.8">
+            <li><a href="/admin/inventory/sources/new">Add a vendor</a> (name and WhatsApp number).</li>
+            <li>Press <b>Create Seller Hub link</b>, then <b>Send on WhatsApp</b>. The vendor adds the products they sell and their stock.</li>
+            <li>Done. New orders go to the vendor, they ship from their Seller Hub, and you see the courier and tracking in <a href="/admin/r/orders">Customer Orders</a>. Stock on your own shelf goes in <a href="/admin/inventory/products">Stock</a>.</li>
+          </ol>
+        </section>
+      )
+    }
+
+    <div class="split-2">
+      <section class="panel">
+        <div class="panel-head"><h2>Needs attention</h2><a class="small" href="/admin/inventory/fulfilment">All shipments</a></div>
+        {
+          attention.length ? (
+            <table class="tbl">
+              <thead><tr><th scope="col">Order</th><th scope="col">Item</th><th scope="col">Vendor</th><th scope="col">Problem</th></tr></thead>
+              <tbody>
+                {attention.map((a) => (
+                  <tr>
+                    <td><a class="row-link" href={`/admin/r/orders/${a.order_id}#shipping`}>{a.order_ref}</a><div class="small muted">{formatDate(a.created_at)}</div></td>
+                    <td>{a.product_name} × {a.qty}</td>
+                    <td>{a.source_name ?? '—'}</td>
+                    <td><span class="pill bad">{a.status === 'UNASSIGNED' ? 'No vendor yet' : 'Late — not shipped'}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p class="muted">Nothing needs you. Every order has a vendor and nothing is late.</p>
+          )
+        }
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h2>Out of stock &amp; running low</h2><a class="small" href="/admin/inventory/products?view=low">All</a></div>
+        {
+          lowList.length ? (
+            <table class="tbl">
+              <tbody>
+                {lowList.map((p) => (
+                  <tr>
+                    <td><a class="row-link" href={`/admin/inventory/products/${p.id}`}>{p.name}</a>{!p.published && <span class="pill" style="margin-left:6px">hidden</span>}</td>
+                    <td class="num">{p.available ? <span class="pill warn">{p.available} left</span> : <span class="pill bad">Out of stock</span>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p class="muted">Nothing is out of stock or running low.</p>
+          )
+        }
+      </section>
+    </div>
+
+    <section class="panel">
+      <div class="panel-head"><h2>Vendors</h2><a class="btn btn--sm" href="/admin/inventory/sources/new">Add vendor</a></div>
+      <div class="table-wrap" style="border:0">
+        <table class="tbl">
+          <thead><tr><th scope="col">Vendor</th><th scope="col">Stock updated by</th><th scope="col">Stock checked</th><th scope="col" class="num">Products</th><th scope="col" class="num">Units</th><th scope="col" class="num">Waiting to ship</th></tr></thead>
+          <tbody>
+            {sources.map((s) => (
+              <tr>
+                <td>
+                  <a class="row-link" href={`/admin/inventory/sources/${s.id}`}>{s.name}</a>
+                  {!s.active ? <span class="pill" style="margin-left:6px">off</span> : !s.usable && s.products > 0 ? <span class="pill bad" style="margin-left:6px">paused — stock not confirmed</span> : null}
+                </td>
+                <td>{s.kind === 'own' ? 'You' : METHOD[s.update_method]}</td>
+                <td>{s.kind === 'own' ? '—' : ago(s.stock_updated_at)}</td>
+                <td class="num">{num(s.products)}</td>
+                <td class="num">{num(s.units)}</td>
+                <td class="num">{s.open_lines ? num(s.open_lines) : ''}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</Admin>
+
+<style>
+  .kpi-bad b {
+    color: #b91c1c;
+  }
+</style>

@@ -1,0 +1,117 @@
+---
+import Base from '@/layouts/Base.astro';
+import { get } from '@/lib/db';
+import { inr } from '@/lib/format';
+import { rateLimit } from '@/lib/auth';
+import { getCart } from '@/lib/commerce/cart';
+import { isSecure } from '@/lib/commerce/http';
+import { OTP_MINUTES, maskEmail, sendOrderOtp, verifyOrderOtp } from '@/lib/commerce/otp';
+
+/** Step after placing a Cash-on-Delivery order: type the 6-digit code we emailed to confirm it. */
+const ref = Astro.url.searchParams.get('order_id') ?? '';
+const user = Astro.locals.user;
+if (!user) return Astro.redirect(`/account/login?next=${encodeURIComponent(Astro.url.pathname + Astro.url.search)}`, 302);
+const order = get<any>(
+  'SELECT o.*, u.email AS account_email FROM orders o LEFT JOIN users u ON u.id = o.user_id WHERE o.order_id = ?',
+  ref,
+);
+if (!order || (order.user_id !== user.id && user.role !== 'admin')) return Astro.redirect('/account', 302);
+const successUrl = `/order-success?order_id=${encodeURIComponent(ref)}`;
+if (order.order_status !== 'AWAITING_OTP') return Astro.redirect(successUrl, 302);
+
+let error = '';
+let info = '';
+let devCode = '';
+if (Astro.request.method === 'POST') {
+  const f = await Astro.request.formData();
+  if (!rateLimit(`otp:${Astro.clientAddress}`, 30, 15 * 60_000)) {
+    error = 'Too many attempts. Please wait a few minutes.';
+  } else if (f.get('_action') === 'resend') {
+    const r = await sendOrderOtp(ref, true);
+    if (r.ok) {
+      info = `A new code was sent to ${r.sentTo}.`;
+      devCode = r.devCode ?? '';
+    } else error = r.error ?? 'Could not send the code.';
+  } else {
+    const r = verifyOrderOtp(ref, String(f.get('code') ?? ''));
+    if (r.ok) {
+      // Refresh the header cart badge now that the cart was emptied.
+      getCart(Astro.cookies, user, isSecure(Astro));
+      return Astro.redirect(successUrl, 303);
+    }
+    error = r.error;
+  }
+}
+const sentTo = maskEmail(String(order.customer_email || order.account_email || ''));
+---
+
+<Base title="Confirm your order | Virnobyte" description="Enter the code we emailed to confirm your Cash on Delivery order." canonical="/order-verify" noindex>
+  <section class="section">
+    <div class="wrap" style="max-width:520px">
+      <div class="ov-card">
+        <p class="ov-step">Almost done · Order {order.order_id}</p>
+        <h1>Confirm your order</h1>
+        <p>
+          We sent a 6-digit code to <b>{sentTo}</b>. Enter it below to confirm your Cash on Delivery order of <b>{inr(order.total_amount)}</b>.
+          The code is valid for {OTP_MINUTES} minutes.
+        </p>
+        {error && <p class="alert alert--error" role="alert">{error}</p>}
+        {info && <p class="alert alert--ok" role="status">{info}</p>}
+        {devCode && <p class="alert" style="background:#e0f2fe;border-color:#7dd3fc;color:#0369a1">Testing on this computer (email not set up): your code is <b>{devCode}</b>. The live site never shows this.</p>}
+        <form method="post" class="ov-form">
+          <input type="hidden" name="_action" value="verify" />
+          <label for="otp" class="sr-only">6-digit code</label>
+          <input id="otp" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required placeholder="••••••" autofocus />
+          <button class="btn btn--block" type="submit">Confirm order</button>
+        </form>
+        <form method="post" class="ov-resend">
+          <input type="hidden" name="_action" value="resend" />
+          <span class="small muted">Didn't get it? Check spam, or</span>
+          <button class="small" type="submit" style="background:none;border:0;padding:0;color:var(--link, #0a66c2);font-weight:700;text-decoration:underline;cursor:pointer">send a new code</button>
+        </form>
+        <p class="small muted">Your order is not confirmed and nothing ships until you enter the code.</p>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .ov-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-l);
+    padding: var(--space-6);
+    display: grid;
+    gap: var(--space-4);
+  }
+  .ov-step {
+    margin: 0;
+    font-size: var(--fs-small);
+    font-weight: 700;
+    color: var(--ink-3);
+  }
+  .ov-card h1 {
+    margin: 0;
+    font-size: 1.6rem;
+  }
+  .ov-form {
+    display: grid;
+    gap: var(--space-3);
+  }
+  .ov-form input {
+    font-size: 2rem;
+    letter-spacing: 0.5em;
+    text-align: center;
+    padding: 10px;
+    border: 2px solid var(--line-strong);
+    border-radius: 10px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+  .ov-resend {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+</style>

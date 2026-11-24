@@ -52,7 +52,7 @@ const title = ready ? `Tax Invoice ${order.invoice_no}` : `Invoice for order ${o
   </head>
   <body>
     <nav class="toolbar" aria-label="Invoice actions">
-      <a href={backHref}>← Back to order</a>
+      <a href={backHref}>Back to order</a>
       {ready && <button type="button" data-print>Download / Print PDF</button>}
     </nav>
 
@@ -230,6 +230,7 @@ const title = ready ? `Tax Invoice ${order.invoice_no}` : `Invoice for order ${o
                   <dl class="pay">
                     <dt>Status</dt><dd class="paid">PAID</dd>
                     <dt>Mode</dt><dd>{isCod ? 'Cash on Delivery' : `Online via ${gatewayLabel}`}</dd>
+                    {order.coin_discount > 0 && (<><dt>Virno Coins</dt><dd>₹ {Number(order.coin_discount).toLocaleString('en-IN')} ({order.coins_used} coins)</dd><dt>Paid in money</dt><dd>₹ {Number(order.total_amount).toLocaleString('en-IN')}</dd></>)}
                     {order.gateway_payment_id && (<><dt>Payment ID</dt><dd>{order.gateway_payment_id}</dd></>)}
                     {order.paid_at && (<><dt>Paid on</dt><dd>{dmy(order.paid_at)}</dd></>)}
                   </dl>
@@ -237,7 +238,8 @@ const title = ready ? `Tax Invoice ${order.invoice_no}` : `Invoice for order ${o
                   <dl class="pay">
                     <dt>Status</dt><dd>PAYABLE ON DELIVERY</dd>
                     <dt>Mode</dt><dd>Cash on Delivery</dd>
-                    <dt>Amount due</dt><dd>₹ {inv.total.toLocaleString('en-IN')}</dd>
+                    {order.coin_discount > 0 && (<><dt>Paid with Virno Coins</dt><dd>₹ {Number(order.coin_discount).toLocaleString('en-IN')} ({order.coins_used} coins)</dd></>)}
+                    <dt>Amount due</dt><dd>₹ {Number(order.total_amount).toLocaleString('en-IN')}</dd>
                   </dl>
                 )}
               </div>
@@ -314,9 +316,28 @@ const title = ready ? `Tax Invoice ${order.invoice_no}` : `Invoice for order ${o
         background: var(--bg);
       }
       .toolbar a {
-        color: var(--accent);
-        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 5px 16px 5px 6px;
+        border: 1px solid #b7c2cf;
+        border-radius: 999px;
+        background: #fff;
+        color: #0b1724;
+        font-weight: 650;
+        font-size: 14px;
         text-decoration: none;
+        box-shadow: 0 1px 2px rgb(11 23 36 / 0.06);
+      }
+      .toolbar a::before {
+        content: '';
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        background: #eef2f6 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230b1724' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 18l-6-6 6-6'/%3E%3C/svg%3E") center / 14px no-repeat;
+      }
+      .toolbar a:hover {
+        border-color: #0b1724;
       }
       .toolbar button {
         border: 0;

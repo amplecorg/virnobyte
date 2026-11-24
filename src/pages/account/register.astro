@@ -1,9 +1,10 @@
 ---
 import Auth from '@/layouts/Auth.astro';
 import Field from '@/components/Field.astro';
+import GoogleButton from '@/components/GoogleButton.astro';
 import { createSession, rateLimit, registerCustomer } from '@/lib/auth';
 import { get } from '@/lib/db';
-import { planById, requestMembership } from '@/lib/data';
+import { planById } from '@/lib/data';
 
 const next = Astro.url.searchParams.get('next');
 const safeNext = next && next.startsWith('/') && !next.startsWith('//') ? next : null;
@@ -32,10 +33,8 @@ if (Astro.request.method === 'POST') {
     const id = registerCustomer({ ...values, password });
     const isSecure = Astro.url.protocol === 'https:' || Astro.request.headers.get('x-forwarded-proto') === 'https';
     createSession(Astro.cookies, id, isSecure);
-    if (plan && plan.active) {
-      requestMembership(id, plan.id);
-      return Astro.redirect('/account?requested=1', 303);
-    }
+    // Buying a membership card: continue straight to its checkout.
+    if (plan && plan.active) return Astro.redirect(`/membership/checkout/${plan.id}`, 303);
     return Astro.redirect(safeNext ?? '/account', 303);
   }
 }
@@ -46,7 +45,7 @@ if (Astro.request.method === 'POST') {
   heading={plan ? `Get the ${plan.name} card` : isCheckout ? 'Create your account to order' : 'Create your account'}
   lede={
     plan
-      ? 'Create an account to request your card. We will call to confirm and activate it.'
+      ? 'Create an account, then pay online and your card is active straight away.'
       : isCheckout
         ? 'Create an account to complete your checkout and track doorstep delivery.'
         : 'Track your membership card, coins and service visits.'
@@ -58,12 +57,13 @@ if (Astro.request.method === 'POST') {
     </div>
   )}
   {errors.form && <p class="alert alert--error" role="alert">{errors.form}</p>}
+  <GoogleButton next={plan ? `/membership/checkout/${plan.id}` : safeNext} />
   <form method="post" novalidate>
     <Field label="Full name" name="name" required autocomplete="name" value={values.name} error={errors.name} hint="Your full name for delivery." />
     <Field label="Email" name="email" type="email" required autocomplete="email" value={values.email} error={errors.email} />
     <Field label="Mobile number" name="phone" type="tel" required autocomplete="tel" inputmode="tel" value={values.phone} error={errors.phone} />
     <Field label="Password" name="password" type="password" required autocomplete="new-password" minlength={8} error={errors.password} hint="At least 8 characters." />
-    <button class="btn btn--block" type="submit">{plan ? `Create account and request ${plan.name}` : isCheckout ? 'Create Account & Proceed to Checkout' : 'Create account'}</button>
+    <button class="btn btn--block" type="submit">{plan ? `Create account and continue` : isCheckout ? 'Create Account & Proceed to Checkout' : 'Create account'}</button>
   </form>
   <p class="small muted">Already have an account? <a href={`/account/login${safeNext ? `?next=${encodeURIComponent(safeNext)}` : ''}`}>Sign in</a>.</p>
 </Auth>

@@ -1,0 +1,59 @@
+import { t as __exportAll } from "./rolldown-runtime_8H4AJuhK.mjs";
+import { A as renderTemplate, M as renderHead, N as addAttribute, T as Fragment, V as createAstro, w as renderComponent } from "./sequence_BTIhAKFo.mjs";
+import { t as createComponent } from "./compiler_B6nf2Usq.mjs";
+import { t as renderScript } from "./script_BaVSnVKi.mjs";
+import { n as getSettings } from "./settings_C74a6Mrw.mjs";
+import { a as amountInWords, c as invoiceEligible, l as money, o as computeInvoice, s as ensureInvoiceNumber } from "./otp_9Z-S2uDl.mjs";
+import { o as orderItems, r as getOrder } from "./orders_CyaozYjD.mjs";
+//#region src/pages/account/invoice/[ref].astro
+var _ref__exports = /* @__PURE__ */ __exportAll({
+	default: () => $$Ref,
+	file: () => $$file,
+	url: () => $$url
+});
+createAstro("https://virnobyte.com");
+var $$Ref = createComponent(($$result, $$props, $$slots) => {
+	const Astro = $$result.createAstro($$props, $$slots);
+	Astro.self = $$Ref;
+	const ref = Astro.params.ref ?? "";
+	const user = Astro.locals.user;
+	let order = getOrder(ref);
+	if (!order) return new Response("Invoice not found", { status: 404 });
+	if (!user || user.role !== "admin" && user.id !== order.user_id) return Astro.redirect(`/account/login?next=${encodeURIComponent(Astro.url.pathname)}`, 302);
+	if (!order.invoice_no && invoiceEligible(order)) {
+		ensureInvoiceNumber(order.order_id);
+		order = getOrder(ref);
+	}
+	const ready = !!order.invoice_no;
+	const co = getSettings().company;
+	const items = orderItems(order.id);
+	const inv = computeInvoice(items, order);
+	const dmy = (v) => {
+		if (!v) return "";
+		const d = /* @__PURE__ */ new Date(v.length <= 10 ? `${v}T00:00:00` : v.replace(" ", "T") + (v.includes("Z") ? "" : "Z"));
+		return Number.isNaN(d.getTime()) ? v : d.toLocaleDateString("en-GB", { timeZone: "Asia/Kolkata" });
+	};
+	const address = [
+		order.address_line1,
+		order.address_line2,
+		`${order.city}, ${order.state} – ${order.pincode}`
+	].filter(Boolean).join(", ");
+	const isPaid = order.payment_status === "PAID";
+	const isCod = order.payment_method === "cod";
+	const gatewayLabel = order.gateway === "cashfree" ? "Cashfree" : order.gateway === "razorpay" ? "Razorpay" : "online payment";
+	const rates = [...new Set(inv.hsnSummary.map((h) => h.gstRate))];
+	const rateLabel = (div) => rates.length === 1 ? `${rates[0] / div}%` : "as per HSN summary";
+	const backHref = `/order-success?order_id=${encodeURIComponent(order.order_id)}`;
+	const title = ready ? `Tax Invoice ${order.invoice_no}` : `Invoice for order ${order.order_id}`;
+	return renderTemplate`<html lang="en"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex, nofollow"><title>${title} | ${co.legalName}</title><link rel="icon" href="/favicon-32.png">${renderHead($$result)}</head> <body> <nav class="toolbar" aria-label="Invoice actions"> <a${addAttribute(backHref, "href")}>Back to order</a> ${ready && renderTemplate`<button type="button" data-print>Download / Print PDF</button>`} </nav> ${!ready ? renderTemplate`<main class="sheet pending"> <h1>Invoice not issued yet</h1> <p>
+Order <strong>${order.order_id}</strong> is ${order.order_status === "CANCELLED" ? "cancelled" : "awaiting payment confirmation"}.
+            The tax invoice is issued automatically once the payment is confirmed.
+</p> <p><a${addAttribute(backHref, "href")}>View order status</a></p> </main>` : renderTemplate`<main class="sheet"> <header class="doc-head"> <strong>TAX INVOICE</strong> <span class="pill">ORIGINAL FOR RECIPIENT</span> </header> <div class="box"> <!-- Seller + invoice meta --><div class="grid-2 b-bottom"> <div class="seller"> <img src="/virnobyte-logo.png" alt="" width="64" height="50"> <div> <h2>${co.legalName.toUpperCase()}</h2> <p>${co.registeredOffice}</p> <p class="kv-2"> <span><b>GSTIN:</b> ${co.gstin}</span> <span><b>Mobile:</b> ${co.billingPhone}</span> </p> <p><b>PAN Number:</b> ${co.pan}</p> <p><b>Email:</b> ${co.accountsEmail}</p> <p><b>Website:</b> ${co.website}</p> </div> </div> <div class="meta b-left"> <div><span>Invoice No.</span><strong>${order.invoice_no}</strong></div> <div><span>Invoice Date</span><strong>${dmy(order.invoice_date)}</strong></div> <div><span>Order ID</span><strong>${order.order_id}</strong></div> <div><span>Order Date</span><strong>${dmy(order.created_at)}</strong></div> </div> </div> <!-- Bill to / Ship to --> <div class="grid-2 b-bottom"> <div class="party"> <h3>BILL TO</h3> <p class="party-name">${(order.customer_company || order.customer_name).toUpperCase()}</p> ${order.customer_company && renderTemplate`<p>Attn: ${order.customer_name}</p>`} <p><span class="lbl">Address:</span> ${address}</p> <p><span class="lbl">Mobile:</span> ${order.customer_phone}${order.customer_email && renderTemplate`${renderComponent($$result, "Fragment", Fragment, {}, { "default": ($$result) => renderTemplate` · ${order.customer_email}` })}`}</p> <p class="kv-2"> ${order.customer_gstin && renderTemplate`<span><span class="lbl">GSTIN:</span> ${order.customer_gstin}</span>`} <span><span class="lbl">Place of Supply:</span> ${order.state}</span> </p> </div> <div class="party b-left"> <h3>SHIP TO</h3> <p class="party-name">${order.customer_name.toUpperCase()}</p> <p><span class="lbl">Address:</span> ${address}</p> </div> </div> <!-- Items --> <table class="items"> <thead> <tr> <th class="c-sno">S.NO.</th> <th class="c-item">ITEMS</th> <th>HSN</th> <th>QTY.</th> <th>RATE</th> <th>AMOUNT</th> </tr> </thead> <tbody> ${inv.lines.map((l) => renderTemplate`<tr> <td class="c">${l.sno}</td> <td>${l.name}</td> <td class="c">${l.hsn}</td> <td class="c">${l.quantity} ${l.unit}</td> <td class="r">${money(l.rate)}</td> <td class="r">${money(l.taxable)}</td> </tr>`)} <tr class="spacer"><td></td><td></td><td></td><td></td><td></td><td></td></tr> ${inv.intraState ? renderTemplate`${renderComponent($$result, "Fragment", Fragment, {}, { "default": ($$result) => renderTemplate` <tr class="tax"><td></td><td class="r"><i>CGST @${rateLabel(2)}</i></td><td class="c">-</td><td class="c">-</td><td class="c">-</td><td class="r">₹ ${money(inv.cgst)}</td></tr> <tr class="tax"><td></td><td class="r"><i>SGST @${rateLabel(2)}</i></td><td class="c">-</td><td class="c">-</td><td class="c">-</td><td class="r">₹ ${money(inv.sgst)}</td></tr> ` })}` : renderTemplate`<tr class="tax"><td></td><td class="r"><i>IGST @${rateLabel(1)}</i></td><td class="c">-</td><td class="c">-</td><td class="c">-</td><td class="r">₹ ${money(inv.igst)}</td></tr>`} ${Math.abs(inv.roundOff) >= .01 && renderTemplate`<tr class="tax"><td></td><td class="r"><i>Round off</i></td><td></td><td></td><td></td><td class="r">${inv.roundOff > 0 ? "+" : "−"} ${money(Math.abs(inv.roundOff))}</td></tr>`} </tbody> <tfoot> <tr> <td></td> <td class="r"><b>TOTAL</b></td> <td></td> <td class="c"><b>${inv.quantity}</b></td> <td></td> <td class="r"><b>₹ ${inv.total.toLocaleString("en-IN")}</b></td> </tr> </tfoot> </table> </div> <!-- HSN summary --> <table class="hsn"> <thead> ${inv.intraState ? renderTemplate`${renderComponent($$result, "Fragment", Fragment, {}, { "default": ($$result) => renderTemplate` <tr><th rowspan="2">HSN/SAC</th><th rowspan="2">Taxable Value</th><th colspan="2">CGST</th><th colspan="2">SGST</th><th rowspan="2">Total Tax Amount</th></tr> <tr><th>Rate</th><th>Amount</th><th>Rate</th><th>Amount</th></tr> ` })}` : renderTemplate`${renderComponent($$result, "Fragment", Fragment, {}, { "default": ($$result) => renderTemplate` <tr><th rowspan="2">HSN/SAC</th><th rowspan="2">Taxable Value</th><th colspan="2">IGST</th><th rowspan="2">Total Tax Amount</th></tr> <tr><th>Rate</th><th>Amount</th></tr> ` })}`} </thead> <tbody> ${inv.hsnSummary.map((h) => renderTemplate`<tr> <td class="r">${h.hsn}</td> <td class="r">${money(h.taxable)}</td> ${inv.intraState ? renderTemplate`${renderComponent($$result, "Fragment", Fragment, {}, { "default": ($$result) => renderTemplate` <td class="c">${h.gstRate / 2}%</td><td class="r">${money(h.cgst)}</td> <td class="c">${h.gstRate / 2}%</td><td class="r">${money(h.sgst)}</td> ` })}` : renderTemplate`${renderComponent($$result, "Fragment", Fragment, {}, { "default": ($$result) => renderTemplate` <td class="c">${h.gstRate}%</td><td class="r">${money(h.igst)}</td> ` })}`} <td class="r">₹ ${money(h.tax)}</td> </tr>`)} <tr class="sum"> <td class="r"><b>Total</b></td> <td class="r"><b>${money(inv.taxable)}</b></td> ${inv.intraState ? renderTemplate`${renderComponent($$result, "Fragment", Fragment, {}, { "default": ($$result) => renderTemplate` <td></td><td class="r"><b>${money(inv.cgst)}</b></td> <td></td><td class="r"><b>${money(inv.sgst)}</b></td> ` })}` : renderTemplate`${renderComponent($$result, "Fragment", Fragment, {}, { "default": ($$result) => renderTemplate` <td></td><td class="r"><b>${money(inv.igst)}</b></td> ` })}`} <td class="r"><b>₹ ${money(inv.tax)}</b></td> </tr> </tbody> </table> <div class="box"> <div class="b-bottom pad"> <h3>Total Amount (in words)</h3> <p>${amountInWords(inv.total)}</p> </div> <div class="grid-2 b-bottom"> <div class="pad"> <h3>Payment</h3> ${isPaid ? renderTemplate`<dl class="pay"> <dt>Status</dt><dd class="paid">PAID</dd> <dt>Mode</dt><dd>${isCod ? "Cash on Delivery" : `Online via ${gatewayLabel}`}</dd> ${order.coin_discount > 0 && renderTemplate`${renderComponent($$result, "Fragment", Fragment, {}, { "default": ($$result) => renderTemplate`<dt>Virno Coins</dt><dd>₹ ${Number(order.coin_discount).toLocaleString("en-IN")} (${order.coins_used} coins)</dd><dt>Paid in money</dt><dd>₹ ${Number(order.total_amount).toLocaleString("en-IN")}</dd>` })}`} ${order.gateway_payment_id && renderTemplate`${renderComponent($$result, "Fragment", Fragment, {}, { "default": ($$result) => renderTemplate`<dt>Payment ID</dt><dd>${order.gateway_payment_id}</dd>` })}`} ${order.paid_at && renderTemplate`${renderComponent($$result, "Fragment", Fragment, {}, { "default": ($$result) => renderTemplate`<dt>Paid on</dt><dd>${dmy(order.paid_at)}</dd>` })}`} </dl>` : renderTemplate`<dl class="pay"> <dt>Status</dt><dd>PAYABLE ON DELIVERY</dd> <dt>Mode</dt><dd>Cash on Delivery</dd> ${order.coin_discount > 0 && renderTemplate`${renderComponent($$result, "Fragment", Fragment, {}, { "default": ($$result) => renderTemplate`<dt>Paid with Virno Coins</dt><dd>₹ ${Number(order.coin_discount).toLocaleString("en-IN")} (${order.coins_used} coins)</dd>` })}`} <dt>Amount due</dt><dd>₹ ${Number(order.total_amount).toLocaleString("en-IN")}</dd> </dl>`} </div> <div class="pad b-left"> <h3>Order reference</h3> <dl class="pay"> <dt>Order ID</dt><dd>${order.order_id}</dd> <dt>Supply</dt><dd>${inv.intraState ? `Intra-state (${co.gstState})` : `Inter-state to ${order.state}`}</dd> <dt>Reverse charge</dt><dd>No</dd> </dl> </div> </div> <div class="grid-2"> <div class="pad terms"> <h3>Terms and Conditions</h3> <p>Thanks for doing business with us!</p> <p><b>Declaration</b><br>${co.declaration}</p> <ol> ${co.invoiceTerms.map((t) => renderTemplate`<li>${t}</li>`)} </ol> </div> <div class="pad b-left sign"> <div class="stamp" aria-hidden="true"> <span>${co.legalName.replace(/ Private Limited$/i, "").toUpperCase()}</span> <small>PUNE</small> </div> <p>Authorised Signatory For<br><b>${co.legalName.toUpperCase()}</b></p> <p class="note">This is a computer-generated invoice and does not require a physical signature.</p> </div> </div> </div> </main>`}${renderScript($$result, "C:/Programming section/virnobyte/src/pages/account/invoice/[ref].astro?astro&type=script&index=0&lang.ts")} </body> </html>`;
+}, "C:/Programming section/virnobyte/src/pages/account/invoice/[ref].astro", void 0);
+var $$file = "C:/Programming section/virnobyte/src/pages/account/invoice/[ref].astro";
+var $$url = "/account/invoice/[ref].html";
+//#endregion
+//#region \0virtual:astro:page:src/pages/account/invoice/[ref]@_@astro
+var page = () => _ref__exports;
+//#endregion
+export { page };

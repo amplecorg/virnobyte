@@ -348,6 +348,48 @@ textarea {
   --btn-bd: #fff;
   --btn-fg: #fff;
 }
+/* "Back to …" links: a small pill with a chevron, used at the top of detail pages. */
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 4px 14px 4px 5px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1;
+  text-decoration: none;
+  box-shadow: 0 1px 2px rgb(11 23 36 / 0.06);
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.back-btn::before {
+  content: '';
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  flex: none;
+  background: #eef2f6 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230b1724' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 18l-6-6 6-6'/%3E%3C/svg%3E") center / 14px no-repeat;
+  transition: transform 0.15s ease;
+}
+.back-btn:hover {
+  border-color: var(--ink);
+  color: var(--ink);
+  box-shadow: 0 2px 8px rgb(11 23 36 / 0.1);
+}
+.back-btn:hover::before {
+  transform: translateX(-2px);
+}
+.back-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 .btn--sm {
   min-height: 40px;
   padding: 0.5em 1em;

@@ -3,6 +3,7 @@ import '@/styles/global.css';
 import '@/styles/admin.css';
 import Icon from '@/components/Icon.astro';
 import { get } from '@/lib/db';
+import { SHIP_BY_HOURS } from '@/lib/inventory/stock';
 
 interface Props {
   title: string;
@@ -14,6 +15,12 @@ const newEnq = get<{ n: number }>("SELECT COUNT(*) AS n FROM enquiries WHERE sta
 const pending = get<{ n: number }>("SELECT COUNT(*) AS n FROM memberships WHERE status = 'pending'")!.n;
 const pcReq = get<{ n: number }>("SELECT COUNT(*) AS n FROM pc_builds WHERE status IN ('quote','ordered')")!.n;
 const newOrders = get<{ n: number }>("SELECT COUNT(*) AS n FROM orders WHERE order_status = 'CONFIRMED'")?.n ?? 0;
+// Inventory badge = things that need you: orders with no vendor or past their ship-by time, plus sold-out products.
+const stuckOrders = get<{ n: number }>(
+  `SELECT COUNT(DISTINCT order_id) AS n FROM inv_allocations
+   WHERE status = 'UNASSIGNED' OR (status IN ('ASSIGNED','ACCEPTED') AND assigned_at <= datetime('now', '-${SHIP_BY_HOURS} hours'))`,
+)?.n ?? 0;
+const outOfStock = get<{ n: number }>('SELECT COUNT(*) AS n FROM inv_products ip JOIN products p ON p.id = ip.product_id WHERE ip.tracked = 1 AND p.published = 1 AND p.in_stock = 0')?.n ?? 0;
 
 const NAV: { group: string; items: { href: string; label: string; key: string; icon: string; badge?: number }[] }[] = [
   { group: 'Overview', items: [{ href: '/admin', label: 'Dashboard', key: 'dashboard', icon: 'dashboard' }] },
@@ -30,6 +37,8 @@ const NAV: { group: string; items: { href: string; label: string; key: string; i
     items: [
       { href: '/admin/r/orders', label: 'Customer Orders', key: 'orders', icon: 'receipt', badge: newOrders },
       { href: '/admin/r/products', label: 'Products Catalog', key: 'products', icon: 'shield' },
+      { href: '/admin/inventory', label: 'Inventory', key: 'inventory', icon: 'cpu', badge: stuckOrders + outOfStock },
+      { href: '/admin/inventory/sources', label: 'Vendors', key: 'vendors', icon: 'briefcase' },
       { href: '/admin/settings#payments', label: 'Payments & Checkout', key: 'payments', icon: 'credit-card' },
     ],
   },

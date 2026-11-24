@@ -6,6 +6,10 @@ import Icon from '@/components/Icon.astro';
 import { RESOURCES } from '@/lib/admin/resources';
 import { parseForm, saveRow, toFormValue } from '@/lib/admin/forms';
 import { get, run } from '@/lib/db';
+import { fulfil, isTracked, reconcileOrderStock, syncProducts, type FulfilAction } from '@/lib/inventory/stock';
+import OrderShipping from '@/components/admin/OrderShipping.astro';
+import { refundOrderCoins } from '@/lib/commerce/coins';
+import { activatePaidMembership } from '@/lib/commerce/membership-checkout';
 
 const def = RESOURCES[Astro.params.resource!];
 if (!def) return Astro.redirect('/admin');
@@ -42,6 +46,26 @@ if (isNew) row = Object.fromEntries(def.fields.map((f) => [f.name, DEFAULTS[f.na
 
 if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
+  const shipAction = String(form.get('_ship_action') ?? '');
+  if (def.key === 'orders' && id && shipAction) {
+    // Shipping panel actions (see OrderShipping.astro); the order form itself is untouched.
+    let msg = '';
+    try {
+      const u = Astro.locals.user!;
+      // Only act on items that belong to this order.
+      const allocId = Number(form.get('alloc_id'));
+      if (!get('SELECT 1 FROM inv_allocations WHERE id = ? AND order_id = ?', allocId, id)) throw new Error('That item is not part of this order.');
+      msg = fulfil(allocId, shipAction as FulfilAction, { kind: 'admin', name: `Admin: ${u.name || u.email}` }, {
+        courier: String(form.get('courier') ?? ''),
+        trackingNo: String(form.get('tracking_no') ?? ''),
+        sourceId: Number(form.get('source_id')) || undefined,
+        restock: form.get('restock') === 'on',
+      });
+    } catch (e: any) {
+      msg = `Error: ${e.message}`;
+    }
+    return Astro.redirect(`/admin/r/orders/${id}?ship=${encodeURIComponent(msg)}#shipping`, 303);
+  }
   if (form.get('_action') === 'delete' && id && def.canDelete !== false) {
     if (def.key === 'plans' && get('SELECT 1 FROM memberships WHERE plan_id = ?', id)) {
       errors._form = 'Members hold cards on this plan. Turn off "On sale" instead of deleting it.';
@@ -55,6 +79,19 @@ if (Astro.request.method === 'POST') {
     if (!Object.keys(errors).length) {
       try {
         const newId = saveRow(def, parsed.row, id);
+        // Inventory owns stock for tracked products and reacts to order status changes (cancel, paid…).
+        if (def.key === 'products') syncProducts([newId]);
+        if (def.key === 'orders') {
+          reconcileOrderStock(newId);
+          // A cancelled order gives the customer's coins back.
+          const o = get<{ order_id: string; order_status: string; payment_status: string; kind: string; membership_id: number | null }>(
+            'SELECT order_id, order_status, payment_status, kind, membership_id FROM orders WHERE id = ?',
+            newId,
+          );
+          if (o?.order_status === 'CANCELLED') refundOrderCoins(o.order_id, 'order cancelled');
+          // Marking a membership purchase as paid (e.g. paid at the counter) activates the card.
+          else if (o?.payment_status === 'PAID') activatePaidMembership(o);
+        }
         return Astro.redirect(form.get('_action') === 'save_close' ? `/admin/r/${def.key}?saved=1` : `/admin/r/${def.key}/${newId}?saved=1`, 303);
       } catch (saveErr: any) {
         console.error('[Admin Save Error]:', saveErr);
@@ -76,13 +113,16 @@ const titleField = def.fields.find((f) => ['name', 'title', 'question', 'caption
 const heading = isNew ? `New ${def.singular}` : (titleField && row[titleField.name]) || `Edit ${def.singular}`;
 const publicUrl = !isNew ? def.publicUrl?.(row) : null;
 const isPlan = def.key === 'plans';
+const stockTracked = def.key === 'products' && id ? isTracked(id) : false;
+const orderHasStock = def.key === 'orders' && id ? !!get('SELECT 1 FROM inv_allocations WHERE order_id = ? LIMIT 1', id) : false;
+const shipMsg = Astro.url.searchParams.get('ship') ?? '';
 let lastSection = '';
 ---
 
 <Admin title={heading} active={def.key}>
   <div class="page-head">
     <div>
-      <a href={`/admin/r/${def.key}`} class="small">← {def.label}</a>
+      <a href={`/admin/r/${def.key}`} class="back-btn">{def.label}</a>
       <h1>{heading}</h1>
     </div>
     {
@@ -95,6 +135,17 @@ let lastSection = '';
   </div>
 
   {saved && <p class="alert alert--ok" role="status" style="margin-bottom:14px">Saved. Changes are live on the website.</p>}
+  {stockTracked && (
+    <p class="alert" style="margin-bottom:14px">
+      Stock for this product is controlled by <a href={`/admin/inventory/products/${id}`}>Inventory</a>: "In stock" below is set automatically from live vendor and own stock.
+    </p>
+  )}
+  {shipMsg && (
+    <p class:list={['alert', shipMsg.startsWith('Error: ') ? 'alert--error' : 'alert--ok']} role="status" style="margin-bottom:14px">
+      {shipMsg.replace(/^Error: /, '')}
+    </p>
+  )}
+  {orderHasStock && id && <OrderShipping orderId={id} />}
   {errors._form && <p class="alert alert--error" role="alert" style="margin-bottom:14px">{errors._form}</p>}
   {Object.keys(errors).filter((k) => k !== '_form').length > 0 && <p class="alert alert--error" role="alert" style="margin-bottom:14px">Some fields need attention — see the messages below.</p>}
 

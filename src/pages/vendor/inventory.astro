@@ -1,0 +1,249 @@
+---
+import Vendor from '@/layouts/Vendor.astro';
+import { ago } from '@/lib/inventory/format';
+import { addListing, catalogSearch, listings, removeListing, saveAvailability, sellerCounts } from '@/lib/inventory/seller';
+import { confirmSourceStock } from '@/lib/inventory/stock';
+import { vendorFromCookies } from '@/lib/inventory/vendor';
+
+/** Seller Hub → Inventory: the vendor's listings with + / − stock, like a marketplace seller account. */
+const vendor = vendorFromCookies(Astro.cookies);
+const sp = Astro.url.searchParams;
+const view = ['all', 'active', 'low', 'out'].includes(sp.get('view') ?? '') ? sp.get('view')! : 'all';
+const q = sp.get('q')?.trim() ?? '';
+const adding = sp.has('add');
+const addQ = sp.get('find')?.trim() ?? '';
+
+let flash = '';
+let error = '';
+if (vendor && Astro.request.method === 'POST') {
+  const f = await Astro.request.formData();
+  const str = (k: string) => String(f.get(k) ?? '').trim();
+  try {
+    switch (str('_action')) {
+      case 'save': {
+        const edits = [...f.keys()]
+          .filter((k) => k.startsWith('avail_'))
+          .map((k) => {
+            const productId = Number(k.slice(6));
+            return { productId, available: Number(str(k)), sku: f.has(`sku_${productId}`) ? str(`sku_${productId}`) : undefined };
+          });
+        const n = saveAvailability(vendor, edits);
+        flash = n ? `Saved. ${n} product${n === 1 ? '' : 's'} updated and your stock is confirmed.` : 'No changes — your stock is confirmed as correct.';
+        break;
+      }
+      case 'confirm':
+        confirmSourceStock(vendor.id);
+        flash = 'Thank you — your stock is confirmed as correct.';
+        break;
+      case 'add':
+        addListing(vendor, Number(str('product_id')), str('sku'), Number(str('available')));
+        flash = 'Product added to your inventory.';
+        break;
+      case 'remove':
+        removeListing(vendor, Number(str('product_id')));
+        flash = 'Product removed from your inventory.';
+        break;
+    }
+  } catch (e: any) {
+    error = e.message;
+  }
+}
+
+const all = vendor ? listings(vendor.id) : [];
+const statusOf = (avail: number) => (avail === 0 ? 'out' : avail <= 2 ? 'low' : 'active');
+const counts = { all: all.length, active: all.filter((l) => l.available > 2).length, low: all.filter((l) => statusOf(l.available) === 'low').length, out: all.filter((l) => l.available === 0).length };
+const rows = all
+  .filter((l) => view === 'all' || statusOf(l.available) === view)
+  .filter((l) => !q || `${l.name} ${l.sku} ${l.category}`.toLowerCase().includes(q.toLowerCase()));
+const results = vendor && adding ? catalogSearch(vendor.id, addQ) : [];
+const orderCounts = vendor ? sellerCounts(vendor.id) : null;
+const lastConfirmed = vendor ? all.reduce<string | null>((m, l) => (!m || l.updated_at > m ? l.updated_at : m), null) : null;
+const VIEWS: [string, string][] = [
+  ['all', 'All'],
+  ['active', 'In stock'],
+  ['low', 'Low stock'],
+  ['out', 'Out of stock'],
+];
+const STATUS_TEXT: Record<string, string> = { active: 'In stock', low: 'Low stock', out: 'Out of stock' };
+---
+
+<Vendor title="Inventory" vendorName={vendor?.name} active="inventory" toShip={orderCounts?.toShip}>
+  <div class="sh-head">
+    <div>
+      <h1>Manage inventory</h1>
+      <p>Set how many units you can sell right now. Use + and −, then save.{lastConfirmed && ` Last change ${ago(lastConfirmed)}.`}</p>
+    </div>
+    <div class="btn-row">
+      {all.length > 0 && (
+        <form method="post">
+          <input type="hidden" name="_action" value="confirm" />
+          <button class="btn btn--sm btn--ghost" type="submit">All stock is correct</button>
+        </form>
+      )}
+      <a class="btn btn--sm sh-primary" href={adding ? '/vendor/inventory' : '/vendor/inventory?add=1'}>{adding ? 'Close' : '+ Add a product'}</a>
+    </div>
+  </div>
+
+  {flash && <p class="alert alert--ok" role="status" style="margin-bottom:14px">{flash}</p>}
+  {error && <p class="alert alert--error" role="alert" style="margin-bottom:14px">{error}</p>}
+
+  {
+    adding && (
+      <section class="sh-card">
+        <div class="sh-card-head">
+          <h2>Add a product from the Virnobyte catalogue</h2>
+        </div>
+        <form method="get" class="sh-tools">
+          <input type="hidden" name="add" value="1" />
+          <input type="search" name="find" value={addQ} placeholder="Search products, e.g. ThinkPad, SSD, CCTV" aria-label="Search the catalogue" autofocus />
+          <button class="btn btn--sm btn--ghost" type="submit">Search</button>
+        </form>
+        {results.length ? (
+          <div class="sh-results">
+            {results.map((p) => (
+              <div class="sh-result">
+                {p.image ? <img class="sh-thumb" style="width:56px;height:56px" src={p.image} alt="" loading="lazy" /> : <span class="sh-thumb empty" style="width:56px;height:56px">—</span>}
+                <div>
+                  <div class="sh-item-name">{p.name}</div>
+                  <div class="sh-meta">{p.category}</div>
+                </div>
+                <form method="post">
+                  <input type="hidden" name="_action" value="add" />
+                  <input type="hidden" name="product_id" value={p.id} />
+                  <input name="sku" placeholder="Your SKU (optional)" style="width:150px" aria-label="Your SKU" />
+                  <input name="available" type="number" min="0" step="1" value="1" style="width:80px" aria-label="Units available" />
+                  <button class="btn btn--sm" type="submit">Add</button>
+                </form>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p class="muted">{addQ ? 'No matching products you are not already selling.' : 'You already list every product in the catalogue.'}</p>
+        )}
+      </section>
+    )
+  }
+
+  <nav class="sh-tabs" aria-label="Filter">
+    {VIEWS.map(([k, label]) => (
+      <a href={`/vendor/inventory?view=${k}${q ? `&q=${encodeURIComponent(q)}` : ''}`} aria-current={k === view ? 'true' : undefined}>
+        {label} ({counts[k as keyof typeof counts]})
+      </a>
+    ))}
+  </nav>
+  <form method="get" class="sh-tools">
+    <input type="hidden" name="view" value={view} />
+    <input type="search" name="q" value={q} placeholder="Search by product name or SKU" aria-label="Search your inventory" />
+    <button class="btn btn--sm btn--ghost" type="submit">Search</button>
+  </form>
+
+  {
+    rows.length ? (
+      <form method="post" id="inv-form" class="sh-card" style="padding:0;overflow:hidden">
+        <input type="hidden" name="_action" value="save" />
+        <table class="sh-inv">
+          <thead>
+            <tr>
+              <th style="width:76px"><span class="sr-only">Photo</span></th>
+              <th>Product</th>
+              <th>Status</th>
+              <th>Your SKU</th>
+              <th>Available to sell</th>
+              <th class="num">Waiting to ship</th>
+              <th><span class="sr-only">Remove</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((l) => (
+              <tr data-row>
+                <td class="sh-c-img">{l.image ? <img class="sh-thumb" src={l.image} alt="" loading="lazy" /> : <span class="sh-thumb empty">—</span>}</td>
+                <td>
+                  <div class="sh-item-name">{l.name}</div>
+                  <div class="sh-meta">{l.category} · updated {ago(l.updated_at)}</div>
+                </td>
+                <td><span class:list={['sh-status', statusOf(l.available)]}>{STATUS_TEXT[statusOf(l.available)]}</span></td>
+                <td><input class="sh-sku" name={`sku_${l.product_id}`} value={l.sku} data-orig={l.sku} placeholder="—" aria-label={`Your SKU for ${l.name}`} /></td>
+                <td>
+                  <div class="sh-step">
+                    <button type="button" data-step="-1" aria-label={`One less ${l.name}`}>−</button>
+                    <input type="number" min="0" step="1" inputmode="numeric" name={`avail_${l.product_id}`} value={l.available} data-orig={l.available} aria-label={`Units of ${l.name} available`} />
+                    <button type="button" data-step="1" aria-label={`One more ${l.name}`}>+</button>
+                  </div>
+                  <button type="button" class="sh-linkbtn" style="display:block;font-size:12px;padding-top:6px" data-zero>Mark out of stock</button>
+                </td>
+                <td class="num">{l.reserved || '—'}</td>
+                <td>
+                  <button class="sh-linkbtn" style="color:#b91c1c;font-size:13px" type="submit" form={`rm-${l.product_id}`}>Remove</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </form>
+    ) : (
+      <section class="sh-card sh-empty">
+        <b>{all.length ? 'No products match' : 'Your inventory is empty'}</b>
+        {all.length ? 'Try another filter or search.' : 'Use “+ Add a product” to choose what you will sell through Virnobyte.'}
+      </section>
+    )
+  }
+  {rows.map((l) => (
+    <form method="post" id={`rm-${l.product_id}`} data-confirm={`Stop selling ${l.name}?`} hidden>
+      <input type="hidden" name="_action" value="remove" />
+      <input type="hidden" name="product_id" value={l.product_id} />
+    </form>
+  ))}
+
+  <div class="sh-savebar" id="savebar" role="region" aria-label="Unsaved changes">
+    <div class="sh-savebar-inner">
+      <span id="savebar-text">You have unsaved changes</span>
+      <div class="btn-row">
+        <button class="btn btn--sm btn--ghost" type="button" id="discard">Discard</button>
+        <button class="btn btn--sm sh-primary" type="submit" form="inv-form">Save changes</button>
+      </div>
+    </div>
+  </div>
+</Vendor>
+
+<script>
+  const form = document.getElementById('inv-form') as HTMLFormElement | null;
+  const bar = document.getElementById('savebar')!;
+  const barText = document.getElementById('savebar-text')!;
+
+  const refresh = () => {
+    if (!form) return;
+    let n = 0;
+    form.querySelectorAll<HTMLTableRowElement>('tr[data-row]').forEach((tr) => {
+      const dirty = [...tr.querySelectorAll<HTMLInputElement>('input[data-orig]')].some((i) => i.value.trim() !== i.dataset.orig);
+      tr.classList.toggle('dirty', dirty);
+      if (dirty) n++;
+    });
+    bar.classList.toggle('show', n > 0);
+    barText.textContent = `${n} product${n === 1 ? '' : 's'} changed — not saved yet`;
+  };
+
+  form?.addEventListener('click', (e) => {
+    const t = e.target as HTMLElement;
+    const row = t.closest('tr');
+    const input = row?.querySelector<HTMLInputElement>('input[type=number]');
+    if (!input) return;
+    if (t.dataset.step) {
+      input.value = String(Math.max(0, (Number(input.value) || 0) + Number(t.dataset.step)));
+      refresh();
+    } else if (t.hasAttribute('data-zero')) {
+      input.value = '0';
+      refresh();
+    }
+  });
+  form?.addEventListener('input', refresh);
+  document.getElementById('discard')?.addEventListener('click', () => {
+    form?.querySelectorAll<HTMLInputElement>('input[data-orig]').forEach((i) => (i.value = i.dataset.orig ?? ''));
+    refresh();
+  });
+  // Warn before leaving with unsaved stock changes.
+  let saving = false;
+  form?.addEventListener('submit', () => (saving = true));
+  window.addEventListener('beforeunload', (e) => {
+    if (!saving && bar.classList.contains('show')) e.preventDefault();
+  });
+</script>

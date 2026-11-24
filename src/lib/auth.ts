@@ -2,7 +2,7 @@ import { randomBytes, createHash } from 'node:crypto';
 import type { AstroCookies } from 'astro';
 import { get, run } from './db';
 import { hashPassword, verifyPassword } from './password';
-import { sendPasswordResetEmail } from './mail';
+import { isMailConfigured, isProduction, sendPasswordResetEmail } from './mail';
 
 export const SESSION_COOKIE = 'vb_session';
 const SESSION_DAYS = 14;
@@ -92,6 +92,12 @@ export async function createPasswordReset(
   const cleanEmail = email.trim().toLowerCase();
   if (!cleanEmail) return { success: false, error: 'Email is required.' };
 
+  // Checked before looking the account up, so the answer is the same whether or not the email exists.
+  if (isProduction() && !isMailConfigured()) {
+    console.error('[Auth] Password reset requested but outgoing email is not set up (Admin → Settings → Email).');
+    return { success: false, error: 'We cannot send emails right now. Please call or WhatsApp us and we will reset your password.' };
+  }
+
   const user = get<User>('SELECT id, email, name, phone, role, created_at FROM users WHERE lower(email) = ?', cleanEmail);
   if (!user) {
     // Return success to prevent email enumeration / account snooping
@@ -118,6 +124,8 @@ export async function createPasswordReset(
   const cleanOrigin = origin.replace(/\/+$/, '');
   const resetUrl = `${cleanOrigin}/account/reset-password?token=${rawToken}`;
 
+  // On the live site the link is only ever emailed, never shown on screen (see devUrl below):
+  // showing it would let anyone reset any account just by typing its email address.
   const mailRes = await sendPasswordResetEmail({
     to: user.email,
     name: user.name,
@@ -126,9 +134,24 @@ export async function createPasswordReset(
 
   return {
     success: mailRes.success,
-    devUrl: mailRes.devMode ? resetUrl : undefined,
-    error: mailRes.error,
+    devUrl: mailRes.devMode && !isProduction() ? resetUrl : undefined,
+    error: mailRes.success ? undefined : 'We could not send the email. Please try again in a few minutes or contact us.',
   };
+}
+
+/**
+ * The public address to put in emailed links. Uses the address the request came in on when
+ * testing on this computer, and PUBLIC_SITE_URL (or the proxy's forwarded host) on the live site,
+ * so links never point at an internal address like http://localhost:3000.
+ */
+export function siteOrigin(ctx: { url: URL; request: Request }): string {
+  const host = ctx.url.hostname;
+  if (host === 'localhost' || host === '127.0.0.1') return ctx.url.origin;
+  const site = String(process.env.PUBLIC_SITE_URL || '').trim().replace(/\/+$/, '');
+  if (/^https?:\/\//.test(site)) return site;
+  const fwdHost = ctx.request.headers.get('x-forwarded-host') || ctx.request.headers.get('host') || ctx.url.host;
+  const proto = ctx.request.headers.get('x-forwarded-proto') || ctx.url.protocol.replace(':', '');
+  return `${proto}://${fwdHost}`;
 }
 
 export function validateResetToken(rawToken: string): { valid: boolean; userId?: number; error?: string } {
